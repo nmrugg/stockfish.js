@@ -92,6 +92,18 @@ ifeq ($(ARCH),general-32)
 	sse = no
 endif
 
+ifeq ($(ARCH),js)
+	arch = any
+	os = any
+	bits = 32
+	prefetch = no
+	bsfq = no
+	popcnt = no
+	sse = no
+	COMP = emscripten
+	EXE = stockfish.js
+endif
+
 # x86-section
 ifeq ($(ARCH),x86-64)
 	arch = x86_64
@@ -231,6 +243,15 @@ ifeq ($(COMP),clang)
 	profile_clean = gcc-profile-clean
 endif
 
+ifeq ($(COMP),emscripten)
+	comp=clang
+	CXX=em++
+	profile_prepare = gcc-profile-prepare
+	profile_make = gcc-profile-make
+	profile_use = gcc-profile-use
+	profile_clean = gcc-profile-clean
+endif
+
 ### 3.2 General compiler settings
 CXXFLAGS = -Wall -Wcast-qual -fno-exceptions -fno-rtti $(EXTRACXXFLAGS)
 
@@ -254,11 +275,19 @@ ifeq ($(os),osx)
 	CXXFLAGS += -arch $(arch) -mmacosx-version-min=10.0
 endif
 
+ifeq ($(COMP),emscripten)
+	CXXFLAGS += -s TOTAL_MEMORY=67108864
+endif
+
 ### 3.3 General linker settings
 LDFLAGS = $(EXTRALDFLAGS)
 
 ifeq ($(comp),mingw)
 	LDFLAGS += -static-libstdc++ -static-libgcc
+endif
+
+ifeq ($(COMP),emscripten)
+	LDFLAGS += -s TOTAL_MEMORY=67108864
 endif
 
 ### On mingw use Windows threads, otherwise POSIX
@@ -317,7 +346,12 @@ ifeq ($(optimize),yes)
 
 	ifeq ($(comp),clang)
 		### -O4 requires a linker that supports LLVM's LTO
-		CXXFLAGS += -O3
+		ifeq ($(COMP),emscripten)
+			CXXFLAGS += -O2
+			LDFLAGS += -O2
+		else
+			CXXFLAGS += -O3
+		endif
 
 		ifeq ($(os),osx)
 			ifeq ($(arch),i386)
@@ -404,6 +438,7 @@ help:
 	@echo "armv7                   > ARMv7 32 bit"
 	@echo "general-64              > unspecified 64-bit"
 	@echo "general-32              > unspecified 32-bit"
+	@echo "js                      > emscripten javascript"
 	@echo ""
 	@echo "Supported compilers:"
 	@echo ""
