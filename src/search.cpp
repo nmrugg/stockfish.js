@@ -240,12 +240,9 @@ void Search::think() {
       Threads[i]->maxPly = 0;
 
   Threads.sleepWhileIdle = Options["Idle Threads Sleep"];
-  Threads.timer->run = true;
-  Threads.timer->notify_one(); // Wake up the recurring timer
 
   id_loop(RootPos); // Let's start searching !
 
-  Threads.timer->run = false; // Stop the timer
   Threads.sleepWhileIdle = true; // Send idle threads to sleep
 
   if (Options["Write Search Log"])
@@ -277,7 +274,6 @@ finalize:
   if (!Signals.stop && (Limits.ponder || Limits.infinite))
   {
       Signals.stopOnPonderhit = true;
-      RootPos.this_thread()->wait_for(Signals.stop);
   }
 
   // Best move could be MOVE_NONE when searching on a stalemate position
@@ -800,7 +796,6 @@ moves_loop: // When in check and at SpNode search starts from here
               continue;
 
           moveCount = ++splitPoint->moveCount;
-          splitPoint->mutex.unlock();
       }
       else
           ++moveCount;
@@ -866,9 +861,6 @@ moves_loop: // When in check and at SpNode search starts from here
               && moveCount >= FutilityMoveCounts[improving][depth]
               && (!threatMove || !refutes(pos, move, threatMove)))
           {
-              if (SpNode)
-                  splitPoint->mutex.lock();
-
               continue;
           }
 
@@ -885,7 +877,6 @@ moves_loop: // When in check and at SpNode search starts from here
 
               if (SpNode)
               {
-                  splitPoint->mutex.lock();
                   if (bestValue > splitPoint->bestValue)
                       splitPoint->bestValue = bestValue;
               }
@@ -896,9 +887,6 @@ moves_loop: // When in check and at SpNode search starts from here
           if (   predictedDepth < 4 * ONE_PLY
               && pos.see_sign(move) < 0)
           {
-              if (SpNode)
-                  splitPoint->mutex.lock();
-
               continue;
           }
 
@@ -984,7 +972,6 @@ moves_loop: // When in check and at SpNode search starts from here
       // Step 18. Check for new best move
       if (SpNode)
       {
-          splitPoint->mutex.lock();
           bestValue = splitPoint->bestValue;
           alpha = splitPoint->alpha;
       }
@@ -993,8 +980,11 @@ moves_loop: // When in check and at SpNode search starts from here
       // was aborted because the user interrupted the search or because we
       // ran out of time. In this case, the return value of the search cannot
       // be trusted, and we don't update the best move and/or PV.
+      // TODO: handle out of time situation
+      /*
       if (Signals.stop || thisThread->cutoff_occurred())
           return value; // To avoid returning VALUE_INFINITE
+      */
 
       if (RootNode)
       {
@@ -1039,20 +1029,6 @@ moves_loop: // When in check and at SpNode search starts from here
                   break;
               }
           }
-      }
-
-      // Step 19. Check for splitting the search
-      if (   !SpNode
-          &&  depth >= Threads.minimumSplitDepth
-          &&  Threads.available_slave(thisThread)
-          &&  thisThread->splitPointsSize < MAX_SPLITPOINTS_PER_THREAD)
-      {
-          assert(bestValue < beta);
-
-          thisThread->split<FakeSplit>(pos, ss, alpha, beta, &bestValue, &bestMove,
-                                       depth, threatMove, moveCount, &mp, NT, cutNode);
-          if (bestValue >= beta)
-              break;
       }
     }
 
@@ -1582,125 +1558,6 @@ void RootMove::insert_pv_in_tt(Position& pos) {
 }
 
 
-/// Thread::idle_loop() is where the thread is parked when it has no work to do
-
-void Thread::idle_loop() {
-
-  // Pointer 'this_sp' is not null only if we are called from split(), and not
-  // at the thread creation. So it means we are the split point's master.
-  SplitPoint* this_sp = splitPointsSize ? activeSplitPoint : NULL;
-
-  assert(!this_sp || (this_sp->masterThread == this && searching));
-
-  while (true)
-  {
-      // If we are not searching, wait for a condition to be signaled instead of
-      // wasting CPU time polling for work.
-      while ((!searching && Threads.sleepWhileIdle) || exit)
-      {
-          if (exit)
-          {
-              assert(!this_sp);
-              return;
-          }
-
-          // Grab the lock to avoid races with Thread::notify_one()
-          mutex.lock();
-
-          // If we are master and all slaves have finished then exit idle_loop
-          if (this_sp && !this_sp->slavesMask)
-          {
-              mutex.unlock();
-              break;
-          }
-
-          // Do sleep after retesting sleep conditions under lock protection, in
-          // particular we need to avoid a deadlock in case a master thread has,
-          // in the meanwhile, allocated us and sent the notify_one() call before
-          // we had the chance to grab the lock.
-          if (!searching && !exit)
-              sleepCondition.wait(mutex);
-
-          mutex.unlock();
-      }
-
-      // If this thread has been assigned work, launch a search
-      if (searching)
-      {
-          assert(!exit);
-
-          Threads.mutex.lock();
-
-          assert(searching);
-          assert(activeSplitPoint);
-          SplitPoint* sp = activeSplitPoint;
-
-          Threads.mutex.unlock();
-
-          Stack stack[MAX_PLY_PLUS_6], *ss = stack+2; // To allow referencing (ss-2)
-          Position pos(*sp->pos, this);
-
-          std::memcpy(ss-2, sp->ss-2, 5 * sizeof(Stack));
-          ss->splitPoint = sp;
-
-          sp->mutex.lock();
-
-          assert(activePosition == NULL);
-
-          activePosition = &pos;
-
-          switch (sp->nodeType) {
-          case Root:
-              search<SplitPointRoot>(pos, ss, sp->alpha, sp->beta, sp->depth, sp->cutNode);
-              break;
-          case PV:
-              search<SplitPointPV>(pos, ss, sp->alpha, sp->beta, sp->depth, sp->cutNode);
-              break;
-          case NonPV:
-              search<SplitPointNonPV>(pos, ss, sp->alpha, sp->beta, sp->depth, sp->cutNode);
-              break;
-          default:
-              assert(false);
-          }
-
-          assert(searching);
-
-          searching = false;
-          activePosition = NULL;
-          sp->slavesMask &= ~(1ULL << idx);
-          sp->nodes += pos.nodes_searched();
-
-          // Wake up master thread so to allow it to return from the idle loop
-          // in case we are the last slave of the split point.
-          if (    Threads.sleepWhileIdle
-              &&  this != sp->masterThread
-              && !sp->slavesMask)
-          {
-              assert(!sp->masterThread->searching);
-              sp->masterThread->notify_one();
-          }
-
-          // After releasing the lock we cannot access anymore any SplitPoint
-          // related data in a safe way becuase it could have been released under
-          // our feet by the sp master. Also accessing other Thread objects is
-          // unsafe because if we are exiting there is a chance are already freed.
-          sp->mutex.unlock();
-      }
-
-      // If this thread is the master of a split point and all slaves have finished
-      // their work at this split point, return from the idle loop.
-      if (this_sp && !this_sp->slavesMask)
-      {
-          this_sp->mutex.lock();
-          bool finished = !this_sp->slavesMask; // Retest under lock protection
-          this_sp->mutex.unlock();
-          if (finished)
-              return;
-      }
-  }
-}
-
-
 /// check_time() is called by the timer thread when the timer triggers. It is
 /// used to print debug info and, more important, to detect when we are out of
 /// available time and so stop the search.
@@ -1721,8 +1578,6 @@ void check_time() {
 
   if (Limits.nodes)
   {
-      Threads.mutex.lock();
-
       nodes = RootPos.nodes_searched();
 
       // Loop across all split points and sum accumulated SplitPoint nodes plus
@@ -1732,8 +1587,6 @@ void check_time() {
           {
               SplitPoint& sp = Threads[i]->splitPoints[j];
 
-              sp.mutex.lock();
-
               nodes += sp.nodes;
               Bitboard sm = sp.slavesMask;
               while (sm)
@@ -1742,11 +1595,7 @@ void check_time() {
                   if (pos)
                       nodes += pos->nodes_searched();
               }
-
-              sp.mutex.unlock();
           }
-
-      Threads.mutex.unlock();
   }
 
   Time::point elapsed = Time::now() - SearchTime;
@@ -1754,7 +1603,7 @@ void check_time() {
                          && !Signals.failedLowAtRoot
                          &&  elapsed > TimeMgr.available_time();
 
-  bool noMoreTime =   elapsed > TimeMgr.maximum_time() - 2 * TimerThread::Resolution
+  bool noMoreTime =   elapsed > TimeMgr.maximum_time() /*- 2 * TimerThread::Resolution*/
                    || stillAtFirstMove;
 
   if (   (Limits.use_time_management() && noMoreTime)

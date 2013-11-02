@@ -1,0 +1,8 @@
+.cproject
+.depend
+.project
+.settings/
+*.o
+stockfish
+stockfish.js*
+*~

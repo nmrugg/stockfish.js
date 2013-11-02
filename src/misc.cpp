@@ -140,41 +140,13 @@ public:
 /// Used to serialize access to std::cout to avoid multiple threads to write at
 /// the same time.
 
-std::ostream& operator<<(std::ostream& os, SyncCout sc) {
-
-  static Mutex m;
-
-  if (sc == io_lock)
-      m.lock();
-
-  if (sc == io_unlock)
-      m.unlock();
-
+std::ostream& operator<<(std::ostream& os, SyncCout /*sc*/) {
   return os;
 }
 
 
 /// Trampoline helper to avoid moving Logger to misc.h
 void start_logger(bool b) { Logger::start(b); }
-
-
-/// timed_wait() waits for msec milliseconds. It is mainly an helper to wrap
-/// conversion from milliseconds to struct timespec, as used by pthreads.
-
-void timed_wait(WaitCondition& sleepCond, Lock& sleepLock, int msec) {
-
-#ifdef _WIN32
-  int tm = msec;
-#else
-  timespec ts, *tm = &ts;
-  uint64_t ms = Time::now() + msec;
-
-  ts.tv_sec = ms / 1000;
-  ts.tv_nsec = (ms % 1000) * 1000000LL;
-#endif
-
-  cond_timedwait(sleepCond, sleepLock, tm);
-}
 
 
 /// prefetch() preloads the given address in L1/L2 cache. This is a non

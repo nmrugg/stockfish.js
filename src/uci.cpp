@@ -77,7 +77,6 @@ void UCI::loop(const string& args) {
           if (token != "ponderhit" || Search::Signals.stopOnPonderhit)
           {
               Search::Signals.stop = true;
-              Threads.main()->notify_one(); // Could be sleeping
           }
           else
               Search::Limits.ponder = false;
