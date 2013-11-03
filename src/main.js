@@ -1,13 +1,17 @@
-onmessage = function(event) {
-	if(event.data.cmd == 'init') {
-		Module.ccall('init', 'number', [], []);
-	} else if(event.data.cmd == 'uci') {
-		Module.ccall('uci_command', 'number', ['string'], [event.data.line])
+(function() {
+	var initialized = false;
+	
+	onmessage = function(event) {
+		if(!initialized) {
+			Module.ccall('init', 'number', [], []);
+			initialized = true;
+		}
+		Module.ccall('uci_command', 'number', ['string'], [event.data])
 	}
-}
-
-console = {
-	log: function(line) {
-		postMessage(line);
+	
+	console = {
+		log: function(line) {
+			postMessage(line);
+		}
 	}
-}
+})();

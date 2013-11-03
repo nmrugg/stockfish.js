@@ -590,6 +590,10 @@ icc-profile-clean:
 -include .depend
 
 
+ifeq ($(COMP),emscripten)
+$(EXE): main.js
+endif
+
 ### ==========================================================================
 ### Section 6. Non-standard targets
 ### ==========================================================================
