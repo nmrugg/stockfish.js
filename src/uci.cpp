@@ -42,6 +42,7 @@ namespace {
   // Keep track of position keys along the setup moves (from start position to the
   // position just before to start searching). Needed by repetition draw detection.
   Search::StateStackPtr SetupStates;
+  Position currentPos;
 
   void setoption(istringstream& up);
   void position(Position& pos, istringstream& up);
@@ -54,73 +55,66 @@ namespace {
 /// that we exit gracefully if the GUI dies unexpectedly. In addition to the UCI
 /// commands, the function also supports a few debug commands.
 
-void UCI::loop(const string& args) {
+void UCI::commandInit() {
+	currentPos = Position(StartFEN, false, Threads.main()); // The root position
+}
 
-  Position pos(StartFEN, false, Threads.main()); // The root position
-  string token, cmd = args;
+void UCI::command(const string& cmd) {
+  istringstream is(cmd);
 
-  do {
-      if (args.empty() && !getline(cin, cmd)) // Block here waiting for input
-          cmd = "quit";
+  string token;
+  is >> skipws >> token;
 
-      istringstream is(cmd);
+  if (token == "quit" || token == "stop" || token == "ponderhit")
+  {
+	  // GUI sends 'ponderhit' to tell us to ponder on the same move the
+	  // opponent has played. In case Signals.stopOnPonderhit is set we are
+	  // waiting for 'ponderhit' to stop the search (for instance because we
+	  // already ran out of time), otherwise we should continue searching but
+	  // switching from pondering to normal search.
+	  if (token != "ponderhit" || Search::Signals.stopOnPonderhit)
+	  {
+		  Search::Signals.stop = true;
+	  }
+	  else
+		  Search::Limits.ponder = false;
+  }
+  else if (token == "perft" && (is >> token)) // Read perft depth
+  {
+	  stringstream ss;
 
-      is >> skipws >> token;
+	  ss << Options["Hash"]    << " "
+		 << Options["Threads"] << " " << token << " current perft";
 
-      if (token == "quit" || token == "stop" || token == "ponderhit")
-      {
-          // GUI sends 'ponderhit' to tell us to ponder on the same move the
-          // opponent has played. In case Signals.stopOnPonderhit is set we are
-          // waiting for 'ponderhit' to stop the search (for instance because we
-          // already ran out of time), otherwise we should continue searching but
-          // switching from pondering to normal search.
-          if (token != "ponderhit" || Search::Signals.stopOnPonderhit)
-          {
-              Search::Signals.stop = true;
-          }
-          else
-              Search::Limits.ponder = false;
-      }
-      else if (token == "perft" && (is >> token)) // Read perft depth
-      {
-          stringstream ss;
+	  benchmark(currentPos, ss);
+  }
+  else if (token == "key")
+	  sync_cout << hex << uppercase << setfill('0')
+				<< "position key: "   << setw(16) << currentPos.key()
+				<< "\nmaterial key: " << setw(16) << currentPos.material_key()
+				<< "\npawn key:     " << setw(16) << currentPos.pawn_key()
+				<< dec << sync_endl;
 
-          ss << Options["Hash"]    << " "
-             << Options["Threads"] << " " << token << " current perft";
+  else if (token == "uci")
+	  sync_cout << "id name " << engine_info(true)
+				<< "\n"       << Options
+				<< "\nuciok"  << sync_endl;
 
-          benchmark(pos, ss);
-      }
-      else if (token == "key")
-          sync_cout << hex << uppercase << setfill('0')
-                    << "position key: "   << setw(16) << pos.key()
-                    << "\nmaterial key: " << setw(16) << pos.material_key()
-                    << "\npawn key:     " << setw(16) << pos.pawn_key()
-                    << dec << sync_endl;
-
-      else if (token == "uci")
-          sync_cout << "id name " << engine_info(true)
-                    << "\n"       << Options
-                    << "\nuciok"  << sync_endl;
-
-      else if (token == "eval")
-      {
-          Search::RootColor = pos.side_to_move(); // Ensure it is set
-          sync_cout << Eval::trace(pos) << sync_endl;
-      }
-      else if (token == "ucinewgame") TT.clear();
-      else if (token == "go")         go(pos, is);
-      else if (token == "position")   position(pos, is);
-      else if (token == "setoption")  setoption(is);
-      else if (token == "flip")       pos.flip();
-      else if (token == "bench")      benchmark(pos, is);
-      else if (token == "d")          sync_cout << pos.pretty() << sync_endl;
-      else if (token == "isready")    sync_cout << "readyok" << sync_endl;
-      else
-          sync_cout << "Unknown command: " << cmd << sync_endl;
-
-  } while (token != "quit" && args.empty()); // Args have one-shot behaviour
-
-  Threads.wait_for_think_finished(); // Cannot quit while search is running
+  else if (token == "eval")
+  {
+	  Search::RootColor = currentPos.side_to_move(); // Ensure it is set
+	  sync_cout << Eval::trace(currentPos) << sync_endl;
+  }
+  else if (token == "ucinewgame") TT.clear();
+  else if (token == "go")         go(currentPos, is);
+  else if (token == "position")   position(currentPos, is);
+  else if (token == "setoption")  setoption(is);
+  else if (token == "flip")       currentPos.flip();
+  else if (token == "bench")      benchmark(currentPos, is);
+  else if (token == "d")          sync_cout << currentPos.pretty() << sync_endl;
+  else if (token == "isready")    sync_cout << "readyok" << sync_endl;
+  else
+	  sync_cout << "Unknown command: " << cmd << sync_endl;
 }
 
 

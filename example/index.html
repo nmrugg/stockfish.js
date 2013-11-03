@@ -1,0 +1,13 @@
+<html>
+  <body>
+    <script>
+      var stockfish = new Worker('stockfish.js');
+      stockfish.onmessage = function(event) {
+        console.log(event.data);
+      }
+      stockfish.postMessage({cmd: 'init'});
+      stockfish.postMessage({cmd: 'uci', line: 'uci'});
+      stockfish.postMessage({cmd: 'uci', line: 'go wtime 300000 btime 300000'});
+    </script>
+  </body>
+</html>

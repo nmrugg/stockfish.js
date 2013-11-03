@@ -4,5 +4,6 @@
 .settings/
 *.o
 stockfish
-stockfish.js*
+/src/stockfish.js*
+node_modules/
 *~

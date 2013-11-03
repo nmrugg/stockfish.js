@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <string>
+#include <stdio.h>
 
 #include "bitboard.h"
 #include "evaluate.h"
@@ -28,26 +29,36 @@
 #include "tt.h"
 #include "ucioption.h"
 
+extern "C" void init() {
+
+	  std::cout << engine_info() << std::endl;
+
+	  UCI::init(Options);
+	  Bitboards::init();
+	  Position::init();
+	  Bitbases::init_kpk();
+	  Search::init();
+	  Pawns::init();
+	  Eval::init();
+	  Threads.init();
+	  TT.set_size(Options["Hash"]);
+
+	  UCI::commandInit();
+}
+
 int main(int argc, char* argv[]) {
-
-  std::cout << engine_info() << std::endl;
-
-  UCI::init(Options);
-  Bitboards::init();
-  Position::init();
-  Bitbases::init_kpk();
-  Search::init();
-  Pawns::init();
-  Eval::init();
-  Threads.init();
-  TT.set_size(Options["Hash"]);
+  init();
 
   std::string args;
 
   for (int i = 1; i < argc; ++i)
       args += std::string(argv[i]) + " ";
 
-  UCI::loop(args);
-
-  Threads.exit();
+  if(!args.empty())
+	  UCI::command(args);
 }
+
+extern "C" void uci_command(const char* cmd) {
+	UCI::command(cmd);
+}
+
