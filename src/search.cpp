@@ -980,11 +980,8 @@ moves_loop: // When in check and at SpNode search starts from here
       // was aborted because the user interrupted the search or because we
       // ran out of time. In this case, the return value of the search cannot
       // be trusted, and we don't update the best move and/or PV.
-      // TODO: handle out of time situation
-      /*
-      if (Signals.stop || thisThread->cutoff_occurred())
+      if (Signals.stop)
           return value; // To avoid returning VALUE_INFINITE
-      */
 
       if (RootNode)
       {

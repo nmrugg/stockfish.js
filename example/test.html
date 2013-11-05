@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <link rel="stylesheet" href="css/chessboard-0.3.0.min.css" />
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script src="js/chess.min.js"></script>
+    <script src="js/chessboard-0.3.0.min.js"></script>
+  </head>
+  <body>
+    <script>
+      var stockfish = new Worker('stockfish.js');
+      stockfish.onmessage = function(event) { console.log(event.data); };
+      stockfish.postMessage('position fen 8/5pkp/1p6/p7/P3p1B1/4p2P/5qPK/1R6 b - - 1 46');
+      stockfish.postMessage('go depth 19');
+      stockfish.postMessage('position fen 8/5pkp/1p6/p7/P3p3/7P/4BqPK/1R6 b - - 0 47');
+      stockfish.postMessage('go depth 19');
+    </script>
+  </body>
+</html>
