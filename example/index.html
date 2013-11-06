@@ -31,7 +31,7 @@
       };
 
       stockfish.onmessage = function(event) {
-        console.log(event.data);
+//        console.log(event.data);
         addToLog('< ' + event.data);
         var match = event.data.match(/^bestmove ([a-h][1-8])([a-h][1-8])([qrbk])?/);
         if(match) {
@@ -41,7 +41,7 @@
       };
 
       function uciCmd(cmd) {
-        console.log(cmd);
+//        console.log(cmd);
         addToLog('> ' + cmd);
         stockfish.postMessage(cmd);
       }
@@ -76,6 +76,16 @@
         onDrop: onDrop,
         onSnapEnd: onSnapEnd
       };
+
+      var bookRequest = new XMLHttpRequest();
+      bookRequest.open('GET', 'book.bin', true);
+      bookRequest.responseType = "arraybuffer";
+      bookRequest.onload = function(event) {
+        if(bookRequest.status == 200) {
+          stockfish.postMessage({book: bookRequest.response});
+        }
+      };
+      bookRequest.send(null);
 
       board = new ChessBoard('board', cfg);
     </script>

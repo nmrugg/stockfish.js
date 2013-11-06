@@ -287,7 +287,7 @@ ifeq ($(comp),mingw)
 endif
 
 ifeq ($(COMP),emscripten)
-	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --pre-js main.js
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js
 endif
 
 ### On mingw use Windows threads, otherwise POSIX
