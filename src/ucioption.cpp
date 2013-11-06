@@ -37,6 +37,7 @@ namespace UCI {
 /// 'On change' actions, triggered by an option's value change
 void on_logger(const Option& o) { start_logger(o); }
 void on_eval(const Option&) { Eval::init(); }
+void on_threads(const Option&) { Threads.read_uci_options(); }
 void on_hash_size(const Option& o) { TT.set_size(o); }
 void on_clear_hash(const Option&) { TT.clear(); }
 
@@ -68,9 +69,9 @@ void init(OptionsMap& o) {
   o["Space"]                       = Option(100, 0, 200, on_eval);
   o["Aggressiveness"]              = Option(100, 0, 200, on_eval);
   o["Cowardice"]                   = Option(100, 0, 200, on_eval);
-  o["Min Split Depth"]             = Option(0, 0, 12);
-  o["Max Threads per Split Point"] = Option(5, 4,  8);
-  o["Threads"]                     = Option(1, 1, 1);
+  o["Min Split Depth"]             = Option(0, 0, 12, on_threads);
+  o["Max Threads per Split Point"] = Option(5, 4,  8, on_threads);
+  o["Threads"]                     = Option(1, 1, MAX_THREADS, on_threads);
   o["Idle Threads Sleep"]          = Option(true);
   o["Hash"]                        = Option(32, 1, 8192, on_hash_size);
   o["Clear Hash"]                  = Option(on_clear_hash);

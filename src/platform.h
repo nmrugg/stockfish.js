@@ -52,6 +52,23 @@ inline int64_t system_time_to_msec() {
   return t.tv_sec * 1000LL + t.tv_usec / 1000;
 }
 
+typedef void* Lock;
+typedef void* WaitCondition;
+typedef void* NativeHandle;
+typedef void*(*pt_start_fn)(void*);
+
+#  define lock_init(x) (x = 0)
+#  define lock_grab(x) ((void)x)
+#  define lock_release(x) ((void)x)
+#  define lock_destroy(x) ((void)x)
+#  define cond_destroy(x) ((void)x)
+#  define cond_init(x) (x = 0)
+#  define cond_signal(x) ((void)x)
+#  define cond_wait(x,y) ((void)x,(void)y)
+#  define cond_timedwait(x,y,z) ((void)x,(void)y,(void)z)
+#  define thread_create(x,f,t) (x = ((void)f,(void)t,(void*)0))
+#  define thread_join(x) ((void)x)
+
 #else // Windows and MinGW
 
 #  include <sys/timeb.h>
