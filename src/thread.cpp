@@ -355,11 +355,6 @@ template void Thread::split< true>(Position&, const Stack*, Value, Value, Value*
 // wait_for_think_finished() waits for main thread to go to sleep then returns
 
 void ThreadPool::wait_for_think_finished() {
-
-  MainThread* t = main();
-  t->mutex.lock();
-  while (t->thinking) sleepCondition.wait(t->mutex);
-  t->mutex.unlock();
 }
 
 
