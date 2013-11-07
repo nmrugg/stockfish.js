@@ -60,7 +60,7 @@
         // make random legal move for black
         console.log(game.pgn());
         uciCmd('position fen ' + game.fen());
-        uciCmd('go movetime 700');
+        uciCmd('go movetime 3000');
       };
 
       // update the board position after the piece snap
