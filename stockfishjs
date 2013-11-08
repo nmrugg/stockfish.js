@@ -1,0 +1,1 @@
+node $(dirname $0)/src/stockfish.js

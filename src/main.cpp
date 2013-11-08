@@ -57,9 +57,11 @@ int main(int argc, char* argv[]) {
   if(!args.empty())
 	  UCI::command(args);
 
+#ifndef EMSCRIPTEN
   std::string cmd;
   while(std::getline(std::cin, cmd))
 	  UCI::command(cmd);
+#endif
 }
 
 extern "C" void uci_command(const char* cmd) {
