@@ -167,7 +167,7 @@ stockfish.onmessage = function(event) {
                 engineStatus.score = '#' + score;
             }
             if(match = line.match(/\b(upper|lower)bound\b/)) {
-                engineStatus.score = (match[1] == 'upper' ? '<= ' : '>= ') + engineStatus.score
+                engineStatus.score = ((match[1] == 'upper') == (game.turn() == 'w') ? '<= ' : '>= ') + engineStatus.score
             }
         }
     }
