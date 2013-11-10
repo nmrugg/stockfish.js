@@ -1,93 +1,70 @@
 <!doctype html>
 <html>
   <head>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="css/chessboard-0.3.0.min.css" />
     <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.2/js/bootstrap.min.js"></script>
     <script src="js/chess.min.js"></script>
     <script src="js/chessboard-0.3.0.min.js"></script>
   </head>
   <body>
-    <div id="board" style="width: 400px"></div>
-    <textarea id="log" cols="120" rows="10" readonly="true"></textarea>
-    <script>
-      var game = new Chess();
-      var board;
-      var stockfish = new Worker('stockfish.js');
-      var logArea = document.getElementById('log');
-      logArea.value = "";
-
-      function addToLog(str) {
-        document.getElementById('log').value += str + "\n";
-        logArea.scrollTop = logArea.scrollHeight;
-      }
-
-      // do not pick up pieces if the game is over
-      // only pick up pieces for White
-      var onDragStart = function(source, piece, position, orientation) {
-        if (game.game_over() ||
-          piece.search(/^b/) !== -1) {
-          return false;
-        }
-      };
-
-      stockfish.onmessage = function(event) {
-//        console.log(event.data);
-        addToLog('< ' + event.data);
-        var match = event.data.match(/^bestmove ([a-h][1-8])([a-h][1-8])([qrbk])?/);
-        if(match) {
-          game.move({from: match[1], to: match[2], promotion: match[3]});
-          board.position(game.fen());
-        }
-      };
-
-      function uciCmd(cmd) {
-//        console.log(cmd);
-        addToLog('> ' + cmd);
-        stockfish.postMessage(cmd);
-      }
-
-      var onDrop = function(source, target) {
-        // see if the move is legal
-        var move = game.move({
-          from: source,
-          to: target,
-          promotion: 'q' // NOTE: always promote to a pawn for example simplicity
-        });
-
-        // illegal move
-        if (move === null) return 'snapback';
-
-        // make random legal move for black
-        console.log(game.pgn());
-        uciCmd('position fen ' + game.fen());
-        uciCmd('go movetime 3000');
-      };
-
-      // update the board position after the piece snap
-      // for castling, en passant, pawn promotion
-      var onSnapEnd = function() {
-        board.position(game.fen());
-      };
-
-      var cfg = {
-        draggable: true,
-        position: 'start',
-        onDragStart: onDragStart,
-        onDrop: onDrop,
-        onSnapEnd: onSnapEnd
-      };
-
-      var bookRequest = new XMLHttpRequest();
-      bookRequest.open('GET', 'book.bin', true);
-      bookRequest.responseType = "arraybuffer";
-      bookRequest.onload = function(event) {
-        if(bookRequest.status == 200) {
-          stockfish.postMessage({book: bookRequest.response});
-        }
-      };
-      bookRequest.send(null);
-
-      board = new ChessBoard('board', cfg);
-    </script>
+    <div class="row">
+      <div class="col-sm-7 col-md-6">
+        <span class="h3" id="time1">0:05:00</span>
+        <div id="board" style="width: 400px"></div>
+        <span class="h3" id="time2">0:05:00</span>
+      </div>
+      <div class="col-sm-5 col-md-6">
+        <h3>Moves:</h3>
+        <div id="pgn">sljnas dl sdal sdlajndals  sdn asd asdjn ad asdljna sd asdljnasdasdl  sadlnjasd  asdlanjs a sdna sd asdlnja sdl asd asjdn asd asdljnas d asd asdlnj</div>
+        <hr>
+        <form class="form-horizontal">
+          <div class="form-group">
+            <label for="timeBase" class="control-label col-xs-4 col-sm-6 col-md-4">Base time (min)</label>
+            <div class="col-xs-4 col-sm-6 col-md-4">
+              <input type="number" class="form-control" id="timeBase" value="5"></input>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="timeInc" class="control-label col-xs-4 col-sm-6 col-md-4">Increment (sec)</label>
+            <div class="col-xs-4 col-sm-6 col-md-4">
+              <input type="number" class="form-control" id="timeInc" value="2"></input>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="skillLevel" class="control-label col-xs-4 col-sm-6 col-md-4">Skill Level (0-20)</label>
+            <div class="col-xs-4 col-sm-6 col-md-4">
+              <input type="number" class="form-control" id="skillLevel" value="20"></input>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="color" class="control-label col-xs-4 col-sm-6 col-md-4">I play</label>
+            <div class="col-xs-4 col-sm-6 col-md-4">
+              <div class="btn-group" data-toggle="buttons">
+                <label class="btn btn-primary active" id="color-white"><input type="radio" name="color">White</label>
+                <label class="btn btn-primary" id="color-black"><input type="radio" name="color">Black</label>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="showScore" class="control-label col-xs-4 col-sm-6 col-md-4">Show score</label>
+            <div class="col-xs-4 col-sm-6 col-md-4">
+              <input type="checkbox" class="form-control" id="showScore" checked></input>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="color" class="control-label col-xs-4 col-sm-6 col-md-4"></label>
+            <div class="col-xs-4 col-sm-6 col-md-4">
+              <button type="button" class="btn btn-primary" onclick="newGame()">New Game</button>
+            </div>
+          </div>
+        </form>
+        <hr>
+        <h3>Engine Status:</h3>
+        <div id="engineStatus">...</div>
+      </div>
+    </div>
+    <script src="vscomp.js"></script>
   </body>
 </html>
