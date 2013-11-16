@@ -1,5 +1,5 @@
 (function() {
-	if(typeof console == 'undefined') {
+	if(typeof process == 'undefined') {
 		var initialized = false;
 		
 		onmessage = function(event) {
