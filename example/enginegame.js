@@ -8,6 +8,7 @@ function engineGame(options) {
     var time = { wtime: 300000, btime: 300000, winc: 2000, binc: 2000 };
     var playerColor = 'white';
     var clockTimeoutID = null;
+    var isEngineRunning = false;
 
     // do not pick up pieces if the game is over
     // only pick up pieces for White
@@ -117,9 +118,14 @@ function engineGame(options) {
                     moves += ' ' + move.from + move.to + (move.promotion ? move.promotion : '');
                 }
                 uciCmd('position startpos moves' + moves);
-                uciCmd('go wtime ' + time.wtime + ' winc ' + time.winc + ' btime ' + time.btime + ' binc ' + time.binc);
+                if(time.depth) {
+                    uciCmd('go depth ' + time.depth);
+                } else {
+                    uciCmd('go wtime ' + time.wtime + ' winc ' + time.winc + ' btime ' + time.btime + ' binc ' + time.binc);
+                }
+                isEngineRunning = true;
             }
-            if(game.history().length >= 2) {
+            if(game.history().length >= 2 && !time.depth) {
                 startClock();
             }
         }
@@ -134,6 +140,7 @@ function engineGame(options) {
         } else {
             var match = line.match(/^bestmove ([a-h][1-8])([a-h][1-8])([qrbk])?/);
             if(match) {
+                isEngineRunning = false;
                 game.move({from: match[1], to: match[2], promotion: match[3]});
                 prepareMove();
             } else if(match = line.match(/^info .*\bdepth (\d+) .*\bnps (\d+)/)) {
@@ -204,8 +211,13 @@ function engineGame(options) {
     board = new ChessBoard('board', cfg);
 
     return {
-        reset: function() { game.reset(); },
-        setPosition: function(fen) { game.fen(fen); },
+        reset: function() {
+            game.reset();
+            uciCmd('setoption name Contempt Factor value 0');
+            uciCmd('setoption name Skill Level value 20');
+            uciCmd('setoption name Aggressiveness value 100');
+        },
+        loadPgn: function(pgn) { game.load_pgn(pgn); },
         setPlayerColor: function(color) {
             playerColor = color;
             board.orientation(playerColor);
@@ -214,9 +226,21 @@ function engineGame(options) {
             uciCmd('setoption name Skill Level value ' + skill);
         },
         setTime: function(baseTime, inc) {
-            time = { wtime: baseTime, btime: baseTime, winc: inc, binc: inc };
+            time = { wtime: baseTime * 1000, btime: baseTime * 1000, winc: inc * 1000, binc: inc * 1000 };
         },
-        setDisplayScore: function(flag) { displayScore = flag; },
+        setDepth: function(depth) {
+            time = { depth: depth };
+        },
+        setContempt: function(contempt) {
+            uciCmd('setoption name Contempt Factor value ' + contempt);
+        },
+        setAggressiveness: function(value) {
+            uciCmd('setoption name Aggressiveness value ' + value);
+        },
+        setDisplayScore: function(flag) {
+            displayScore = flag;
+            displayStatus();
+        },
         start: function() {
             uciCmd('ucinewgame');
             uciCmd('isready');
@@ -224,6 +248,16 @@ function engineGame(options) {
             engineStatus.search = null;
             displayStatus();
             prepareMove();
+        },
+        undo: function() {
+            if(isEngineRunning)
+                return false;
+            game.undo();
+            game.undo();
+            engineStatus.search = null;
+            displayStatus();
+            prepareMove();
+            return true;
         }
     };
 }
