@@ -120,12 +120,14 @@ function engineGame(options) {
                 uciCmd('position startpos moves' + moves);
                 if(time.depth) {
                     uciCmd('go depth ' + time.depth);
+                } else if(time.nodes) {
+                    uciCmd('go nodes ' + time.nodes);
                 } else {
                     uciCmd('go wtime ' + time.wtime + ' winc ' + time.winc + ' btime ' + time.btime + ' binc ' + time.binc);
                 }
                 isEngineRunning = true;
             }
-            if(game.history().length >= 2 && !time.depth) {
+            if(game.history().length >= 2 && !time.depth && !time.nodes) {
                 startClock();
             }
         }
@@ -230,6 +232,9 @@ function engineGame(options) {
         },
         setDepth: function(depth) {
             time = { depth: depth };
+        },
+        setNodes: function(nodes) {
+            time = { nodes: nodes };
         },
         setContempt: function(contempt) {
             uciCmd('setoption name Contempt Factor value ' + contempt);
