@@ -71,7 +71,7 @@ like this:
     node server.js
 
 Alternatively, there is a online version of this example here:
-[exoticorn.github.io/Stockfish-js](http://exoticorn.github.io/Stockfish-js)
+[exoticorn.github.io/stockfish-js](http://exoticorn.github.io/stockfish-js)
 
 The example uses the excellent [chess.js](http://github.com/jhlywa/chess.js)
 and [chessboard.js](http://chessboardjs.com/) libraries.
