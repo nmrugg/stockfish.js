@@ -12,7 +12,7 @@ to where the source code can be found. If you make any changes to the
 source code, these changes must also be made available under the GPL.
 
 The source code for this emscripten port of stockfish can be found
-at http://github.com/exoticorn/Stockfish-js
+at http://github.com/exoticorn/stockfish-js
 */
 (function() {
 	if(typeof process == 'undefined') {
