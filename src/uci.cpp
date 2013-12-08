@@ -27,7 +27,6 @@
 #include "position.h"
 #include "search.h"
 #include "thread.h"
-#include "tt.h"
 #include "ucioption.h"
 
 using namespace std;
@@ -75,6 +74,7 @@ void UCI::command(const string& cmd) {
 	  if (token != "ponderhit" || Search::Signals.stopOnPonderhit)
 	  {
 		  Search::Signals.stop = true;
+		  Threads.main()->notify_one(); // Could be sleeping
 	  }
 	  else
 		  Search::Limits.ponder = false;
@@ -105,7 +105,7 @@ void UCI::command(const string& cmd) {
 	  Search::RootColor = currentPos.side_to_move(); // Ensure it is set
 	  sync_cout << Eval::trace(currentPos) << sync_endl;
   }
-  else if (token == "ucinewgame") TT.clear();
+  else if (token == "ucinewgame") { /* Avoid returning "Unknown command" */ }
   else if (token == "go")         go(currentPos, is);
   else if (token == "position")   position(currentPos, is);
   else if (token == "setoption")  setoption(is);
