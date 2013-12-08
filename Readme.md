@@ -9,6 +9,11 @@ In Firefox, thanks to its asm.js support, it runs at a respactable
 In Chrome it reaches about half the speed of FF - after a short
 warm-up time.
 
+### Download
+
+Download Stockfish DD compiled to javascript:
+[stockfish.js](https://github.com/exoticorn/stockfish-js/releases/download/sf_dd_js/stockfish.js)
+
 ### API
 
 Stockfish-js is designed to run in a web-worker, which can be created
