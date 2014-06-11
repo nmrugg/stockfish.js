@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2013 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2008-2014 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,9 +26,9 @@
 
 using namespace std;
 
-/// Version number. If Version is left empty, then compile date, in the
-/// format DD-MM-YY, is shown in engine_info.
-static const string Version = "DD";
+/// Version number. If Version is left empty, then compile date in the format
+/// DD-MM-YY and show in engine_info.
+static const string Version = "";
 
 
 /// engine_info() returns the full name of the current Stockfish version. This
@@ -40,28 +40,28 @@ const string engine_info(bool to_uci) {
 
   const string months("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec");
   string month, day, year;
-  stringstream s, date(__DATE__); // From compiler, format is "Sep 21 2008"
+  stringstream ss, date(__DATE__); // From compiler, format is "Sep 21 2008"
 
-  s << "Stockfish " << Version << setfill('0');
+  ss << "Stockfish " << Version << setfill('0');
 
   if (Version.empty())
   {
       date >> month >> day >> year;
-      s << setw(2) << day << setw(2) << (1 + months.find(month) / 4) << year.substr(2);
+      ss << setw(2) << day << setw(2) << (1 + months.find(month) / 4) << year.substr(2);
   }
 
-  s << (Is64Bit ? " 64" : "")
-    << (HasPopCnt ? " SSE4.2" : "")
-    << (to_uci ? "\nid author ": " by ")
-    << "Tord Romstad, Marco Costalba and Joona Kiiski";
+  ss << (Is64Bit ? " 64" : "")
+     << (HasPext ? " BMI2" : (HasPopCnt ? " SSE4.2" : ""))
+     << (to_uci  ? "\nid author ": " by ")
+     << "Tord Romstad, Marco Costalba and Joona Kiiski";
 
-  return s.str();
+  return ss.str();
 }
 
 
 /// Debug functions used mainly to collect run-time statistics
 
-static uint64_t hits[2], means[2];
+static int64_t hits[2], means[2];
 
 void dbg_hit_on(bool b) { ++hits[0]; if (b) ++hits[1]; }
 void dbg_hit_on_c(bool c, bool b) { if (c) dbg_hit_on(b); }
@@ -81,8 +81,8 @@ void dbg_print() {
 
 /// Our fancy logging facility. The trick here is to replace cin.rdbuf() and
 /// cout.rdbuf() with two Tie objects that tie cin and cout to a file stream. We
-/// can toggle the logging of std::cout and std:cin at runtime while preserving
-/// usual i/o functionality and without changing a single line of code!
+/// can toggle the logging of std::cout and std:cin at runtime whilst preserving
+/// usual i/o functionality, all without changing a single line of code!
 /// Idea from http://groups.google.com/group/comp.lang.c++/msg/1d941c0f26ea0d81
 
 struct Tie: public streambuf { // MSVC requires splitted streambuf for cin and cout
@@ -137,17 +137,17 @@ public:
 };
 
 
-/// Used to serialize access to std::cout to avoid multiple threads to write at
+/// Used to serialize access to std::cout to avoid multiple threads writing at
 /// the same time.
 
 std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 
   static Mutex m;
 
-  if (sc == io_lock)
+  if (sc == IO_LOCK)
       m.lock();
 
-  if (sc == io_unlock)
+  if (sc == IO_UNLOCK)
       m.unlock();
 
   return os;
@@ -158,8 +158,8 @@ std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 void start_logger(bool b) { Logger::start(b); }
 
 
-/// timed_wait() waits for msec milliseconds. It is mainly an helper to wrap
-/// conversion from milliseconds to struct timespec, as used by pthreads.
+/// timed_wait() waits for msec milliseconds. It is mainly a helper to wrap
+/// the conversion from milliseconds to struct timespec, as used by pthreads.
 
 void timed_wait(WaitCondition& sleepCond, Lock& sleepLock, int msec) {
 
@@ -177,9 +177,9 @@ void timed_wait(WaitCondition& sleepCond, Lock& sleepLock, int msec) {
 }
 
 
-/// prefetch() preloads the given address in L1/L2 cache. This is a non
-/// blocking function and do not stalls the CPU waiting for data to be
-/// loaded from memory, that can be quite slow.
+/// prefetch() preloads the given address in L1/L2 cache. This is a non-blocking
+/// function that doesn't stall the CPU waiting for data to be loaded from memory,
+/// which can be quite slow.
 #ifdef NO_PREFETCH
 
 void prefetch(char*) {}
@@ -189,8 +189,8 @@ void prefetch(char*) {}
 void prefetch(char* addr) {
 
 #  if defined(__INTEL_COMPILER)
-   // This hack prevents prefetches to be optimized away by
-   // Intel compiler. Both MSVC and gcc seems not affected.
+   // This hack prevents prefetches from being optimized away by
+   // Intel compiler. Both MSVC and gcc seem not be affected by this.
    __asm__ ("");
 #  endif
 

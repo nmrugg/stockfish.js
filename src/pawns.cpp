@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2013 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2008-2014 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,13 +49,24 @@ namespace {
   { S(20, 28), S(29, 31), S(33, 31), S(33, 31),
     S(33, 31), S(33, 31), S(29, 31), S(20, 28) } };
 
-  // Pawn chain membership bonus by file and rank (initialized by formula)
-  Score ChainMember[FILE_NB][RANK_NB];
+  // Connected pawn bonus by file and rank (initialized by formula)
+  Score Connected[FILE_NB][RANK_NB];
 
   // Candidate passed pawn bonus by rank
   const Score CandidatePassed[RANK_NB] = {
     S( 0, 0), S( 6, 13), S(6,13), S(14,29),
     S(34,68), S(83,166), S(0, 0), S( 0, 0) };
+
+    // Levers bonus by rank
+  const Score Lever[RANK_NB] = {
+    S( 0, 0), S( 0, 0), S(0, 0), S(0, 0),
+    S(20,20), S(40,40), S(0, 0), S(0, 0) };
+
+  // Bonus for file distance of the two outermost pawns
+  const Score PawnsFileSpan = S(0, 15);
+
+  // Unsupported pawn penalty
+  const Score UnsupportedPawnPenalty = S(20, 10);
 
   // Weakness of our pawn shelter in front of the king indexed by [rank]
   const Value ShelterWeakness[RANK_NB] =
@@ -66,7 +77,7 @@ namespace {
   const Value StormDanger[3][RANK_NB] = {
   { V( 0),  V(64), V(128), V(51), V(26) },
   { V(26),  V(32), V( 96), V(38), V(20) },
-  { V( 0),  V( 0), V( 64), V(25), V(13) } };
+  { V( 0),  V( 0), V(160), V(25), V(13) } };
 
   // Max bonus for king safety. Corresponds to start position with all the pawns
   // in front of the king and no enemy pawn on the horizon.
@@ -82,11 +93,12 @@ namespace {
     const Square Up    = (Us == WHITE ? DELTA_N  : DELTA_S);
     const Square Right = (Us == WHITE ? DELTA_NE : DELTA_SW);
     const Square Left  = (Us == WHITE ? DELTA_NW : DELTA_SE);
+    const Piece pc     = make_piece(Us, PAWN);
 
-    Bitboard b;
+    Bitboard b, p, doubled;
     Square s;
     File f;
-    bool passed, isolated, doubled, opposed, chain, backward, candidate;
+    bool passed, isolated, opposed, connected, backward, candidate, unsupported, lever;
     Score value = SCORE_ZERO;
     const Square* pl = pos.list<PAWN>(Us);
 
@@ -110,22 +122,27 @@ namespace {
         // This file cannot be semi-open
         e->semiopenFiles[Us] &= ~(1 << f);
 
-        // Our rank plus previous one. Used for chain detection
-        b = rank_bb(s) | rank_bb(s - pawn_push(Us));
+        // Previous rank
+        p = rank_bb(s - pawn_push(Us));
 
-        // Flag the pawn as passed, isolated, doubled or member of a pawn
-        // chain (but not the backward one).
-        chain    =   ourPawns   & adjacent_files_bb(f) & b;
-        isolated = !(ourPawns   & adjacent_files_bb(f));
-        doubled  =   ourPawns   & forward_bb(Us, s);
-        opposed  =   theirPawns & forward_bb(Us, s);
-        passed   = !(theirPawns & passed_pawn_mask(Us, s));
+        // Our rank plus previous one
+        b = rank_bb(s) | p;
+
+        // Flag the pawn as passed, isolated, doubled,
+        // unsupported or connected (but not the backward one).
+        connected   =   ourPawns   & adjacent_files_bb(f) & b;
+        unsupported = !(ourPawns   & adjacent_files_bb(f) & p);
+        isolated    = !(ourPawns   & adjacent_files_bb(f));
+        doubled     =   ourPawns   & forward_bb(Us, s);
+        opposed     =   theirPawns & forward_bb(Us, s);
+        passed      = !(theirPawns & passed_pawn_mask(Us, s));
+        lever       =   theirPawns & StepAttacksBB[pc][s];
 
         // Test for backward pawn.
-        // If the pawn is passed, isolated, or member of a pawn chain it cannot
-        // be backward. If there are friendly pawns behind on adjacent files
-        // or if can capture an enemy pawn it cannot be backward either.
-        if (   (passed | isolated | chain)
+        // If the pawn is passed, isolated, or connected it cannot be
+        // backward. If there are friendly pawns behind on adjacent files
+        // or if it can capture an enemy pawn it cannot be backward either.
+        if (   (passed | isolated | connected)
             || (ourPawns & pawn_attack_span(Them, s))
             || (pos.attacks_from<PAWN>(s, Us) & theirPawns))
             backward = false;
@@ -145,9 +162,9 @@ namespace {
 
         assert(opposed | passed | (pawn_attack_span(Us, s) & theirPawns));
 
-        // A not passed pawn is a candidate to become passed, if it is free to
+        // A not-passed pawn is a candidate to become passed, if it is free to
         // advance and if the number of friendly pawns beside or behind this
-        // pawn on adjacent files is higher or equal than the number of
+        // pawn on adjacent files is higher than or equal to the number of
         // enemy pawns in the forward direction on the adjacent files.
         candidate =   !(opposed | passed | backward | isolated)
                    && (b = pawn_attack_span(Them, s + pawn_push(Us)) & ourPawns) != 0
@@ -163,14 +180,17 @@ namespace {
         if (isolated)
             value -= Isolated[opposed][f];
 
+        if (unsupported && !isolated)
+            value -= UnsupportedPawnPenalty;
+
         if (doubled)
-            value -= Doubled[f];
+            value -= Doubled[f] / rank_distance(s, lsb(doubled));
 
         if (backward)
             value -= Backward[opposed][f];
 
-        if (chain)
-            value += ChainMember[f][relative_rank(Us, s)];
+        if (connected)
+            value += Connected[f][relative_rank(Us, s)];
 
         if (candidate)
         {
@@ -179,6 +199,17 @@ namespace {
             if (!doubled)
                 e->candidatePawns[Us] |= s;
         }
+
+        if (lever)
+           value += Lever[relative_rank(Us, s)];
+    }
+
+    // In endgame it's better to have pawns on both wings. So give a bonus according
+    // to file distance between left and right outermost pawns.
+    if (pos.count<PAWN>(Us) > 1)
+    {
+        b = e->semiopenFiles[Us] ^ 0xFF;
+        value += PawnsFileSpan * int(msb(b) - lsb(b));
     }
 
     return value;
@@ -188,18 +219,18 @@ namespace {
 
 namespace Pawns {
 
-/// init() initializes some tables by formula instead of hard-code their values
+/// init() initializes some tables by formula instead of hard-coding their values
 
 void init() {
 
-  const int chainByFile[8] = { 1, 3, 3, 4, 4, 3, 3, 1 };
+  const int bonusesByFile[8] = { 1, 3, 3, 4, 4, 3, 3, 1 };
   int bonus;
 
   for (Rank r = RANK_1; r < RANK_8; ++r)
       for (File f = FILE_A; f <= FILE_H; ++f)
       {
-          bonus = r * (r-1) * (r-2) + chainByFile[f] * (r/2 + 1);
-          ChainMember[f][r] = make_score(bonus, bonus);
+          bonus = r * (r-1) * (r-2) + bonusesByFile[f] * (r/2 + 1);
+          Connected[f][r] = make_score(bonus, bonus);
       }
 }
 
@@ -229,6 +260,7 @@ template<Color Us>
 Value Entry::shelter_storm(const Position& pos, Square ksq) {
 
   const Color Them = (Us == WHITE ? BLACK : WHITE);
+  static const Bitboard MiddleEdges = (FileABB | FileHBB) & (Rank2BB | Rank3BB);
 
   Value safety = MaxSafetyBonus;
   Bitboard b = pos.pieces(PAWN) & (in_front_bb(Us, rank_of(ksq)) | rank_bb(ksq));
@@ -241,25 +273,31 @@ Value Entry::shelter_storm(const Position& pos, Square ksq) {
   {
       b = ourPawns & file_bb(f);
       rkUs = b ? relative_rank(Us, backmost_sq(Us, b)) : RANK_1;
-      safety -= ShelterWeakness[rkUs];
 
       b  = theirPawns & file_bb(f);
       rkThem = b ? relative_rank(Us, frontmost_sq(Them, b)) : RANK_1;
-      safety -= StormDanger[rkUs == RANK_1 ? 0 : rkThem == rkUs + 1 ? 2 : 1][rkThem];
+
+      if (   (MiddleEdges & make_square(f, rkThem))
+          && file_of(ksq) == f
+          && relative_rank(Us, ksq) == rkThem - 1)
+          safety += 200;
+      else
+          safety -= ShelterWeakness[rkUs]
+                  + StormDanger[rkUs == RANK_1 ? 0 : rkThem == rkUs + 1 ? 2 : 1][rkThem];
   }
 
   return safety;
 }
 
 
-/// Entry::update_safety() calculates and caches a bonus for king safety. It is
-/// called only when king square changes, about 20% of total king_safety() calls.
+/// Entry::do_king_safety() calculates a bonus for king safety. It is called only
+/// when king square changes, which is about 20% of total king_safety() calls.
 
 template<Color Us>
-Score Entry::update_safety(const Position& pos, Square ksq) {
+Score Entry::do_king_safety(const Position& pos, Square ksq) {
 
   kingSquares[Us] = ksq;
-  castleRights[Us] = pos.can_castle(Us);
+  castlingRights[Us] = pos.can_castle(Us);
   minKPdistance[Us] = 0;
 
   Bitboard pawns = pos.pieces(Us, PAWN);
@@ -267,22 +305,22 @@ Score Entry::update_safety(const Position& pos, Square ksq) {
       while (!(DistanceRingsBB[ksq][minKPdistance[Us]++] & pawns)) {}
 
   if (relative_rank(Us, ksq) > RANK_4)
-      return kingSafety[Us] = make_score(0, -16 * minKPdistance[Us]);
+      return make_score(0, -16 * minKPdistance[Us]);
 
   Value bonus = shelter_storm<Us>(pos, ksq);
 
-  // If we can castle use the bonus after the castle if it is bigger
-  if (pos.can_castle(make_castle_right(Us, KING_SIDE)))
+  // If we can castle use the bonus after the castling if it is bigger
+  if (pos.can_castle(MakeCastling<Us, KING_SIDE>::right))
       bonus = std::max(bonus, shelter_storm<Us>(pos, relative_square(Us, SQ_G1)));
 
-  if (pos.can_castle(make_castle_right(Us, QUEEN_SIDE)))
+  if (pos.can_castle(MakeCastling<Us, QUEEN_SIDE>::right))
       bonus = std::max(bonus, shelter_storm<Us>(pos, relative_square(Us, SQ_C1)));
 
-  return kingSafety[Us] = make_score(bonus, -16 * minKPdistance[Us]);
+  return make_score(bonus, -16 * minKPdistance[Us]);
 }
 
 // Explicit template instantiation
-template Score Entry::update_safety<WHITE>(const Position& pos, Square ksq);
-template Score Entry::update_safety<BLACK>(const Position& pos, Square ksq);
+template Score Entry::do_king_safety<WHITE>(const Position& pos, Square ksq);
+template Score Entry::do_king_safety<BLACK>(const Position& pos, Square ksq);
 
 } // namespace Pawns
