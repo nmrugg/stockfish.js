@@ -56,6 +56,10 @@ GUI to engine:
 
 These are all the command the engine gets from the interface.
 
+* eval
+    shows details of the current position in centipawns
+    seems to be a stockfish extention
+
 * uci
 	tell engine to use the uci (universal chess interface),
 	this will be sent once as a first command after program boot
