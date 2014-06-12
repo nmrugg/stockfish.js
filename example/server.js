@@ -25,7 +25,7 @@ http.createServer(function (request, response)
         return;
     }
     
-    path.exists(filename, function (exists)
+    fs.exists(filename, function (exists)
     {
         /// If the URI does not exist, display a 404 error.
         if (!exists) {
