@@ -19,6 +19,7 @@
 
 #include <iostream>
 
+#include "book.h"
 #include "bitboard.h"
 #include "evaluate.h"
 #include "position.h"
