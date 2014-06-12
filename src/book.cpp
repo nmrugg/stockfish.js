@@ -334,7 +334,7 @@ namespace {
         key ^= PG.Zobrist.psq[2 * (type_of(p) - 1) + (color_of(p) == WHITE)][s];
     }
 
-    b = pos.can_castle(ALL_CASTLES);
+    b = pos.can_castle(ANY_CASTLING);
 
     while (b)
         key ^= PG.Zobrist.castle[pop_lsb(&b)];

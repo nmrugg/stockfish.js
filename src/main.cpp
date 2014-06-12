@@ -40,7 +40,7 @@ extern "C" void init() {
 	  Pawns::init();
 	  Eval::init();
 	  Threads.init();
-	  TT.set_size(Options["Hash"]);
+	  TT.resize(Options["Hash"]);
 
 	  UCI::commandInit();
 }

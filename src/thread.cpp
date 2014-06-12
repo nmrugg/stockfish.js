@@ -92,19 +92,6 @@ Thread::Thread() /* : splitPoints() */ { // Value-initialization bug in MSVC
 }
 
 
-// cutoff_occurred() checks whether a beta cutoff has occurred in the
-// current active split point, or in some ancestor of the split point.
-
-bool Thread::cutoff_occurred() const {
-
-  for (SplitPoint* sp = activeSplitPoint; sp; sp = sp->parentSplitPoint)
-      if (sp->cutoff)
-          return true;
-
-  return false;
-}
-
-
 // Thread::available_to() checks whether the thread is available to help the
 // thread 'master' at a split point. An obvious requirement is that thread must
 // be idle. With more than two threads, this is not sufficient: If the thread is
@@ -113,7 +100,7 @@ bool Thread::cutoff_occurred() const {
 // stack (the "helpful master concept" in YBWC terminology).
 
 bool Thread::available_to(const Thread* master) const {
-
+return false;
   if (searching)
       return false;
 
@@ -190,28 +177,6 @@ bool Thread::cutoff_occurred() const {
           return true;
 
   return false;
-}
-
-
-// Thread::available_to() checks whether the thread is available to help the
-// thread 'master' at a split point. An obvious requirement is that thread must
-// be idle. With more than two threads, this is not sufficient: If the thread is
-// the master of some split point, it is only available as a slave to the slaves
-// which are busy searching the split point at the top of slaves split point
-// stack (the "helpful master concept" in YBWC terminology).
-
-bool Thread::available_to(const Thread* master) const {
-
-//  if (searching)
-      return false;
-
-  // Make a local copy to be sure doesn't become zero under our feet while
-  // testing next condition and so leading to an out of bound access.
-  int size = splitPointsSize;
-
-  // No split points means that the thread is available as a slave for any
-  // other thread otherwise apply the "helpful master" concept if possible.
-  return !size || (splitPoints[size - 1].slavesMask & (1ULL << master->idx));
 }
 
 
