@@ -1,5 +1,7 @@
 ### Stockfish-js
 
+This is a fork of a fork. It has been updated to Stockfish 5.
+
 Stockfish-js is an emscripten port of the stockfish chess engine.
 (Emscripten being a c[++] to javascript compiler.)
 This enables one to run one of the strongest chess engines available
