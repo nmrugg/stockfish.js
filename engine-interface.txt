@@ -59,6 +59,8 @@ These are all the command the engine gets from the interface.
 * eval
     shows details of the current position in centipawns
     seems to be a stockfish extention
+    NOTE: It does not take into account future moves (i.e., a queen about to get captured).
+          To get info about future moves, use the "go" command.
 
 * uci
 	tell engine to use the uci (universal chess interface),
