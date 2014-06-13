@@ -8,6 +8,41 @@ var http = require("http"),
     fs   = require("fs"),
     port = process.argv[2] || 8080; /// Defaults to port 8080
 
+function get_mime(filename)
+{
+    var ext = path.extname(filename);
+    
+    if (ext === ".html" || ext === ".htm") {
+        return "text/html";
+    } else if (ext === ".css") {
+        return "text/css";
+    } else if (ext === ".js") {
+        return "application/javascript";
+    } else if (ext === ".png") {
+        return "image/png";
+    } else if (ext === ".jpg" || ext === ".jpeg") {
+        return "image/jpeg";
+    } else if (ext === ".gif") {
+        return "image/gif";
+    } else if (ext === ".pdf") {
+        return "application/pdf";
+    } else if (ext === ".webp") {
+        return "image/webp";
+    } else if (ext === ".txt") {
+        return "text/plain";
+    } else if (ext === ".svg") {
+        return "image/svg+xml";
+    } else if (ext === ".xml") {
+        return "application/xml";
+    } else if (ext === ".bin") {
+        return "application/octet-stream";
+    } else if (ext === ".ttf") {
+        return "application/x-font-ttf";
+    } else if (ext === ".woff") {
+        return "application/font-woff";
+    }
+}
+
 /// Start the server.
 http.createServer(function (request, response)
 {
@@ -42,6 +77,8 @@ http.createServer(function (request, response)
         
         fs.readFile(filename, "binary", function (err, file)
         {
+            var mime;
+            
             /// If the file cannot be loaded, display a 500 error.
             if (err) {
                 response.writeHead(500, {"Content-Type": "text/plain"});
@@ -50,8 +87,10 @@ http.createServer(function (request, response)
                 return;
             }
             
+            mime = get_mime(filename);
+            
             /// If the file loads correctly, write it to the client.
-            response.writeHead(200);
+            response.writeHead(200, mime ? {"Content-Type": mime} : undefined);
             response.write(file, "binary");
             response.end();
         });
