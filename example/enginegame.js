@@ -136,26 +136,36 @@ function engineGame(options) {
 
     engine.onmessage = function(event) {
         var line = event.data;
+        console.log("Reply: " + line)
         if(line == 'uciok') {
             engineStatus.engineLoaded = true;
         } else if(line == 'readyok') {
             engineStatus.engineReady = true;
         } else {
             var match = line.match(/^bestmove ([a-h][1-8])([a-h][1-8])([qrbk])?/);
+            /// Did the AI move?
             if(match) {
                 isEngineRunning = false;
                 game.move({from: match[1], to: match[2], promotion: match[3]});
                 prepareMove();
+                uciCmd("eval")
+            /// Is it sending feedback?
             } else if(match = line.match(/^info .*\bdepth (\d+) .*\bnps (\d+)/)) {
                 engineStatus.search = 'Depth: ' + match[1] + ' Nps: ' + match[2];
             }
+            
+            /// Is it sending feed back with a score?
             if(match = line.match(/^info .*\bscore (\w+) (-?\d+)/)) {
                 var score = parseInt(match[2]) * (game.turn() == 'w' ? 1 : -1);
+                /// Is it measuring in centipawns?
                 if(match[1] == 'cp') {
                     engineStatus.score = (score / 100.0).toFixed(2);
+                /// Did it find a mate?
                 } else if(match[1] == 'mate') {
                     engineStatus.score = 'Mate in ' + Math.abs(score);
                 }
+                
+                /// Is the score bounded?
                 if(match = line.match(/\b(upper|lower)bound\b/)) {
                     engineStatus.score = ((match[1] == 'upper') == (game.turn() == 'w') ? '<= ' : '>= ') + engineStatus.score
                 }
@@ -199,6 +209,7 @@ function engineGame(options) {
         bookRequest.responseType = "arraybuffer";
         bookRequest.onload = function(event) {
             if(bookRequest.status == 200) {
+                /// command line: setoption name OwnBook value true
                 engine.postMessage({book: bookRequest.response});
                 engineStatus.book = 'ready.';
                 displayStatus();
@@ -219,7 +230,7 @@ function engineGame(options) {
             game.reset();
             uciCmd('setoption name Contempt Factor value 0');
             uciCmd('setoption name Skill Level value 20');
-            uciCmd('setoption name Aggressiveness value 100');
+            uciCmd('setoption name King Safety value 200'); /// Agressive 100 (it's now symetric)
         },
         loadPgn: function(pgn) { game.load_pgn(pgn); },
         setPlayerColor: function(color) {
