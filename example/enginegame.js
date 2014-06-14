@@ -39,7 +39,7 @@ function engineGame(options) {
         if(engineStatus.search) {
             status += '<br>' + engineStatus.search;
             if(engineStatus.score && displayScore) {
-                status += ' Score: ' + engineStatus.score;
+                status += (engineStatus.score.substr(0, 4) === "Mate" ? " " : ' Score: ') + engineStatus.score;
             }
         }
         $('#engineStatus').html(status);
@@ -154,7 +154,7 @@ function engineGame(options) {
                 if(match[1] == 'cp') {
                     engineStatus.score = (score / 100.0).toFixed(2);
                 } else if(match[1] == 'mate') {
-                    engineStatus.score = '#' + score;
+                    engineStatus.score = 'Mate in ' + Math.abs(score);
                 }
                 if(match = line.match(/\b(upper|lower)bound\b/)) {
                     engineStatus.score = ((match[1] == 'upper') == (game.turn() == 'w') ? '<= ' : '>= ') + engineStatus.score
@@ -185,6 +185,7 @@ function engineGame(options) {
     };
 
     var cfg = {
+        showErrors: true,
         draggable: true,
         position: 'start',
         onDragStart: onDragStart,
