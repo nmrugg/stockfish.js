@@ -219,9 +219,7 @@ namespace {
   /// Re-added
   // weight_option() computes the value of an evaluation weight, by combining
   // two UCI-configurable weights (midgame and endgame) with an internal weight.
-
   Weight weight_option(const std::string& mgOpt, const std::string& egOpt, Score internalWeight) {
-
     Weight w = { Options[mgOpt] * mg_value(internalWeight) / 100,
                  Options[egOpt] * eg_value(internalWeight) / 100 };
     return w;
