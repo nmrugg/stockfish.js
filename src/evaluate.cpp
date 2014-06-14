@@ -91,12 +91,24 @@ namespace {
 
   // Evaluation weights, indexed by evaluation term
   enum { Mobility, PawnStructure, PassedPawns, Space, KingSafety };
-  const struct Weight { int mg, eg; } Weights[] = {
+  struct Weight { int mg, eg; } Weights[] = {
     {289, 344}, {233, 201}, {221, 273}, {46, 0}, {318, 0}
   };
 
   typedef Value V;
   #define S(mg, eg) make_score(mg, eg)
+  
+  /// Re-added
+  // Internal evaluation weights. These are applied on top of the evaluation
+  // weights read from UCI parameters. The purpose is to be able to change
+  // the evaluation weights while keeping the default values of the UCI
+  // parameters at 100, which looks prettier.
+  //
+  ///NOTE: This was deleted upstream. It should match the Weight struct above.
+  ///      Also, Weight is a const upstream.
+  const Score WeightsInternal[] = {
+    S(289, 344), S(233, 201), S(221, 273), S(46, 0), S(318, 0)
+  };
 
   // MobilityBonus[PieceType][attacked] contains bonuses for middle and end
   // game, indexed by piece type and number of attacked squares not occupied by
@@ -203,6 +215,17 @@ namespace {
     return make_score(mg_value(v) * w.mg / 256, eg_value(v) * w.eg / 256);
   }
 
+
+  /// Re-added
+  // weight_option() computes the value of an evaluation weight, by combining
+  // two UCI-configurable weights (midgame and endgame) with an internal weight.
+
+  Weight weight_option(const std::string& mgOpt, const std::string& egOpt, Score internalWeight) {
+
+    Weight w = { Options[mgOpt] * mg_value(internalWeight) / 100,
+                 Options[egOpt] * eg_value(internalWeight) / 100 };
+    return w;
+  }
 
   // init_eval_info() initializes king bitboards for given color adding
   // pawn attacks. To be done at the beginning of the evaluation.
@@ -872,6 +895,12 @@ namespace Eval {
   /// and setup king tables.
 
   void init() {
+    /// Re-added
+    Weights[Mobility]       = weight_option("Mobility (Midgame)", "Mobility (Endgame)", WeightsInternal[Mobility]);
+    Weights[PawnStructure]  = weight_option("Pawn Structure (Midgame)", "Pawn Structure (Endgame)", WeightsInternal[PawnStructure]);
+    Weights[PassedPawns]    = weight_option("Passed Pawns (Midgame)", "Passed Pawns (Endgame)", WeightsInternal[PassedPawns]);
+    Weights[Space]          = weight_option("Space", "Space", WeightsInternal[Space]);
+    Weights[KingSafety]     = weight_option("King Safety", "King Safety", WeightsInternal[KingSafety]);
 
     const double MaxSlope = 30;
     const double Peak = 1280;
