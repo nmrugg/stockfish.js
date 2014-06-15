@@ -74,13 +74,12 @@ the example folder. To run this, it needs to be served by a webserver.
 If you have node.js, you can start a simple webserver in that directory
 like this:
 
-    npm install connect # once to install the connect library
     node server.js
 
 Alternatively, there is a online version of this example here:
 [exoticorn.github.io/stockfish-js](http://exoticorn.github.io/stockfish-js)
 
-The example uses the excellent [chess.js](http://github.com/jhlywa/chess.js)
+The example uses [chess.js](http://github.com/jhlywa/chess.js)
 and [chessboard.js](http://chessboardjs.com/) libraries.
 
 ## Original Stockfish Readme:
