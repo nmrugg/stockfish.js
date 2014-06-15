@@ -119,6 +119,7 @@ function engineGame(options) {
                     moves += ' ' + move.from + move.to + (move.promotion ? move.promotion : '');
                 }
                 uciCmd('position startpos moves' + moves);
+                uciCmd('eval');
                 if(time.depth) {
                     uciCmd('go depth ' + time.depth);
                 } else if(time.nodes) {
@@ -230,7 +231,7 @@ function engineGame(options) {
             game.reset();
             uciCmd('setoption name Contempt Factor value 0');
             uciCmd('setoption name Skill Level value 20');
-            uciCmd('setoption name King Safety value 200'); /// Agressive 100 (it's now symetric)
+            uciCmd('setoption name King Safety value 0'); /// Agressive 100 (it's now symetric)
         },
         loadPgn: function(pgn) { game.load_pgn(pgn); },
         setPlayerColor: function(color) {
