@@ -1335,12 +1335,12 @@ moves_loop: // When in check and at SpNode search starts from here
         int s = RootMoves[i].score;
 
         // Don't allow crazy blunders even at very low skills
-        if (i > 0 && RootMoves[i-1].score > s + 2 * PawnValueMg)
+        if (i > 0 && RootMoves[i-1].score > s + Options["Skill Level Maximum Error"] * PawnValueMg) ///PATCH: Actually, yes, possibly allow crazy blunders (http://support.stockfishchess.org/discussions/suggestions/94-skill-level-request-to-spread-the-skill-over-a-wider-range)
             break;
 
         // This is our magic formula
         s += (  weakness * int(RootMoves[0].score - s)
-              + variance * (rk.rand<unsigned>() % weakness)) / 128;
+              + variance * (rk.rand<unsigned>() % weakness)) / Options["Skill Level Probability"]; ///PATCH
 
         if (s > max_s)
         {
