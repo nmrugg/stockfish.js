@@ -215,7 +215,6 @@ namespace {
     return make_score(mg_value(v) * w.mg / 256, eg_value(v) * w.eg / 256);
   }
 
-
   /// Re-added
   // weight_option() computes the value of an evaluation weight, by combining
   // two UCI-configurable weights (midgame and endgame) with an internal weight.
