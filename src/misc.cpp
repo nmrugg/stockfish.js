@@ -42,7 +42,7 @@ const string engine_info(bool to_uci) {
   string month, day, year;
   stringstream ss, date(__DATE__); // From compiler, format is "Sep 21 2008"
 
-  ss << "Stockfish " << Version << setfill('0');
+  ss << "Stockfish.js " << Version << setfill('0');
 
   if (Version.empty())
   {
@@ -53,7 +53,7 @@ const string engine_info(bool to_uci) {
   ss << (Is64Bit ? " 64" : "")
      << (HasPext ? " BMI2" : (HasPopCnt ? " SSE4.2" : ""))
      << (to_uci  ? "\nid author ": " by ")
-     << "Tord Romstad, Marco Costalba and Joona Kiiski";
+     << "Tord Romstad, Marco Costalba, Joona Kiiski & Nathan Rugg";
 
   return ss.str();
 }
