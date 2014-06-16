@@ -350,12 +350,12 @@ Stack *ss_ref;
   */
   void async_loop(void *arg) {
   //void async_loop() {
-        int &depth = depth_ref;
-        Value &bestValue = bestValue_ref;
-        Value &alpha = alpha_ref;
-        Value &beta = beta_ref;
-        Value &delta = delta_ref;
-        Position &pos = pos_ref;
+        int depth = depth_ref;
+        Value bestValue = bestValue_ref;
+        Value alpha = alpha_ref;
+        Value beta = beta_ref;
+        Value delta = delta_ref;
+        Position pos = pos_ref;
         Stack *ss = ss_ref;
         Skill skill(Options["Skill Level"]);
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
@@ -482,6 +482,13 @@ Stack *ss_ref;
                     Signals.stop = true;
             }
         }
+        depth_ref = depth;
+        bestValue_ref = bestValue;
+        alpha_ref = alpha;
+        beta_ref = beta;
+        delta_ref = delta;
+        pos_ref = pos;
+        ss_ref = ss;
         emscripten_async_call(async_loop, NULL, 1); /// loop
   }
     //};
