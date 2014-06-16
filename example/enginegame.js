@@ -267,7 +267,40 @@ function engineGame(options) {
             board.orientation(playerColor);
         },
         setSkillLevel: function(skill) {
+            var max_err,
+                err_prob;
+            
             uciCmd('setoption name Skill Level value ' + skill);
+            
+            /// 17+ have no difference in error making.
+            if (skill > 16) {
+                max_err = 2;
+                error_prop = 128;
+            } else {
+                /// Level 0 starts at 1
+                err_prob = Math.round((skill * 6.35) + 1);
+                if (skill <= 5) {
+                    /// Level 0 starts at 100
+                    max_err = Math.round((skill * -4.9) + 100);
+                } else {
+                    /// Level 6 starts at 10
+                    max_err = Math.round((skill * -0.8) + 14.8);
+                }
+            }
+            max_err = 100
+            err_prob = 128
+            
+            console.log("skill " + skill);
+            console.log("max_err " + max_err);
+            console.log("err_prob " + err_prob);
+            //if (skill === 0) {
+            // x=0,  y=100
+            // x=20, y=2
+            // 0y + x = 100; 20y + x = 2
+            //0y + x = 1; 20y + x = 128
+            uciCmd('setoption name Skill Level Maximum Error value ' + max_err);
+            uciCmd('setoption name Skill Level Probability value ' + err_prob);
+            //}
         },
         setTime: function(baseTime, inc) {
             time = { wtime: baseTime * 1000, btime: baseTime * 1000, winc: inc * 1000, binc: inc * 1000 };
