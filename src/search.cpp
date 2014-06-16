@@ -344,8 +344,8 @@ Stack *ss_ref;
     delta_ref = delta;
     pos_ref = pos;
     ss_ref = ss;
-    sync_cout << "1 ss_ref" << sync_endl;
-    sync_cout << ss_ref << sync_endl;
+    //sync_cout << "1 ss_ref" << sync_endl;
+    //sync_cout << ss_ref << sync_endl;
     //skill_ref = &skill;
     //emscripten_set_main_loop(async_loop, 0, 0);
     async_loop(NULL);
@@ -360,8 +360,8 @@ Stack *ss_ref;
   */
   void async_loop(void *arg) {
   //void async_loop() {
-  sync_cout << "2 ss_ref" << sync_endl;
-  sync_cout << ss_ref << sync_endl;
+  //sync_cout << "2 ss_ref" << sync_endl;
+  //sync_cout << ss_ref << sync_endl;
         int depth = depth_ref;
         Value bestValue = bestValue_ref;
         Value alpha = alpha_ref;
@@ -371,8 +371,8 @@ Stack *ss_ref;
         Stack *ss = ss_ref;
         Skill skill(Options["Skill Level"]);
         
-  sync_cout << "2 ss" << sync_endl;
-  sync_cout << ss << sync_endl;
+  //sync_cout << "2 ss" << sync_endl;
+  //sync_cout << ss << sync_endl;
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
             //emscripten_cancel_main_loop();
             Search::emscript_think_done();
