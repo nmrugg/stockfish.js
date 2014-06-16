@@ -335,6 +335,8 @@ Stack *ss_ref;
 
     // Iterative deepening loop until requested to stop or target depth reached
     //while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))
+    sync_cout << "1 ss" << sync_endl;
+    sync_cout << ss << sync_endl;
     depth_ref = depth;
     bestValue_ref = bestValue;
     alpha_ref = alpha;
@@ -342,6 +344,8 @@ Stack *ss_ref;
     delta_ref = delta;
     pos_ref = pos;
     ss_ref = ss;
+    sync_cout << "1 ss_ref" << sync_endl;
+    sync_cout << ss_ref << sync_endl;
     //skill_ref = &skill;
     //emscripten_set_main_loop(async_loop, 0, 0);
     async_loop(NULL);
@@ -356,6 +360,8 @@ Stack *ss_ref;
   */
   void async_loop(void *arg) {
   //void async_loop() {
+  sync_cout << "2 ss_ref" << sync_endl;
+  sync_cout << ss_ref << sync_endl;
         int depth = depth_ref;
         Value bestValue = bestValue_ref;
         Value alpha = alpha_ref;
@@ -364,6 +370,9 @@ Stack *ss_ref;
         Position pos = pos_ref;
         Stack *ss = ss_ref;
         Skill skill(Options["Skill Level"]);
+        
+  sync_cout << "2 ss" << sync_endl;
+  sync_cout << ss << sync_endl;
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
             //emscripten_cancel_main_loop();
             Search::emscript_think_done();
@@ -387,7 +396,8 @@ Stack *ss_ref;
                 alpha = std::max(RootMoves[PVIdx].prevScore - delta,-VALUE_INFINITE);
                 beta  = std::min(RootMoves[PVIdx].prevScore + delta, VALUE_INFINITE);
             }
-
+      //sync_cout << "ss"  << sync_endl;
+      //sync_cout << ss  << sync_endl;
             // Start with a small aspiration window and, in the case of a fail
             // high/low, re-search with a bigger window until we're not failing
             // high/low anymore.
@@ -488,6 +498,11 @@ Stack *ss_ref;
                     Signals.stop = true;
             }
         }
+        
+  sync_cout << "3 ss" << sync_endl;
+  sync_cout << ss << sync_endl;
+  sync_cout << "3 ss_ref" << sync_endl;
+  sync_cout << ss_ref << sync_endl;
         depth_ref = depth;
         bestValue_ref = bestValue;
         alpha_ref = alpha;
@@ -495,6 +510,8 @@ Stack *ss_ref;
         delta_ref = delta;
         pos_ref = pos;
         ss_ref = ss;
+  sync_cout << "4 ss_ref" << sync_endl;
+  sync_cout << ss_ref << sync_endl;
         #ifdef EMSCRIPTEN
         emscripten_async_call(async_loop, NULL, 1); /// loop
         #else
@@ -573,6 +590,13 @@ Stack *ss_ref;
     (ss+1)->skipNullMove = false; (ss+1)->reduction = DEPTH_ZERO;
     (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
 
+/*
+sync_cout << "here" << sync_endl;
+sync_cout << PvNode << sync_endl;
+sync_cout << thisThread->maxPly << sync_endl;
+sync_cout << ss->ply << sync_endl;
+sync_cout << ss << sync_endl;
+*/
     // Used to send selDepth info to GUI
     if (PvNode && thisThread->maxPly < ss->ply)
         thisThread->maxPly = ss->ply;
