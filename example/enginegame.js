@@ -3,6 +3,7 @@ function engineGame(options) {
     var game = new Chess();
     var board;
     var engine = new Worker(options.stockfishjs || 'stockfish.js');
+    var evaler = new Worker(options.stockfishjs || 'stockfish.js');
     var engineStatus = {};
     var displayScore = false;
     var time = { wtime: 300000, btime: 300000, winc: 2000, binc: 2000 };
@@ -20,11 +21,19 @@ function engineGame(options) {
             }
     };
 
-    function uciCmd(cmd) {
-        console.log("UCI: " + cmd)
-        engine.postMessage(cmd);
+    function uciCmd(cmd, which) {
+        if (typeof cmd === "object") {
+            console.log("UCI: <adding book>")
+        } else {
+            console.log("UCI: " + cmd)
+        }
+        
+        (which || engine).postMessage(cmd);
     }
     uciCmd('uci');
+    
+    uciCmd("uci", evaler);
+    uciCmd('setoption name Skill Level value 20');
 
     function displayStatus() {
         var status = 'Engine: ';
@@ -103,6 +112,19 @@ function engineGame(options) {
         time.startTime = Date.now();
         clockTick();
     }
+    
+    function get_moves()
+    {
+        var moves = '';
+        var history = game.history({verbose: true});
+        
+        for(var i = 0; i < history.length; ++i) {
+            var move = history[i];
+            moves += ' ' + move.from + move.to + (move.promotion ? move.promotion : '');
+        }
+        
+        return moves;
+    }
 
     function prepareMove() {
         stopClock();
@@ -112,20 +134,17 @@ function engineGame(options) {
         var turn = game.turn() == 'w' ? 'white' : 'black';
         if(!game.game_over()) {
             if(turn != playerColor) {
-                var moves = '';
-                var history = game.history({verbose: true});
-                for(var i = 0; i < history.length; ++i) {
-                    var move = history[i];
-                    moves += ' ' + move.from + move.to + (move.promotion ? move.promotion : '');
-                }
-                uciCmd('position startpos moves' + moves);
-                uciCmd('eval');
+                uciCmd('position startpos moves' + get_moves());
+                //uciCmd('eval');
+                uciCmd('position startpos moves' + get_moves(), evaler);
+                uciCmd("eval", evaler);
+                
                 if(time.depth) {
                     uciCmd('go depth ' + time.depth);
                 } else if(time.nodes) {
                     uciCmd('go nodes ' + time.nodes);
                 } else {
-                    uciCmd('go wtime ' + time.wtime + ' winc ' + time.winc + ' btime ' + time.btime + ' binc ' + time.binc);
+                    uciCmd('go go depth 1 wtime ' + time.wtime + ' winc ' + time.winc + ' btime ' + time.btime + ' binc ' + time.binc);
                 }
                 isEngineRunning = true;
             }
@@ -133,6 +152,12 @@ function engineGame(options) {
                 startClock();
             }
         }
+    }
+
+    evaler.onmessage = function(event) {
+        var line = event.data;
+        
+        console.log("evaler: " + line);
     }
 
     engine.onmessage = function(event) {
@@ -149,7 +174,8 @@ function engineGame(options) {
                 isEngineRunning = false;
                 game.move({from: match[1], to: match[2], promotion: match[3]});
                 prepareMove();
-                uciCmd("eval")
+                //uciCmd("eval")
+                uciCmd("eval", evaler);
             /// Is it sending feedback?
             } else if(match = line.match(/^info .*\bdepth (\d+) .*\bnps (\d+)/)) {
                 engineStatus.search = 'Depth: ' + match[1] + ' Nps: ' + match[2];
@@ -211,7 +237,8 @@ function engineGame(options) {
         bookRequest.onload = function(event) {
             if(bookRequest.status == 200) {
                 /// command line: setoption name OwnBook value true
-                engine.postMessage({book: bookRequest.response});
+                //engine.postMessage({book: bookRequest.response});
+                uciCmd({book: bookRequest.response})
                 engineStatus.book = 'ready.';
                 displayStatus();
             } else {
@@ -230,7 +257,8 @@ function engineGame(options) {
         reset: function() {
             game.reset();
             uciCmd('setoption name Contempt Factor value 0');
-            uciCmd('setoption name Skill Level value 20');
+            //uciCmd('setoption name Skill Level value 20');
+            this.setSkillLevel(0);
             uciCmd('setoption name King Safety value 0'); /// Agressive 100 (it's now symetric)
         },
         loadPgn: function(pgn) { game.load_pgn(pgn); },
