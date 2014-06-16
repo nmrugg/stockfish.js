@@ -48,7 +48,7 @@ namespace Search {
   Time::point SearchTime;
   StateStackPtr SetupStates;
   void emscript_think_done();
-  void emscript_finalize();
+  void emscript_finalize(void *arg);
 }
 
 using std::string;
@@ -204,7 +204,7 @@ void Search::think() {
                 << sync_endl;
 
       //goto finalize;
-      Search::emscript_finalize();
+      Search::emscript_finalize(NULL);
       return;
   }
   
@@ -216,7 +216,7 @@ void Search::think() {
       {
           std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), bookMove));
           //goto finalize;
-          Search::emscript_finalize();
+          Search::emscript_finalize(NULL);
           return;
       }
   }
@@ -260,9 +260,9 @@ void Search::emscript_think_done() {
       log << "\nPonder move: " << move_to_san(RootPos, RootMoves[0].pv[1]) << std::endl;
       RootPos.undo_move(RootMoves[0].pv[0]);
   }
-  Search::emscript_finalize();
+  Search::emscript_finalize(NULL);
 }
-void Search::emscript_finalize() {
+void Search::emscript_finalize(void *arg) {
 /*
 finalize:
 */
@@ -278,7 +278,9 @@ finalize:
   if (!Signals.stop && (Limits.ponder || Limits.infinite))
   {
       Signals.stopOnPonderhit = true;
-      RootPos.this_thread()->wait_for(Signals.stop);
+      //RootPos.this_thread()->wait_for(Signals.stop);
+      emscripten_async_call(Search::emscript_finalize, NULL, 30); /// loop
+      return;
   }
 
   // Best move could be MOVE_NONE when searching on a stalemate position
