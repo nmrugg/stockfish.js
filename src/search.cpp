@@ -348,12 +348,12 @@ Stack *ss_ref;
     //public:
   */
   void async_loop(void *arg) {
-        int depth = depth_ref;
-        Value bestValue = bestValue_ref;
-        Value alpha = alpha_ref;
-        Value beta = beta_ref;
-        Value delta = delta_ref;
-        Position pos = pos_ref;
+        int &depth = depth_ref;
+        Value &bestValue = bestValue_ref;
+        Value &alpha = alpha_ref;
+        Value &beta = beta_ref;
+        Value &delta = delta_ref;
+        Position &pos = pos_ref;
         Stack *ss = ss_ref;
         Skill skill(Options["Skill Level"]);
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
