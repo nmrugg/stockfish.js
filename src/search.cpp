@@ -97,6 +97,7 @@ namespace {
 
   void id_loop(Position& pos);
   void async_loop(void *arg);
+  //void async_loop();
   Value value_to_tt(Value v, int ply);
   Value value_from_tt(Value v, int ply);
   void update_stats(const Position& pos, Stack* ss, Move move, Depth depth, Move* quiets, int quietsCnt);
@@ -348,6 +349,7 @@ Stack *ss_ref;
     //public:
   */
   void async_loop(void *arg) {
+  //void async_loop() {
         int &depth = depth_ref;
         Value &bestValue = bestValue_ref;
         Value &alpha = alpha_ref;
