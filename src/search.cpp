@@ -17,6 +17,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <emscripten.h>
+
 #include <algorithm>
 #include <cassert>
 #include <cfloat>
@@ -45,6 +47,8 @@ namespace Search {
   Position RootPos;
   Time::point SearchTime;
   StateStackPtr SetupStates;
+  void emscript_think_done();
+  void emscript_finalize();
 }
 
 using std::string;
@@ -92,6 +96,7 @@ namespace {
   Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth);
 
   void id_loop(Position& pos);
+  void async_loop(void *arg);
   Value value_to_tt(Value v, int ply);
   Value value_from_tt(Value v, int ply);
   void update_stats(const Position& pos, Stack* ss, Move move, Depth depth, Move* quiets, int quietsCnt);
@@ -177,6 +182,8 @@ uint64_t Search::perft(Position& pos, Depth depth) {
 /// Search::think() is the external interface to Stockfish's search, and is
 /// called by the main thread when the program receives the UCI 'go' command. It
 /// searches from RootPos and at the end prints the "bestmove" to output.
+//void Search::emscript_think_done();
+//void Search::emscript_finalize();
 
 void Search::think() {
   /// Re-added
@@ -195,7 +202,9 @@ void Search::think() {
                 << score_to_uci(RootPos.checkers() ? -VALUE_MATE : VALUE_DRAW)
                 << sync_endl;
 
-      goto finalize;
+      //goto finalize;
+      Search::emscript_finalize();
+      return;
   }
   
   /// Re-added
@@ -205,7 +214,9 @@ void Search::think() {
       if (bookMove && std::count(RootMoves.begin(), RootMoves.end(), bookMove))
       {
           std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), bookMove));
-          goto finalize;
+          //goto finalize;
+          Search::emscript_finalize();
+          return;
       }
   }
 
@@ -230,6 +241,8 @@ void Search::think() {
 
   id_loop(RootPos); // Let's start searching !
 
+}
+void Search::emscript_think_done() {
   Threads.timer->run = false; // Stop the timer
 
   if (Options["Write Search Log"])
@@ -246,9 +259,12 @@ void Search::think() {
       log << "\nPonder move: " << move_to_san(RootPos, RootMoves[0].pv[1]) << std::endl;
       RootPos.undo_move(RootMoves[0].pv[0]);
   }
-
+  Search::emscript_finalize();
+}
+void Search::emscript_finalize() {
+/*
 finalize:
-
+*/
   // When search is stopped this info is not printed
   sync_cout << "info nodes " << RootPos.nodes_searched()
             << " time " << Time::now() - SearchTime + 1 << sync_endl;
@@ -272,7 +288,11 @@ finalize:
 
 
 namespace {
-
+int depth_ref;
+Value bestValue_ref, alpha_ref, beta_ref, delta_ref;
+Position pos_ref;
+Stack *ss_ref;
+//Skill skill_ref;
   // id_loop() is the main iterative deepening loop. It calls search() repeatedly
   // with increasing depth until the allocated thinking time has been consumed,
   // user stops the search, or the maximum search depth is reached.
@@ -307,8 +327,40 @@ namespace {
     MultiPV = std::min(MultiPV, RootMoves.size());
 
     // Iterative deepening loop until requested to stop or target depth reached
-    while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))
-    {
+    //while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))
+    depth_ref = depth;
+    bestValue_ref = bestValue;
+    alpha_ref = alpha;
+    beta_ref = beta;
+    delta_ref = delta;
+    pos_ref = pos;
+    ss_ref = ss;
+    //skill_ref = &skill;
+    //emscripten_set_main_loop(async_loop, 0, 0);
+    async_loop(NULL);
+  }
+  /*
+    struct lambda {
+    public:
+    int depth;
+    Value bestValue, alpha, beta, delta;
+    Position& pos;
+    //public:
+  */
+  void async_loop(void *arg) {
+        int depth = depth_ref;
+        Value bestValue = bestValue_ref;
+        Value alpha = alpha_ref;
+        Value beta = beta_ref;
+        Value delta = delta_ref;
+        Position pos = pos_ref;
+        Stack *ss = ss_ref;
+        Skill skill(Options["Skill Level"]);
+        if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
+            //emscripten_cancel_main_loop();
+            Search::emscript_think_done();
+            return;
+        }
         // Age out PV variability metric
         BestMoveChanges *= 0.5;
 
@@ -428,9 +480,25 @@ namespace {
                     Signals.stop = true;
             }
         }
-    }
+        emscripten_async_call(async_loop, NULL, 1); /// loop
   }
-
+    //};
+    /*
+    lambda.depth = depth;
+    lambda.bestValue = bestValue;
+    lambda::alpha = alpha;
+    lambda::beta = beta;
+    lambda::delta = delta;
+    lambda::pos = pos;
+    emscripten_set_main_loop(lambda::async_loop, 0, 1);
+    */
+    /*
+    lambda* myfunc = new lambda();
+    myfunc->depth = depth;
+    myfunc->bestValue = bestValue;
+    
+  }
+     */
 
   // search<>() is the main search function for both PV and non-PV nodes and for
   // normal and SplitPoint nodes. When called just after a split point the search
