@@ -498,11 +498,12 @@ Stack *ss_ref;
                     Signals.stop = true;
             }
         }
-        
+  /*      
   sync_cout << "3 ss" << sync_endl;
   sync_cout << ss << sync_endl;
   sync_cout << "3 ss_ref" << sync_endl;
   sync_cout << ss_ref << sync_endl;
+  */
         depth_ref = depth;
         bestValue_ref = bestValue;
         alpha_ref = alpha;
@@ -510,8 +511,8 @@ Stack *ss_ref;
         delta_ref = delta;
         pos_ref = pos;
         ss_ref = ss;
-  sync_cout << "4 ss_ref" << sync_endl;
-  sync_cout << ss_ref << sync_endl;
+  //sync_cout << "4 ss_ref" << sync_endl;
+  //sync_cout << ss_ref << sync_endl;
         #ifdef EMSCRIPTEN
         emscripten_async_call(async_loop, NULL, 1); /// loop
         #else
