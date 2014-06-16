@@ -7,3 +7,4 @@ stockfish
 /src/stockfish.js*
 node_modules/
 *~
+etc/
