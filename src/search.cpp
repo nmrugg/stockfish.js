@@ -335,8 +335,9 @@ Stack *ss_ref;
 
     // Iterative deepening loop until requested to stop or target depth reached
     //while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))
-    sync_cout << "1 ss" << sync_endl;
-    sync_cout << ss << sync_endl;
+    std::ostringstream ss_hack;
+    ss_hack << "1 ss" << sync_endl;
+    ss_hack << ss << sync_endl;
     depth_ref = depth;
     bestValue_ref = bestValue;
     alpha_ref = alpha;
