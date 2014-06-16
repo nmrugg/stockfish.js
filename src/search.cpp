@@ -16,8 +16,9 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
+#ifdef EMSCRIPTEN
 #include <emscripten.h>
+#endif
 
 #include <algorithm>
 #include <cassert>
@@ -278,9 +279,12 @@ finalize:
   if (!Signals.stop && (Limits.ponder || Limits.infinite))
   {
       Signals.stopOnPonderhit = true;
-      //RootPos.this_thread()->wait_for(Signals.stop);
+      #ifdef EMSCRIPTEN
       emscripten_async_call(Search::emscript_finalize, NULL, 30); /// loop
       return;
+      #else
+      RootPos.this_thread()->wait_for(Signals.stop);
+      #endif
   }
 
   // Best move could be MOVE_NONE when searching on a stalemate position
@@ -491,7 +495,11 @@ Stack *ss_ref;
         delta_ref = delta;
         pos_ref = pos;
         ss_ref = ss;
+        #ifdef EMSCRIPTEN
         emscripten_async_call(async_loop, NULL, 1); /// loop
+        #else
+        async_loop(NULL);
+        #endif
   }
     //};
     /*
