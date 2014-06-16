@@ -294,7 +294,7 @@ int depth_ref;
 Value bestValue_ref, alpha_ref, beta_ref, delta_ref;
 Position pos_ref;
 Stack *ss_ref;
-//Skill skill_ref;
+Skill skill_ref(Options["Skill Level"]);
   // id_loop() is the main iterative deepening loop. It calls search() repeatedly
   // with increasing depth until the allocated thinking time has been consumed,
   // user stops the search, or the maximum search depth is reached.
@@ -339,6 +339,7 @@ Stack *ss_ref;
     delta_ref = delta;
     pos_ref = pos;
     ss_ref = ss;
+    skill_ref = skill;
     async_loop(NULL);
   }
   void async_loop(void *arg) {
@@ -349,7 +350,7 @@ Stack *ss_ref;
         Value delta = delta_ref;
         Position pos = pos_ref;
         Stack *ss = ss_ref;
-        Skill skill(Options["Skill Level"]);
+        Skill skill = skill_ref;
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
             Search::emscript_think_done();
             return;
