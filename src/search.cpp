@@ -98,7 +98,6 @@ namespace {
 
   void id_loop(Position& pos);
   void async_loop(void *arg);
-  //void async_loop();
   Value value_to_tt(Value v, int ply);
   Value value_from_tt(Value v, int ply);
   void update_stats(const Position& pos, Stack* ss, Move move, Depth depth, Move* quiets, int quietsCnt);
@@ -184,8 +183,6 @@ uint64_t Search::perft(Position& pos, Depth depth) {
 /// Search::think() is the external interface to Stockfish's search, and is
 /// called by the main thread when the program receives the UCI 'go' command. It
 /// searches from RootPos and at the end prints the "bestmove" to output.
-//void Search::emscript_think_done();
-//void Search::emscript_finalize();
 
 void Search::think() {
   /// Re-added
@@ -204,7 +201,7 @@ void Search::think() {
                 << score_to_uci(RootPos.checkers() ? -VALUE_MATE : VALUE_DRAW)
                 << sync_endl;
 
-      //goto finalize;
+      //goto finalize; /// Old sync code
       Search::emscript_finalize(NULL);
       return;
   }
@@ -216,7 +213,7 @@ void Search::think() {
       if (bookMove && std::count(RootMoves.begin(), RootMoves.end(), bookMove))
       {
           std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), bookMove));
-          //goto finalize;
+          //goto finalize;  /// Old sync code
           Search::emscript_finalize(NULL);
           return;
       }
@@ -264,9 +261,7 @@ void Search::emscript_think_done() {
   Search::emscript_finalize(NULL);
 }
 void Search::emscript_finalize(void *arg) {
-/*
-finalize:
-*/
+//finalize: /// Old sync code
   // When search is stopped this info is not printed
   sync_cout << "info nodes " << RootPos.nodes_searched()
             << " time " << Time::now() - SearchTime + 1 << sync_endl;
@@ -280,7 +275,7 @@ finalize:
   {
       Signals.stopOnPonderhit = true;
       #ifdef EMSCRIPTEN
-      emscripten_async_call(Search::emscript_finalize, NULL, 30); /// loop
+      emscripten_async_call(Search::emscript_finalize, NULL, 30); /// Loop while waiting for "stop" signal.
       return;
       #else
       RootPos.this_thread()->wait_for(Signals.stop);
@@ -334,8 +329,8 @@ Stack *ss_ref;
     MultiPV = std::min(MultiPV, RootMoves.size());
 
     // Iterative deepening loop until requested to stop or target depth reached
-    //while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))
-    std::ostringstream ss_hack;
+    //while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth)) /// Old sync code. The "if" statement in async_loop() must match it
+    std::ostringstream ss_hack; ///HACK: Keep ss alive?
     ss_hack << "1 ss" << sync_endl;
     ss_hack << ss << sync_endl;
     depth_ref = depth;
@@ -345,24 +340,9 @@ Stack *ss_ref;
     delta_ref = delta;
     pos_ref = pos;
     ss_ref = ss;
-    //sync_cout << "1 ss_ref" << sync_endl;
-    //sync_cout << ss_ref << sync_endl;
-    //skill_ref = &skill;
-    //emscripten_set_main_loop(async_loop, 0, 0);
     async_loop(NULL);
   }
-  /*
-    struct lambda {
-    public:
-    int depth;
-    Value bestValue, alpha, beta, delta;
-    Position& pos;
-    //public:
-  */
   void async_loop(void *arg) {
-  //void async_loop() {
-  //sync_cout << "2 ss_ref" << sync_endl;
-  //sync_cout << ss_ref << sync_endl;
         int depth = depth_ref;
         Value bestValue = bestValue_ref;
         Value alpha = alpha_ref;
@@ -371,11 +351,7 @@ Stack *ss_ref;
         Position pos = pos_ref;
         Stack *ss = ss_ref;
         Skill skill(Options["Skill Level"]);
-        
-  //sync_cout << "2 ss" << sync_endl;
-  //sync_cout << ss << sync_endl;
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
-            //emscripten_cancel_main_loop();
             Search::emscript_think_done();
             return;
         }
@@ -397,8 +373,7 @@ Stack *ss_ref;
                 alpha = std::max(RootMoves[PVIdx].prevScore - delta,-VALUE_INFINITE);
                 beta  = std::min(RootMoves[PVIdx].prevScore + delta, VALUE_INFINITE);
             }
-      //sync_cout << "ss"  << sync_endl;
-      //sync_cout << ss  << sync_endl;
+
             // Start with a small aspiration window and, in the case of a fail
             // high/low, re-search with a bigger window until we're not failing
             // high/low anymore.
@@ -499,12 +474,6 @@ Stack *ss_ref;
                     Signals.stop = true;
             }
         }
-  /*      
-  sync_cout << "3 ss" << sync_endl;
-  sync_cout << ss << sync_endl;
-  sync_cout << "3 ss_ref" << sync_endl;
-  sync_cout << ss_ref << sync_endl;
-  */
         depth_ref = depth;
         bestValue_ref = bestValue;
         alpha_ref = alpha;
@@ -512,31 +481,12 @@ Stack *ss_ref;
         delta_ref = delta;
         pos_ref = pos;
         ss_ref = ss;
-  //sync_cout << "4 ss_ref" << sync_endl;
-  //sync_cout << ss_ref << sync_endl;
         #ifdef EMSCRIPTEN
         emscripten_async_call(async_loop, NULL, 1); /// loop
         #else
         async_loop(NULL);
         #endif
   }
-    //};
-    /*
-    lambda.depth = depth;
-    lambda.bestValue = bestValue;
-    lambda::alpha = alpha;
-    lambda::beta = beta;
-    lambda::delta = delta;
-    lambda::pos = pos;
-    emscripten_set_main_loop(lambda::async_loop, 0, 1);
-    */
-    /*
-    lambda* myfunc = new lambda();
-    myfunc->depth = depth;
-    myfunc->bestValue = bestValue;
-    
-  }
-     */
 
   // search<>() is the main search function for both PV and non-PV nodes and for
   // normal and SplitPoint nodes. When called just after a split point the search
@@ -592,13 +542,6 @@ Stack *ss_ref;
     (ss+1)->skipNullMove = false; (ss+1)->reduction = DEPTH_ZERO;
     (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
 
-/*
-sync_cout << "here" << sync_endl;
-sync_cout << PvNode << sync_endl;
-sync_cout << thisThread->maxPly << sync_endl;
-sync_cout << ss->ply << sync_endl;
-sync_cout << ss << sync_endl;
-*/
     // Used to send selDepth info to GUI
     if (PvNode && thisThread->maxPly < ss->ply)
         thisThread->maxPly = ss->ply;
