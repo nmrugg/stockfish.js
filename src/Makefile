@@ -239,7 +239,7 @@ ifeq ($(UNAME),Darwin)
 endif
 
 ifeq ($(COMP),emscripten)
-	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js -s ASSERTIONS=1 -g4
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js -s ASSERTIONS=1 -g4 -s SAFE_HEAP=1 --js-opts 0
 endif
 
 ### On mingw use Windows threads, otherwise POSIX
@@ -248,7 +248,7 @@ ifneq ($(comp),mingw)
 	ifneq ($(arch),armv7)
 		# Haiku has pthreads in its libroot, so only link it in on other platforms
 		ifneq ($(UNAME),Haiku)
-			LDFLAGS += -lpthread
+			#LDFLAGS += -lpthread
 		endif
 	endif
 endif
@@ -295,10 +295,10 @@ ifeq ($(optimize),yes)
 	ifeq ($(comp),clang)
 		### -O4 requires a linker that supports LLVM's LTO
 		ifeq ($(COMP),emscripten)
-			CXXFLAGS += -O2
-			LDFLAGS += -O2
+			#CXXFLAGS += -O2
+			#LDFLAGS += -O2
 		else
-			CXXFLAGS += -O3
+			#CXXFLAGS += -O3
 		endif
 
 		ifeq ($(UNAME),Darwin)
