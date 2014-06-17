@@ -144,7 +144,7 @@ function engineGame(options) {
                 } else if(time.nodes) {
                     uciCmd('go nodes ' + time.nodes);
                 } else {
-                    uciCmd('go go depth 1 wtime ' + time.wtime + ' winc ' + time.winc + ' btime ' + time.btime + ' binc ' + time.binc);
+                    uciCmd('go depth 1 wtime ' + time.wtime + ' winc ' + time.winc + ' btime ' + time.btime + ' binc ' + time.binc);
                 }
                 isEngineRunning = true;
             }
