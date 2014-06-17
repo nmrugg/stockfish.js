@@ -293,15 +293,20 @@ namespace {
 int depth_ref;
 Value bestValue_ref, alpha_ref, beta_ref, delta_ref;
 Position pos_ref;
-Stack stack_ref[MAX_PLY_PLUS_6], *ss_ref;
-Skill skill_ref(Options["Skill Level"]);
+Stack *ss_ref;
+//Stack stack_ref[MAX_PLY_PLUS_6], *ss_ref;
+//Skill skill_ref(Options["Skill Level"]);
+//Stack stack_ref;
+Stack stack[MAX_PLY_PLUS_6];
+Skill skill_ref(20);
   // id_loop() is the main iterative deepening loop. It calls search() repeatedly
   // with increasing depth until the allocated thinking time has been consumed,
   // user stops the search, or the maximum search depth is reached.
 
   void id_loop(Position& pos) {
 
-    Stack stack[MAX_PLY_PLUS_6], *ss = stack+2; // To allow referencing (ss-2)
+    //Stack stack[MAX_PLY_PLUS_6], *ss = stack+2; // To allow referencing (ss-2)
+    Stack *ss = stack+2; // To allow referencing (ss-2)
     int depth;
     Value bestValue, alpha, beta, delta;
 
@@ -333,8 +338,8 @@ Skill skill_ref(Options["Skill Level"]);
     //std::ostringstream ss_hack; ///HACK: Keep ss alive?
     //ss_hack << ss << sync_endl;
     //stack_ref = stack;
-    ss = stack_ref+2;
-    
+    //ss = stack_ref+2;
+    //stack_ref = stack;
     depth_ref = depth;
     bestValue_ref = bestValue;
     alpha_ref = alpha;
