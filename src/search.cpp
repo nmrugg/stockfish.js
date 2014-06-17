@@ -293,7 +293,7 @@ namespace {
 int depth_ref;
 Value bestValue_ref, alpha_ref, beta_ref, delta_ref;
 Position pos_ref;
-Stack *ss_ref;
+Stack stack_ref[MAX_PLY_PLUS_6], *ss_ref;
 Skill skill_ref(Options["Skill Level"]);
   // id_loop() is the main iterative deepening loop. It calls search() repeatedly
   // with increasing depth until the allocated thinking time has been consumed,
@@ -330,8 +330,11 @@ Skill skill_ref(Options["Skill Level"]);
 
     // Iterative deepening loop until requested to stop or target depth reached
     //while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth)) /// Old sync code. The "if" statement in async_loop() must match it
-    std::ostringstream ss_hack; ///HACK: Keep ss alive?
-    ss_hack << ss << sync_endl;
+    //std::ostringstream ss_hack; ///HACK: Keep ss alive?
+    //ss_hack << ss << sync_endl;
+    //stack_ref = stack;
+    ss = stack_ref+2;
+    
     depth_ref = depth;
     bestValue_ref = bestValue;
     alpha_ref = alpha;
