@@ -239,7 +239,7 @@ ifeq ($(UNAME),Darwin)
 endif
 
 ifeq ($(COMP),emscripten)
-	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js -s ASSERTIONS=1 -g4 -s SAFE_HEAP=1 --js-opts 0
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js -s ASSERTIONS=1 -g4 -s SAFE_HEAP=1 --js-opts 0 -O1 --llvm-opts 0
 endif
 
 ### On mingw use Windows threads, otherwise POSIX
