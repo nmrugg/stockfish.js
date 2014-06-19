@@ -270,19 +270,20 @@ function engineGame(options) {
             var max_err,
                 err_prob;
             
+            if (skill < 0) {
+                skill = 0;
+            }
+            if (skill > 20) {
+                skill = 20;
+            }
+            
             uciCmd('setoption name Skill Level value ' + skill);
             
-            /// For 17+, we give have no difference in error making.
-            ///NOTE: Stockfish level 20 does not make errors (intentially).
-            if (skill > 16) {
-                max_err = 1;
-                error_prop = 128;
-            } else {
-                /// Level 0 starts at 1
-                err_prob = Math.round((skill * 6.35) + 1);
-                /// Level 0 starts at 10
-                max_err = Math.floor((skill * -0.5) + 10);
-            }
+            ///NOTE: Stockfish level 20 does not make errors (intentially), so these numbers have no effect on level 20.
+            /// Level 0 starts at 1
+            err_prob = Math.round((skill * 6.35) + 1);
+            /// Level 0 starts at 10
+            max_err = Math.floor((skill * -0.5) + 10);
             
             uciCmd('setoption name Skill Level Maximum Error value ' + max_err);
             uciCmd('setoption name Skill Level Probability value ' + err_prob);

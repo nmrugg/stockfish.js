@@ -82,6 +82,13 @@
         game.setDisplayScore($('#showScore').is(':checked'));
         game.start();
       }
+      
+      game.setSkillLevel
+      
+      document.getElementById("skillLevel").addEventListener("change", function ()
+      {
+        game.setSkillLevel(parseInt(this.value, 10));
+      });
 
       newGame();
     </script>
