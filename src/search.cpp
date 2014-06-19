@@ -106,6 +106,8 @@ namespace {
   struct Skill {
     Skill(int l) : level(l), best(MOVE_NONE) {}
    ~Skill() {
+      sync_cout << "decon" << sync_endl;
+      return;
       if (enabled()) // Swap best PV line with the sub-optimal one
           std::swap(RootMoves[0], *std::find(RootMoves.begin(),
                     RootMoves.end(), best ? best : pick_move()));
@@ -298,7 +300,8 @@ Stack *ss_ref;
 //Skill skill_ref(Options["Skill Level"]);
 //Stack stack_ref;
 Stack stack[MAX_PLY_PLUS_6];
-//Skill skill_ref(20);
+//Skill skill(0); /// Declare something just to take up memory.
+Skill *skill_p;
   // id_loop() is the main iterative deepening loop. It calls search() repeatedly
   // with increasing depth until the allocated thinking time has been consumed,
   // user stops the search, or the maximum search depth is reached.
@@ -324,14 +327,20 @@ Stack stack[MAX_PLY_PLUS_6];
     Followupmoves.clear();
 
     MultiPV = Options["MultiPV"];
-    //Skill skill(Options["Skill Level"]);
+    //Skill skill_tmp(Options["Skill Level"]); ///NOTE: This used to be just "Skill skill(Options["Skill Level"]);"
+    //skill = skill_tmp;
+    //skill.level = Options["Skill Level"];
+    //skill.best = MOVE_NONE;
+    skill_p = new Skill(Options["Skill Level"]);
+    //Skill skill = *skill_p;
+    //sync_cout << "setting level" << sync_endl;
+    //sync_cout << Options["Skill Level"] << sync_endl;
 
     // Do we have to play with skill handicap? In this case enable MultiPV search
     // that we will use behind the scenes to retrieve a set of possible moves.
-    /*
-    if (skill.enabled() && MultiPV < 4)
+    if (skill_p->enabled() && MultiPV < 4)
         MultiPV = 4;
-*/
+
     MultiPV = std::min(MultiPV, RootMoves.size());
 
     // Iterative deepening loop until requested to stop or target depth reached
@@ -359,8 +368,15 @@ Stack stack[MAX_PLY_PLUS_6];
         Value delta = delta_ref;
         Position pos = pos_ref;
         Stack *ss = ss_ref;
+        Skill skill = *skill_p;
         //Skill skill = skill_ref;
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
+            //delete skill_p;
+            sync_cout << "about to end" << sync_endl;
+            if (skill.enabled()) {
+                sync_cout << "looking for move" << sync_endl;
+                std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), skill.best ? skill.best : skill.pick_move()));
+            }
             Search::emscript_think_done();
             return;
         }
@@ -443,17 +459,20 @@ Stack stack[MAX_PLY_PLUS_6];
         }
 
         // If skill levels are enabled and time is up, pick a sub-optimal best move
-        /*
+        sync_cout << "is enabled" << sync_endl;
+        sync_cout << skill.enabled() << sync_endl;
+        sync_cout << skill.time_to_pick(depth) << sync_endl;
         if (skill.enabled() && skill.time_to_pick(depth))
             skill.pick_move();
-*/
+
         if (Options["Write Search Log"])
         {
             RootMove& rm = RootMoves[0];
-            /*
+            sync_cout << "has best" << sync_endl;
+            sync_cout << skill.best << sync_endl;
             if (skill.best != MOVE_NONE)
                 rm = *std::find(RootMoves.begin(), RootMoves.end(), skill.best);
-*/
+
             Log log(Options["Search Log Filename"]);
             log << pretty_pv(pos, depth, rm.score, Time::now() - SearchTime, &rm.pv[0])
                 << std::endl;
@@ -1383,38 +1402,46 @@ moves_loop: // When in check and at SpNode search starts from here
   Move Skill::pick_move() {
 
     static RKISS rk;
-
+sync_cout << "picking move" << sync_endl;
     // PRNG sequence should be not deterministic
     for (int i = Time::now() % 50; i > 0; --i)
         rk.rand<unsigned>();
-
+sync_cout << "_1" << sync_endl;
     // RootMoves are already sorted by score in descending order
     int variance = std::min(RootMoves[0].score - RootMoves[MultiPV - 1].score, PawnValueMg);
+sync_cout << "_1a" << sync_endl;
     int weakness = 120 - 2 * level;
+sync_cout << "_1b" << sync_endl;
     int max_s = -VALUE_INFINITE;
+sync_cout << "_1c" << sync_endl;
     best = MOVE_NONE;
-
+sync_cout << "_2" << sync_endl;
     // Choose best move. For each move score we add two terms both dependent on
     // weakness. One deterministic and bigger for weaker moves, and one random,
     // then we choose the move with the resulting highest score.
     for (size_t i = 0; i < MultiPV; ++i)
     {
+sync_cout << "_3" << sync_endl;
         int s = RootMoves[i].score;
-
+sync_cout << "_4" << sync_endl;
         // Don't allow crazy blunders even at very low skills
         if (i > 0 && RootMoves[i-1].score > s + Options["Skill Level Maximum Error"] * PawnValueMg) ///PATCH: Actually, yes, possibly allow crazy blunders (http://support.stockfishchess.org/discussions/suggestions/94-skill-level-request-to-spread-the-skill-over-a-wider-range)
             break;
-
+sync_cout << "_5" << sync_endl;
         // This is our magic formula
         s += (  weakness * int(RootMoves[0].score - s)
               + variance * (rk.rand<unsigned>() % weakness)) / Options["Skill Level Probability"]; ///PATCH
-
+sync_cout << "_6" << sync_endl;
         if (s > max_s)
         {
+sync_cout << "_7" << sync_endl;
             max_s = s;
+sync_cout << "_8" << sync_endl;
             best = RootMoves[i].pv[0];
         }
+sync_cout << "_9" << sync_endl;
     }
+sync_cout << "_10" << sync_endl;
     return best;
   }
 
