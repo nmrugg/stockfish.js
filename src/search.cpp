@@ -105,11 +105,7 @@ namespace {
 
   struct Skill {
     Skill(int l) : level(l), best(MOVE_NONE) {}
-   ~Skill() {
-      if (enabled()) // Swap best PV line with the sub-optimal one
-          std::swap(RootMoves[0], *std::find(RootMoves.begin(),
-                    RootMoves.end(), best ? best : pick_move()));
-    }
+    ///NOTE: The deconstructor, ~Skill(), breaks stuff when compiled to JavaScript. This code was moved to async_loop().
 
     bool enabled() const { return level < 20; }
     bool time_to_pick(int depth) const { return depth == 1 + level; }
@@ -258,10 +254,12 @@ void Search::emscript_think_done() {
       log << "\nPonder move: " << move_to_san(RootPos, RootMoves[0].pv[1]) << std::endl;
       RootPos.undo_move(RootMoves[0].pv[0]);
   }
+
   Search::emscript_finalize(NULL);
 }
 void Search::emscript_finalize(void *arg) {
 //finalize: /// Old sync code
+
   // When search is stopped this info is not printed
   sync_cout << "info nodes " << RootPos.nodes_searched()
             << " time " << Time::now() - SearchTime + 1 << sync_endl;
@@ -290,18 +288,22 @@ void Search::emscript_finalize(void *arg) {
 
 
 namespace {
+/// Declare variables out here so that they are reachable by async_loop()
 int depth_ref;
 Value bestValue_ref, alpha_ref, beta_ref, delta_ref;
 Position pos_ref;
 Stack *ss_ref;
-Skill skill_ref(Options["Skill Level"]);
+Stack stack[MAX_PLY_PLUS_6];
+Skill *skill_p;
   // id_loop() is the main iterative deepening loop. It calls search() repeatedly
   // with increasing depth until the allocated thinking time has been consumed,
   // user stops the search, or the maximum search depth is reached.
 
   void id_loop(Position& pos) {
 
-    Stack stack[MAX_PLY_PLUS_6], *ss = stack+2; // To allow referencing (ss-2)
+    ///NOTE: The stack was moved out to prevent garbage collection.
+    //Stack stack[MAX_PLY_PLUS_6], *ss = stack+2; // To allow referencing (ss-2)
+    Stack *ss = stack+2; // To allow referencing (ss-2)
     int depth;
     Value bestValue, alpha, beta, delta;
 
@@ -319,19 +321,20 @@ Skill skill_ref(Options["Skill Level"]);
     Followupmoves.clear();
 
     MultiPV = Options["MultiPV"];
-    Skill skill(Options["Skill Level"]);
+    // Skill skill(Options["Skill Level"])
+    skill_p = new Skill(Options["Skill Level"]);
 
     // Do we have to play with skill handicap? In this case enable MultiPV search
     // that we will use behind the scenes to retrieve a set of possible moves.
-    if (skill.enabled() && MultiPV < 4)
+    if (skill_p->enabled() && MultiPV < 4)
         MultiPV = 4;
 
     MultiPV = std::min(MultiPV, RootMoves.size());
 
+    /// This stuff was moved to async_loop().
     // Iterative deepening loop until requested to stop or target depth reached
     //while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth)) /// Old sync code. The "if" statement in async_loop() must match it
-    std::ostringstream ss_hack; ///HACK: Keep ss alive?
-    ss_hack << ss << sync_endl;
+    /// Define variables so that async_loop() can read them.
     depth_ref = depth;
     bestValue_ref = bestValue;
     alpha_ref = alpha;
@@ -339,10 +342,10 @@ Skill skill_ref(Options["Skill Level"]);
     delta_ref = delta;
     pos_ref = pos;
     ss_ref = ss;
-    skill_ref = skill;
     async_loop(NULL);
   }
   void async_loop(void *arg) {
+        /// Load variables from the outer scope so that we don't need to rename stuff inside the loop to make it easier to merge changes from upstream.
         int depth = depth_ref;
         Value bestValue = bestValue_ref;
         Value alpha = alpha_ref;
@@ -350,11 +353,19 @@ Skill skill_ref(Options["Skill Level"]);
         Value delta = delta_ref;
         Position pos = pos_ref;
         Stack *ss = ss_ref;
-        Skill skill = skill_ref;
+        Skill skill = *skill_p;
+        /// This must match the while loop from upstream.
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
+            ///NOTE: This code used to be in the deconstructor of skill, but that caused heap errors and memory unalignment.
+            if (skill.enabled()) {
+                std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), skill.best ? skill.best : skill.pick_move()));
+            }
             Search::emscript_think_done();
             return;
         }
+        /// *
+        /// * The following code should be the same as upstream.
+        /// *
         // Age out PV variability metric
         BestMoveChanges *= 0.5;
 
@@ -474,6 +485,10 @@ Skill skill_ref(Options["Skill Level"]);
                     Signals.stop = true;
             }
         }
+        /// *
+        /// * End of upstream code.
+        /// *
+        /// Set the outer variables now so that we can read them again (with new values) the next time we loop.
         depth_ref = depth;
         bestValue_ref = bestValue;
         alpha_ref = alpha;

@@ -33,7 +33,8 @@ function engineGame(options) {
     uciCmd('uci');
     
     uciCmd("uci", evaler);
-    uciCmd('setoption name Skill Level value 20');
+    uciCmd('setoption name Skill Level value 20', evaler);
+    ///TODO: Eval starting posistions. I suppose the starting positions could be different in different chess varients.
 
     function displayStatus() {
         var status = 'Engine: ';
@@ -153,6 +154,7 @@ function engineGame(options) {
             }
         }
     }
+
 
     evaler.onmessage = function(event) {
         var line = event.data;
