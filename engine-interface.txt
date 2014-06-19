@@ -169,6 +169,7 @@ These are all the command the engine gets from the interface.
 		search x plies only.
 	* nodes <x>
 	   search x nodes only,
+	   Stockfish seems to ignore this.
 	* mate <x>
 		search for a mate in x moves
 	* movetime <x>
