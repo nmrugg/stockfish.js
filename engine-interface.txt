@@ -146,7 +146,7 @@ These are all the command the engine gets from the interface.
 	* ponder
 		start searching in pondering mode.
 		Do not exit the search in ponder mode, even if it's mate!
-		This means that the last move sent in in the position string is the ponder move.
+		This means that the last move sent in the position string is the ponder move.
 		The engine can do what it wants to do, but after a "ponderhit" command
 		it should execute the suggested move to ponder on. This means that the ponder move sent by
 		the GUI can be interpreted as a recommendation about which move to ponder. However, if the
@@ -172,7 +172,10 @@ These are all the command the engine gets from the interface.
 	* mate <x>
 		search for a mate in x moves
 	* movetime <x>
-		search exactly x mseconds
+		search exactly x mseconds (not really, see below)
+		ACTUALLY, this is more like MAX search time.
+		It stops when it reaches the specified depth depth (not sure about mate).
+		HOWEVER, wtime and btime will be ignored because it assumes that it has AT LEAST this much time to make this move.
 	* infinite
 		search until the "stop" command. Do not exit the search without being told so in this mode!
     
