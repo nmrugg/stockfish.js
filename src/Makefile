@@ -226,16 +226,19 @@ ifeq ($(COMP),emscripten)
 	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js
 endif
 
+# We don't want this in JS either. (Not indenting to make merging easier.)
+ifneq ($(COMP),emscripten)
 ### On mingw use Windows threads, otherwise POSIX
 ifneq ($(comp),mingw)
 	# On Android Bionic's C library comes with its own pthread implementation bundled in
 	ifneq ($(arch),armv7)
 		# Haiku has pthreads in its libroot, so only link it in on other platforms
 		ifneq ($(UNAME),Haiku)
-			#LDFLAGS += -lpthread
+			LDFLAGS += -lpthread
 		endif
 	endif
 endif
+endif # end if for JS.
 
 ### 3.4 Debugging
 ifeq ($(debug),no)
