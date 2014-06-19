@@ -298,7 +298,7 @@ Stack *ss_ref;
 //Skill skill_ref(Options["Skill Level"]);
 //Stack stack_ref;
 Stack stack[MAX_PLY_PLUS_6];
-Skill skill_ref(20);
+//Skill skill_ref(20);
   // id_loop() is the main iterative deepening loop. It calls search() repeatedly
   // with increasing depth until the allocated thinking time has been consumed,
   // user stops the search, or the maximum search depth is reached.
@@ -324,13 +324,14 @@ Skill skill_ref(20);
     Followupmoves.clear();
 
     MultiPV = Options["MultiPV"];
-    Skill skill(Options["Skill Level"]);
+    //Skill skill(Options["Skill Level"]);
 
     // Do we have to play with skill handicap? In this case enable MultiPV search
     // that we will use behind the scenes to retrieve a set of possible moves.
+    /*
     if (skill.enabled() && MultiPV < 4)
         MultiPV = 4;
-
+*/
     MultiPV = std::min(MultiPV, RootMoves.size());
 
     // Iterative deepening loop until requested to stop or target depth reached
@@ -347,7 +348,7 @@ Skill skill_ref(20);
     delta_ref = delta;
     pos_ref = pos;
     ss_ref = ss;
-    skill_ref = skill;
+    //skill_ref = skill;
     async_loop(NULL);
   }
   void async_loop(void *arg) {
@@ -358,7 +359,7 @@ Skill skill_ref(20);
         Value delta = delta_ref;
         Position pos = pos_ref;
         Stack *ss = ss_ref;
-        Skill skill = skill_ref;
+        //Skill skill = skill_ref;
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
             Search::emscript_think_done();
             return;
@@ -442,15 +443,17 @@ Skill skill_ref(20);
         }
 
         // If skill levels are enabled and time is up, pick a sub-optimal best move
+        /*
         if (skill.enabled() && skill.time_to_pick(depth))
             skill.pick_move();
-
+*/
         if (Options["Write Search Log"])
         {
             RootMove& rm = RootMoves[0];
+            /*
             if (skill.best != MOVE_NONE)
                 rm = *std::find(RootMoves.begin(), RootMoves.end(), skill.best);
-
+*/
             Log log(Options["Search Log Filename"]);
             log << pretty_pv(pos, depth, rm.score, Time::now() - SearchTime, &rm.pv[0])
                 << std::endl;
