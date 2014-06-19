@@ -184,12 +184,6 @@ ifeq ($(COMP),icc)
 	CXXFLAGS += -diag-disable 1476,10120 -Wcheck -Wabi -Wdeprecated -strict-ansi
 endif
 
-ifeq ($(COMP),clang)
-	comp=clang
-	CXX=clang++
-	CXXFLAGS += -pedantic -Wno-long-long -Wextra -Wshadow
-endif
-
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
@@ -197,6 +191,12 @@ ifeq ($(COMP),emscripten)
 	profile_make = gcc-profile-make
 	profile_use = gcc-profile-use
 	profile_clean = gcc-profile-clean
+endif
+
+ifeq ($(COMP),clang)
+	comp=clang
+	CXX=clang++
+	CXXFLAGS += -pedantic -Wno-long-long -Wextra -Wshadow
 endif
 
 ifeq ($(comp),icc)
