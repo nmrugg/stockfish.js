@@ -140,13 +140,7 @@ function engineGame(options) {
                 uciCmd('position startpos moves' + get_moves(), evaler);
                 uciCmd("eval", evaler);
                 
-                if(time.depth) {
-                    uciCmd('go depth ' + time.depth);
-                } else if(time.nodes) {
-                    uciCmd('go nodes ' + time.nodes);
-                } else {
-                    uciCmd('go depth 1 wtime ' + time.wtime + ' winc ' + time.winc + ' btime ' + time.btime + ' binc ' + time.binc);
-                }
+                uciCmd("go " + (time.depth ? "depth " + time.depth : "") + " wtime " + time.wtime + " winc " + time.winc + " btime " + time.btime + " binc " + time.binc);
                 isEngineRunning = true;
             }
             if(game.history().length >= 2 && !time.depth && !time.nodes) {
@@ -270,7 +264,8 @@ function engineGame(options) {
         },
         setSkillLevel: function(skill) {
             var max_err,
-                err_prob;
+                err_prob,
+                difficulty_slider;
             
             if (skill < 0) {
                 skill = 0;
@@ -279,13 +274,27 @@ function engineGame(options) {
                 skill = 20;
             }
             
+            time.level = skill;
+            
+            /// Change thinking depth allowance.
+            if (skill < 5) {
+                time.depth = "1";
+            } else if (skill < 10) {
+                time.depth = "2";
+            } else if (skill < 15) {
+                time.depth = "3";
+            } else {
+                /// Let the engine decide.
+                time.depth = "";
+            }
+            
             uciCmd('setoption name Skill Level value ' + skill);
             
             ///NOTE: Stockfish level 20 does not make errors (intentially), so these numbers have no effect on level 20.
             /// Level 0 starts at 1
             err_prob = Math.round((skill * 6.35) + 1);
             /// Level 0 starts at 10
-            max_err = Math.floor((skill * -0.5) + 10);
+            max_err = Math.round((skill * -0.5) + 10);
             
             uciCmd('setoption name Skill Level Maximum Error value ' + max_err);
             uciCmd('setoption name Skill Level Probability value ' + err_prob);
