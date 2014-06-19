@@ -248,7 +248,7 @@ ifneq ($(comp),mingw)
 	ifneq ($(arch),armv7)
 		# Haiku has pthreads in its libroot, so only link it in on other platforms
 		ifneq ($(UNAME),Haiku)
-			LDFLAGS += -lpthread
+			#LDFLAGS += -lpthread
 		endif
 	endif
 endif
