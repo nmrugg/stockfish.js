@@ -3,7 +3,7 @@ function engineGame(options) {
     var game = new Chess();
     var board;
     var engine = new Worker(options.stockfishjs || 'stockfish.js');
-    //var evaler = new Worker(options.stockfishjs || 'stockfish.js');
+    var evaler = new Worker(options.stockfishjs || 'stockfish.js');
     var engineStatus = {};
     var displayScore = false;
     var time = { wtime: 300000, btime: 300000, winc: 2000, binc: 2000 };
@@ -32,8 +32,9 @@ function engineGame(options) {
     }
     uciCmd('uci');
     
-    //uciCmd("uci", evaler);
-    uciCmd('setoption name Skill Level value 20');
+    uciCmd("uci", evaler);
+    uciCmd('setoption name Skill Level value 20', evaler);
+    ///TODO: Eval starting posistions. I suppose the starting positions could be different in different chess varients.
 
     function displayStatus() {
         var status = 'Engine: ';
@@ -136,10 +137,8 @@ function engineGame(options) {
             if(turn != playerColor) {
                 uciCmd('position startpos moves' + get_moves());
                 //uciCmd('eval');
-                /*
                 uciCmd('position startpos moves' + get_moves(), evaler);
                 uciCmd("eval", evaler);
-                */
                 
                 if(time.depth) {
                     uciCmd('go depth ' + time.depth);
@@ -156,13 +155,13 @@ function engineGame(options) {
         }
     }
 
-/*
+
     evaler.onmessage = function(event) {
         var line = event.data;
         
         console.log("evaler: " + line);
     }
-*/
+
     engine.onmessage = function(event) {
         var line = event.data;
         console.log("Reply: " + line)
@@ -178,9 +177,7 @@ function engineGame(options) {
                 game.move({from: match[1], to: match[2], promotion: match[3]});
                 prepareMove();
                 //uciCmd("eval")
-                /*
                 uciCmd("eval", evaler);
-                */
             /// Is it sending feedback?
             } else if(match = line.match(/^info .*\bdepth (\d+) .*\bnps (\d+)/)) {
                 engineStatus.search = 'Depth: ' + match[1] + ' Nps: ' + match[2];
@@ -235,7 +232,7 @@ function engineGame(options) {
         onSnapEnd: onSnapEnd
     };
 
-    if(options.book && false) {
+    if(options.book) {
         var bookRequest = new XMLHttpRequest();
         bookRequest.open('GET', options.book, true);
         bookRequest.responseType = "arraybuffer";
