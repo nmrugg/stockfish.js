@@ -254,10 +254,12 @@ void Search::emscript_think_done() {
       log << "\nPonder move: " << move_to_san(RootPos, RootMoves[0].pv[1]) << std::endl;
       RootPos.undo_move(RootMoves[0].pv[0]);
   }
+
   Search::emscript_finalize(NULL);
 }
 void Search::emscript_finalize(void *arg) {
 //finalize: /// Old sync code
+
   // When search is stopped this info is not printed
   sync_cout << "info nodes " << RootPos.nodes_searched()
             << " time " << Time::now() - SearchTime + 1 << sync_endl;
@@ -319,7 +321,6 @@ Skill *skill_p;
     Followupmoves.clear();
 
     MultiPV = Options["MultiPV"];
-    
     // Skill skill(Options["Skill Level"])
     skill_p = new Skill(Options["Skill Level"]);
 
