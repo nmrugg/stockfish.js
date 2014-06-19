@@ -239,7 +239,7 @@ ifeq ($(UNAME),Darwin)
 endif
 
 ifeq ($(COMP),emscripten)
-	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js --closure 1
 endif
 
 ### On mingw use Windows threads, otherwise POSIX
@@ -295,8 +295,8 @@ ifeq ($(optimize),yes)
 	ifeq ($(comp),clang)
 		### -O4 requires a linker that supports LLVM's LTO
 		ifeq ($(COMP),emscripten)
-			CXXFLAGS += -O2
-			LDFLAGS += -O2
+			CXXFLAGS += -O3
+			LDFLAGS += -O3
 		else
 			CXXFLAGS += -O3
 		endif
