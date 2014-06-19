@@ -1386,46 +1386,38 @@ moves_loop: // When in check and at SpNode search starts from here
   Move Skill::pick_move() {
 
     static RKISS rk;
-sync_cout << "picking move" << sync_endl;
+
     // PRNG sequence should be not deterministic
     for (int i = Time::now() % 50; i > 0; --i)
         rk.rand<unsigned>();
-sync_cout << "_1" << sync_endl;
+
     // RootMoves are already sorted by score in descending order
     int variance = std::min(RootMoves[0].score - RootMoves[MultiPV - 1].score, PawnValueMg);
-sync_cout << "_1a" << sync_endl;
     int weakness = 120 - 2 * level;
-sync_cout << "_1b" << sync_endl;
     int max_s = -VALUE_INFINITE;
-sync_cout << "_1c" << sync_endl;
     best = MOVE_NONE;
-sync_cout << "_2" << sync_endl;
+
     // Choose best move. For each move score we add two terms both dependent on
     // weakness. One deterministic and bigger for weaker moves, and one random,
     // then we choose the move with the resulting highest score.
     for (size_t i = 0; i < MultiPV; ++i)
     {
-sync_cout << "_3" << sync_endl;
         int s = RootMoves[i].score;
-sync_cout << "_4" << sync_endl;
+
         // Don't allow crazy blunders even at very low skills
         if (i > 0 && RootMoves[i-1].score > s + Options["Skill Level Maximum Error"] * PawnValueMg) ///PATCH: Actually, yes, possibly allow crazy blunders (http://support.stockfishchess.org/discussions/suggestions/94-skill-level-request-to-spread-the-skill-over-a-wider-range)
             break;
-sync_cout << "_5" << sync_endl;
+
         // This is our magic formula
         s += (  weakness * int(RootMoves[0].score - s)
               + variance * (rk.rand<unsigned>() % weakness)) / Options["Skill Level Probability"]; ///PATCH
-sync_cout << "_6" << sync_endl;
+
         if (s > max_s)
         {
-sync_cout << "_7" << sync_endl;
             max_s = s;
-sync_cout << "_8" << sync_endl;
             best = RootMoves[i].pv[0];
         }
-sync_cout << "_9" << sync_endl;
     }
-sync_cout << "_10" << sync_endl;
     return best;
   }
 
