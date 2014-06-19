@@ -451,6 +451,7 @@ install:
 
 clean:
 	$(RM) $(EXE) $(EXE).exe *.o .depend *~ core bench.txt *.gcda
+	$(RM) $(EXE).js
 
 default:
 	help
