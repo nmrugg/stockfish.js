@@ -191,6 +191,27 @@ These are all the command the engine gets from the interface.
 * quit
 	quit the program as soon as possible
 
+* perft <number>
+    Read perft depth
+
+* flip
+    Flip the board
+
+* bench
+    Run a benchmark
+
+* d
+    Show current position in a human readable way
+    Also outputs the following:
+        Fen
+        Key
+        Checkers
+        Legal moves
+
+* key
+    Displays position key, material key, and pawn key
+
+
 
 Engine to GUI:
 --------------
