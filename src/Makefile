@@ -109,7 +109,6 @@ ifeq ($(ARCH),js)
 	EXE = stockfish.js
 endif
 
-# x86-section
 ifeq ($(ARCH),x86-64)
 	arch = x86_64
 	bits = 64
@@ -188,10 +187,7 @@ endif
 ifeq ($(COMP),clang)
 	comp=clang
 	CXX=clang++
-	profile_prepare = gcc-profile-prepare
-	profile_make = gcc-profile-make
-	profile_use = gcc-profile-use
-	profile_clean = gcc-profile-clean
+	CXXFLAGS += -pedantic -Wno-long-long -Wextra -Wshadow
 endif
 
 ifeq ($(COMP),emscripten)
@@ -201,13 +197,6 @@ ifeq ($(COMP),emscripten)
 	profile_make = gcc-profile-make
 	profile_use = gcc-profile-use
 	profile_clean = gcc-profile-clean
-endif
-
-### 3.2 General compiler settings
-CXXFLAGS = -Wall -Wcast-qual -fno-exceptions -fno-rtti $(EXTRACXXFLAGS)
-
-ifeq ($(comp),gcc)
-	CXXFLAGS += -pedantic -Wno-long-long -Wextra -Wshadow
 endif
 
 ifeq ($(comp),icc)
@@ -224,13 +213,6 @@ endif
 
 ifeq ($(COMP),emscripten)
 	CXXFLAGS += -s TOTAL_MEMORY=67108864
-endif
-
-### 3.3 General linker settings
-LDFLAGS = $(EXTRALDFLAGS)
-
-ifeq ($(comp),mingw)
-	LDFLAGS += -static-libstdc++ -static-libgcc
 endif
 
 ifeq ($(UNAME),Darwin)
@@ -554,4 +536,3 @@ hpux:
 	CXXFLAGS="" \
 	LDFLAGS="" \
 	all
-
