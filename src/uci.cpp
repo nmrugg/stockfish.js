@@ -102,7 +102,6 @@ void UCI::command(const string& cmd) {
 				<< "\n"       << Options
 				<< "\nuciok"  << sync_endl;
 
-  else if (token == "eval")       sync_cout << Eval::trace(currentPos) << sync_endl;
   else if (token == "ucinewgame") { /* Avoid returning "Unknown command" */ }
   else if (token == "go")         go(currentPos, is);
   else if (token == "position")   position(currentPos, is);
@@ -111,6 +110,7 @@ void UCI::command(const string& cmd) {
   else if (token == "bench")      benchmark(currentPos, is);
   else if (token == "d")          sync_cout << currentPos.pretty() << sync_endl;
   else if (token == "isready")    sync_cout << "readyok" << sync_endl;
+  else if (token == "eval")       sync_cout << Eval::trace(currentPos) << sync_endl;
   else
 	  sync_cout << "Unknown command: " << cmd << sync_endl;
 }
