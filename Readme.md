@@ -1,31 +1,34 @@
-### Stockfish-js
+### Stockfish.js
 
-This is a fork of a fork. It has been updated to Stockfish 5.
+Stockfish.js is a fork of a Stockfish-js which is a fork of Stockfish.
+It currently runs Stockfish 5.
 
-Stockfish-js is an emscripten port of the stockfish chess engine.
-(Emscripten being a c[++] to javascript compiler.)
+(NOTE: This readme is still in flux. Check back later.)
+
+Stockfish.js is an emscripten port of the Stockfish chess engine.
+(Emscripten being a c[++] to JavaScript compiler.)
 This enables one to run one of the strongest chess engines available
 without downloads or plugins in a web browser.
-In Firefox, thanks to its asm.js support, it runs at a respactable
+In Firefox, thanks to its asm.js support, it runs at a respectable
 1/3 of the (single-threaded) speed of a native compile on my machine.
-In Chrome it reaches about half the speed of FF - after a short
+In Chrome it reaches about half the speed of FF, after a short
 warm-up time.
 
 ### Download
 
-Download Stockfish DD compiled to javascript:
+Download Stockfish DD compiled to JavaScript:
 [stockfish.js](https://github.com/exoticorn/stockfish-js/releases/download/sf_dd_js/stockfish.js)
 
 ### API
 
-Stockfish-js is designed to run in a web-worker, which can be created
+Stockfish.js is designed to run in a web-worker, which can be created
 like this:
 
-    var stockfish = new Worker('stockfish.js');
+    var stockfish = new Worker("stockfish.js");
 
 Input (standard UCI commands) to the engine is posted as a message to the worker:
 
-    engine.postMessage('go depth 15');
+    engine.postMessage("go depth 15");
 
 The output of the engine is again posted as a message, to receive it
 you need to install an event handler:
@@ -34,12 +37,12 @@ you need to install an event handler:
       console.log(event.data);
     };
 
-Since the engine cannot load an opening book from the filesystem, there
+Since the engine cannot load an opening book from the file system, there
 is a special message "{book: <binary polglot book data>}" to send a book
 that you have downloaded yourself to the engine:
 
     var bookRequest = new XMLHttpRequest();
-    bookRequest.open('GET', 'book.bin', true);
+    bookRequest.open("GET", "book.bin", true);
     bookRequest.responseType = "arraybuffer";
     bookRequest.onload = function(event) {
       if(bookRequest.status == 200)
@@ -47,25 +50,20 @@ that you have downloaded yourself to the engine:
     };
     bookRequest.send(null);
 
-### Restrictions
+### Note about pondering
 
-Since there is no support for multi-threading with shared state in browsers,
-the engine can only run in a single thread. The 'Threads' option is therefore
-ignored.
+The code has been slightly refactored to allow for pondering.
+However, it can take a long time for Stockfish.js to receive the "stop" or "ponderhit" commands.
+So it could be dangerous to use in a timed game.
 
-The engine cannot receive a command during a search. This means that the
-'stop' and 'ponderhit' commands will not work as intended.
-So pondering make no sense at all, and infinite analysis ('go infinite')
-only limited sense, as the only way to stop the search is to kill the
-web-worker and start a new one for the next position to analyze which
-incurrs quite some overhead and obviously loses the state of the hash.
+In the future, it may be improved.
 
 ### Compiling
 
 You need to have the emscripten compiler installed and in your path.
-Then you can compile Stockfish-js like this:
+Then you can compile Stockfish.js like this:
 
-    make build ARCH=js
+    ./build.sh
 
 ### Example
 
@@ -81,6 +79,8 @@ Alternatively, there is a online version of this example here:
 
 The example uses [chess.js](http://github.com/jhlywa/chess.js)
 and [chessboard.js](http://chessboardjs.com/) libraries.
+
+You can also run Stockfish.js from the command line via `./stockfish.js` or `node src/stockfish.js`.
 
 ## Original Stockfish Readme:
 
