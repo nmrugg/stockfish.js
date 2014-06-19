@@ -192,7 +192,6 @@ Position pos;
                     << "\n"       << Options
                     << "\nuciok"  << sync_endl;
 
-      else if (token == "eval")       sync_cout << Eval::trace(pos) << sync_endl;
       else if (token == "ucinewgame") TT.clear();
       else if (token == "go")         go(pos, is);
       else if (token == "position")   position(pos, is);
@@ -201,6 +200,7 @@ Position pos;
       else if (token == "bench")      benchmark(pos, is);
       else if (token == "d")          sync_cout << pos.pretty() << sync_endl;
       else if (token == "isready")    sync_cout << "readyok" << sync_endl;
+      else if (token == "eval")       sync_cout << Eval::trace(pos) << sync_endl;
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
 
