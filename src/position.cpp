@@ -460,6 +460,10 @@ const string Position::pretty(Move m) const {
   ss << "\nLegal moves: ";
   for (MoveList<LEGAL> it(*this); *it; ++it)
       ss << move_to_san(*const_cast<Position*>(this), *it) << " ";
+  ss << "\nLegal uci moves: ";
+  /// Stockfish.js: Get legal moves in uci format too.
+  for (MoveList<LEGAL> it(*this); *it; ++it)
+      ss << move_to_uci(*it, this->is_chess960()) << " ";
 
   return ss.str();
 }
