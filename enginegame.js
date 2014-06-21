@@ -42,13 +42,6 @@ setInterval(function ()
             console.log("UCI: " + cmd)
         }
         
-        if (which) {
-            /// Ignore some commands for eval.
-            if (cmd.substr(0, 9) === "setoption") {
-                return;
-            }
-        }
-        
         (which || engine).postMessage(cmd);
     }
     uciCmd('uci');
