@@ -10,6 +10,8 @@ function engineGame(options) {
     var playerColor = 'white';
     var clockTimeoutID = null;
     var isEngineRunning = false;
+    var evaluation_el = document.getElementById("evaluation");
+    var announced_game_over;
 
     // do not pick up pieces if the game is over
     // only pick up pieces for White
@@ -21,11 +23,30 @@ function engineGame(options) {
             }
     };
 
+setInterval(function ()
+{
+    if (announced_game_over) {
+        return;
+    }
+    
+    if (game.game_over()) {
+        announced_game_over = true;
+        alert("Game Over");
+    }
+}, 1000);
+
     function uciCmd(cmd, which) {
         if (typeof cmd === "object") {
             console.log("UCI: <adding book>")
         } else {
             console.log("UCI: " + cmd)
+        }
+        
+        if (which) {
+            /// Ignore some commands for eval.
+            if (cmd === "uci" || cmd === "ucinewgame" || cmd === "isready" || cmd.substr(0, 9) === "setoption") {
+                return;
+            }
         }
         
         (which || engine).postMessage(cmd);
@@ -138,6 +159,7 @@ function engineGame(options) {
                 uciCmd('position startpos moves' + get_moves());
                 //uciCmd('eval');
                 uciCmd('position startpos moves' + get_moves(), evaler);
+                evaluation_el.textContent = "";
                 uciCmd("eval", evaler);
                 
                 uciCmd("go " + (time.depth ? "depth " + time.depth : "") + " wtime " + time.wtime + " winc " + time.winc + " btime " + time.btime + " binc " + time.binc);
@@ -154,6 +176,10 @@ function engineGame(options) {
         var line = event.data;
         
         console.log("evaler: " + line);
+        if (evaluation_el.textContent) {
+            evaluation_el.textContent += "\n";
+        }
+        evaluation_el.textContent += line;
     }
 
     engine.onmessage = function(event) {
@@ -171,6 +197,7 @@ function engineGame(options) {
                 game.move({from: match[1], to: match[2], promotion: match[3]});
                 prepareMove();
                 //uciCmd("eval")
+                evaluation_el.textContent = "";
                 uciCmd("eval", evaler);
             /// Is it sending feedback?
             } else if(match = line.match(/^info .*\bdepth (\d+) .*\bnps (\d+)/)) {
@@ -325,6 +352,7 @@ function engineGame(options) {
             engineStatus.search = null;
             displayStatus();
             prepareMove();
+            announced_game_over = false;
         },
         undo: function() {
             if(isEngineRunning)
