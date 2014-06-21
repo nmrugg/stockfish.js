@@ -453,7 +453,7 @@ Engine to GUI:
 	Examples:
     Here are 5 strings for each of the 5 possible types of options
 	   "option name Nullmove type check default true\n"
-      "option name Selectivity type spin default 2 min 0 max 4\n"
+       "option name Selectivity type spin default 2 min 0 max 4\n"
 	   "option name Style type combo default Normal var Solid var Normal var Risky\n"
 	   "option name NalimovPath type string default c:\\n"
 	   "option name Clear Hash type button\n"
