@@ -44,7 +44,7 @@ setInterval(function ()
         
         if (which) {
             /// Ignore some commands for eval.
-            if (cmd === "uci" || cmd.substr(0, 9) === "setoption") {
+            if (cmd.substr(0, 9) === "setoption") {
                 return;
             }
         }
@@ -174,6 +174,11 @@ setInterval(function ()
 
     evaler.onmessage = function(event) {
         var line = event.data;
+        
+        /// Ignore some output.
+        if (!line || line === "uciok" || line === "readyok" || line.substr(0, 9) !== "setoption") {
+            return;
+        }
         
         console.log("evaler: " + line);
         if (evaluation_el.textContent) {
