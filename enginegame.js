@@ -171,7 +171,7 @@ setInterval(function ()
         console.log("evaler: " + line);
         
         /// Ignore some output.
-        if (line === "uciok" || line === "readyok" || line.substr(0, 9) === "setoption") {
+        if (line === "uciok" || line === "readyok" || line.substr(0, 11) === "option name") {
             return;
         }
         
