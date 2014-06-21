@@ -42,13 +42,6 @@ setInterval(function ()
             console.log("UCI: " + cmd)
         }
         
-        if (which) {
-            /// Ignore some commands for eval.
-            if (cmd === "uci" || cmd === "ucinewgame" || cmd === "isready" || cmd.substr(0, 9) === "setoption") {
-                return;
-            }
-        }
-        
         (which || engine).postMessage(cmd);
     }
     uciCmd('uci');
@@ -176,6 +169,12 @@ setInterval(function ()
         var line = event.data;
         
         console.log("evaler: " + line);
+        
+        /// Ignore some output.
+        if (line === "uciok" || line === "readyok" || line.substr(0, 11) === "option name") {
+            return;
+        }
+        
         if (evaluation_el.textContent) {
             evaluation_el.textContent += "\n";
         }
