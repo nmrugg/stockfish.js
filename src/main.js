@@ -1,3 +1,12 @@
+/*!
+ * Stockfish.js
+ *
+ * Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
+ * Copyright (C) 2008-2014 Marco Costalba, Joona Kiiski, Tord Romstad (Stockfish authors)
+ * Copyright (C) Nathan Rugg
+ *
+ * License: GPL
+ */
 /*
 Stockfish is free, and distributed under the **GNU General Public License**
 (GPL). Essentially, this means that you are free to do almost exactly
