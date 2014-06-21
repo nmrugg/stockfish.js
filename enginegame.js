@@ -44,7 +44,7 @@ setInterval(function ()
         
         if (which) {
             /// Ignore some commands for eval.
-            if (cmd === "uci" || cmd === "ucinewgame" || cmd === "isready" || cmd.substr(0, 9) === "setoption") {
+            if (cmd === "uci" || cmd === "ucinewgame" || cmd.substr(0, 9) === "setoption") {
                 return;
             }
         }
