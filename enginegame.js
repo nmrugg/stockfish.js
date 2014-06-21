@@ -168,12 +168,13 @@ setInterval(function ()
     evaler.onmessage = function(event) {
         var line = event.data;
         
+        console.log("evaler: " + line);
+        
         /// Ignore some output.
-        if (!line || line === "uciok" || line === "readyok" || line.substr(0, 9) !== "setoption") {
+        if (line === "uciok" || line === "readyok" || line.substr(0, 9) === "setoption") {
             return;
         }
         
-        console.log("evaler: " + line);
         if (evaluation_el.textContent) {
             evaluation_el.textContent += "\n";
         }
