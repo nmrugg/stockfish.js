@@ -1,6 +1,6 @@
 ### Stockfish.js
 
-Stockfish.js is a fork of a Stockfish-js which is a fork of Stockfish.
+<a href="https://github.com/nmrugg/stockfish.js">Stockfish.js</a> is a fork of a <a href="https://github.com/exoticorn/stockfish-js">Stockfish-js</a> which is a fork of <a href="https://github.com/mcostalba/Stockfish">Stockfish</a>.
 It currently runs Stockfish 5.
 
 (NOTE: This readme is still in flux. Check back later.)
