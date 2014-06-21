@@ -20,7 +20,9 @@ The minified JavaScript source code: <a href="http://nmrugg.github.io/stockfish.
 
 ### API
 
-Stockfish.js is designed to run in a web-worker, which can be created
+You can run Stockfish.js directly from the command line with `node.js`.
+
+In a web browser, Stockfish.js is designed to run in a web-worker, which can be created
 like this:
 
     var stockfish = new Worker("stockfish.js");
