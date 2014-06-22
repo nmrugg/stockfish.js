@@ -62,6 +62,18 @@
               <button type="button" class="btn btn-primary" onclick="newGame()">New Game</button>
             </div>
           </div>
+          
+          <div class="form-group">
+            <label for="color" class="control-label col-xs-4 col-sm-6 col-md-4">Promote to</label>
+            <div class="col-xs-4 col-sm-6 col-md-4">
+              <select id=promote>
+                <option value=q selected>Queen</option>
+                <option value=r>Rook</option>
+                <option value=b>Bishop</option>
+                <option value=n>Knight</option>
+              </select>
+            </div>
+          </div>
         </form>
         <h5>Evaluation</h5>
         <pre id=evaluation></pre>
