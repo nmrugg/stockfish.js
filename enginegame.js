@@ -228,7 +228,7 @@ setInterval(function ()
         var move = game.move({
             from: source,
             to: target,
-            promotion: 'q' // NOTE: always promote to a pawn for example simplicity
+            promotion: document.getElementById("promote").value
         });
 
         // illegal move
