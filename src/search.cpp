@@ -28,7 +28,9 @@
 #include <iostream>
 #include <sstream>
 
+#ifndef NO_BOOK
 #include "book.h" /// Re-added
+#endif
 #include "evaluate.h"
 #include "movegen.h"
 #include "movepick.h"
@@ -182,7 +184,9 @@ uint64_t Search::perft(Position& pos, Depth depth) {
 
 void Search::think() {
   /// Re-added
+  #ifndef NO_BOOK
   static PolyglotBook book; // Defined static to initialize the PRNG only once
+  #endif
 
   TimeMgr.init(Limits, RootPos.game_ply(), RootPos.side_to_move());
 
@@ -203,6 +207,7 @@ void Search::think() {
   }
   
   /// Re-added
+  #ifndef NO_BOOK
   if (Options["OwnBook"] && !Limits.infinite && !Limits.mate)
   {
       Move bookMove = book.probe(RootPos, Options["Book File"], Options["Best Book Move"]);
@@ -214,6 +219,7 @@ void Search::think() {
           return;
       }
   }
+  #endif
 
   if (Options["Write Search Log"])
   {

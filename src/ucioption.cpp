@@ -57,8 +57,11 @@ void init(OptionsMap& o) {
   o["Write Debug Log"]          << Option(false, on_logger);
   o["Write Search Log"]         << Option(false);
   o["Search Log Filename"]      << Option("SearchLog.txt");
+#ifndef NO_BOOK
   o["Book File"]                << Option("book.bin");
   o["Best Book Move"]           << Option(false);
+  o["OwnBook"]                  << Option(false);
+#endif
   o["Contempt Factor"]          << Option(0, -50,  50);
   o["Mobility (Midgame)"]       << Option(100, 0, 200, on_eval);
   o["Mobility (Endgame)"]       << Option(100, 0, 200, on_eval);
@@ -73,7 +76,6 @@ void init(OptionsMap& o) {
   o["Hash"]                     << Option(32, 1, 16384, on_hash_size);
   o["Clear Hash"]               << Option(on_clear_hash);
   o["Ponder"]                   << Option(true);
-  o["OwnBook"]                  << Option(false);
   o["MultiPV"]                  << Option(1, 1, 500);
   o["Skill Level"]              << Option(20, 0, 20);
   o["Skill Level Maximum Error"]<< Option(2, 1, 100);
