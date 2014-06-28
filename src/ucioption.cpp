@@ -73,7 +73,7 @@ void init(OptionsMap& o) {
   o["King Safety"]              << Option(100, 0, 200, on_eval);
   o["Min Split Depth"]          << Option(0, 0, 12, on_threads);
   o["Threads"]                  << Option(1, 1, MAX_THREADS, on_threads);
-  o["Hash"]                     << Option(32, 1, 16384, on_hash_size);
+  o["Hash"]                     << Option(32, 1, 65536, on_hash_size);
   o["Clear Hash"]               << Option(on_clear_hash);
   o["Ponder"]                   << Option(true);
   o["MultiPV"]                  << Option(1, 1, 500);
