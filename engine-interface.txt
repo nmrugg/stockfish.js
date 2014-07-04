@@ -98,7 +98,7 @@ These are all the command the engine gets from the interface.
 	for example do not use <name> = "draw value".
 	Here are some strings for the example below:
 	   "setoption name Nullmove value true\n"
-      "setoption name Selectivity value 3\n"
+       "setoption name Selectivity value 3\n"
 	   "setoption name Style value Risky\n"
 	   "setoption name Clear Hash\n"
 	   "setoption name NalimovPath value c:\chess\tb\4;c:\chess\tb\5\n"
@@ -207,6 +207,7 @@ These are all the command the engine gets from the interface.
         Key
         Checkers
         Legal moves
+        [Legal UCI moves] *Added by me
 
 * key
     Displays position key, material key, and pawn key
