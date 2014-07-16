@@ -364,7 +364,14 @@ Skill *skill_p;
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
             ///NOTE: This code used to be in the deconstructor of skill, but that caused heap errors and memory unalignment.
             if (skill.enabled()) {
-                std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), skill.best ? skill.best : skill.pick_move()));
+                if (!skill.best) {
+                    skill.best = skill.pick_move();
+                }
+                /// If it can't find another move, there's no need to change anything.
+                ///NOTE: Swapping when skill.best == 0 sometimes throws.
+                if (skill.best) {
+                    std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), skill.best));
+                }
             }
             Search::emscript_think_done();
             return;
