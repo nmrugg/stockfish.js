@@ -893,6 +893,9 @@ moves_loop: // When in check and at SpNode search starts from here
           }
       }
 
+      // Speculative prefetch
+      prefetch((char*)TT.first_entry(pos.hash_after_move(move)));
+
       // Check for legality just before making the move
       if (!RootNode && !SpNode && !pos.legal(move, ci.pinned))
       {
@@ -1241,6 +1244,9 @@ moves_loop: // When in check and at SpNode search starts from here
           &&  type_of(move) != PROMOTION
           &&  pos.see_sign(move) < VALUE_ZERO)
           continue;
+
+      // Speculative prefetch
+      prefetch((char*)TT.first_entry(pos.hash_after_move(move)));
 
       // Check for legality just before making the move
       if (!pos.legal(move, ci.pinned))
