@@ -39,7 +39,6 @@ extern "C" void init() {
 	  Position::init();
 	  Bitbases::init_kpk();
 	  Search::init();
-	  Pawns::init();
 	  Eval::init();
 	  Threads.init();
 	  TT.resize(Options["Hash"]);
