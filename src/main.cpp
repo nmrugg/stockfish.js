@@ -40,6 +40,7 @@ extern "C" void init() {
 	  Bitbases::init_kpk();
 	  Search::init();
 	  Eval::init();
+  Pawns::init();
 	  Threads.init();
 	  TT.resize(Options["Hash"]);
 
