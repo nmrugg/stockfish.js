@@ -853,7 +853,6 @@ moves_loop: // When in check and at SpNode search starts from here
           && !captureOrPromotion
           && !inCheck
           && !dangerous
-       /* &&  move != ttMove Already implicit in the next condition */
           &&  bestValue > VALUE_MATED_IN_MAX_PLY)
       {
           // Move count based pruning
@@ -919,9 +918,8 @@ moves_loop: // When in check and at SpNode search starts from here
       // Step 15. Reduced depth search (LMR). If the move fails high it will be
       // re-searched at full depth.
       if (    depth >= 3 * ONE_PLY
-          && !pvMove
+          &&  moveCount > 1
           && !captureOrPromotion
-          &&  move != ttMove
           &&  move != ss->killers[0]
           &&  move != ss->killers[1])
       {
@@ -1217,7 +1215,6 @@ moves_loop: // When in check and at SpNode search starts from here
       if (   !PvNode
           && !InCheck
           && !givesCheck
-          &&  move != ttMove
           &&  futilityBase > -VALUE_KNOWN_WIN
           && !pos.advanced_pawn_push(move))
       {
@@ -1247,7 +1244,6 @@ moves_loop: // When in check and at SpNode search starts from here
       // Don't search moves with negative SEE values
       if (   !PvNode
           && (!InCheck || evasionPrunable)
-          &&  move != ttMove
           &&  type_of(move) != PROMOTION
           &&  pos.see_sign(move) < VALUE_ZERO)
           continue;
