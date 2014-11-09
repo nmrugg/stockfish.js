@@ -423,7 +423,6 @@ Skill *skill_p;
                     alpha = (alpha + beta) / 2;
                     beta = std::min(bestValue + delta, VALUE_INFINITE);
                 }
-
                 else
                     break;
 
