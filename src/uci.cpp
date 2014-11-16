@@ -152,6 +152,7 @@ Position pos;
       string token;
       istringstream is(cmd);
 
+      token.clear(); // getline() could return empty or blank line
       is >> skipws >> token;
 
       if (token == "quit" || token == "stop" || token == "ponderhit")
