@@ -121,7 +121,7 @@ namespace {
     ///NOTE: The deconstructor, ~Skill(), breaks stuff when compiled to JavaScript. This code was moved to async_loop().
 
     size_t candidates_size() const { return candidates; }
-    bool time_to_pick(Depth depth) const { return depth == 1 + level; }
+    bool time_to_pick(Depth depth) const { return depth / ONE_PLY == 1 + level; }
     Move pick_move();
 
     int level;
@@ -767,7 +767,7 @@ Skill *skill_p;
         assert(eval - beta >= 0);
 
         // Null move dynamic reduction based on depth and value
-        Depth R = (3 + depth / 4 + std::min(int(eval - beta) / PawnValueMg, 3)) * ONE_PLY;
+        Depth R = (3 + depth / 4 + std::min((eval - beta) / PawnValueMg, 3)) * ONE_PLY;
 
         pos.do_null_move(st);
         (ss+1)->skipNullMove = true;
@@ -900,7 +900,7 @@ moves_loop: // When in check and at SpNode search starts from here
           Signals.firstRootMove = (moveCount == 1);
 
           if (thisThread == Threads.main() && Time::now() - SearchTime > 3000)
-              sync_cout << "info depth " << depth
+              sync_cout << "info depth " << depth / ONE_PLY
                         << " currmove " << UCI::format_move(move, pos.is_chess960())
                         << " currmovenumber " << moveCount + PVIdx << sync_endl;
       }
@@ -933,7 +933,7 @@ moves_loop: // When in check and at SpNode search starts from here
           && !ext
           &&  pos.legal(move, ci.pinned))
       {
-          Value rBeta = ttValue - int(2 * depth);
+          Value rBeta = ttValue - 2 * depth / ONE_PLY;
           ss->excludedMove = move;
           ss->skipNullMove = true;
           value = search<NonPV, false>(pos, ss, rBeta - 1, rBeta, depth / 2, cutNode);
@@ -1469,7 +1469,7 @@ moves_loop: // When in check and at SpNode search starts from here
 
     // Increase history value of the cut-off move and decrease all the other
     // played quiet moves.
-    Value bonus = Value(int(depth) * int(depth));
+    Value bonus = Value((depth / ONE_PLY) * (depth / ONE_PLY));
     History.update(pos.moved_piece(move), to_sq(move), bonus);
     for (int i = 0; i < quietsCnt; ++i)
     {
@@ -1552,7 +1552,7 @@ moves_loop: // When in check and at SpNode search starts from here
     {
         bool updated = (i <= PVIdx);
 
-        if (depth == 1 && !updated)
+        if (depth == ONE_PLY && !updated)
             continue;
 
         Depth d = updated ? depth : depth - ONE_PLY;
