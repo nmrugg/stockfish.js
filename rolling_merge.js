@@ -245,12 +245,11 @@ function init(cb)
             {
                 get_fork_point(head_sha, to_sha, function onget(starting_sha)
                 {
+                    /// Be able to override starting commit.
+                    starting_sha = process.argv[3] || starting_sha;
+                    
                     if (!starting_sha) {
-                        if (process.argv[3]) {
-                            starting_sha = process.argv[3];
-                        } else {
-                            throw new Error("Caanot find starting fork point. Override by supplying fork sha.");
-                        }
+                        throw new Error("Caanot find starting fork point. Override by supplying fork sha.");
                     }
                     
                     /// Find out which commits have not been cherry picked yet.
