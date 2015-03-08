@@ -32,9 +32,7 @@ TranspositionTable TT; // Our global transposition table
 
 void TranspositionTable::resize(size_t mbSize) {
 
-  assert(msb((mbSize * 1024 * 1024) / sizeof(TTCluster)) < 32);
-
-  uint32_t newClusterCount = 1 << msb((mbSize * 1024 * 1024) / sizeof(TTCluster));
+  size_t newClusterCount = size_t(1) << msb((mbSize * 1024 * 1024) / sizeof(TTCluster));
 
   if (newClusterCount == clusterCount)
       return;
