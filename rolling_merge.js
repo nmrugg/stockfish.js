@@ -193,14 +193,14 @@ function test_it(sha, next)
     {
         if (err) {
             error("Error: Cannot build " + sha);
-            error("STDOUT:");
+            console.log("STDOUT:");
             error(stdout);
-            error("STDERR:");
+            console.log("STDERR:");
             error(stderr);
             error("Error: Cannot build " + sha);
-            error("");
-            error("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
-            error("");
+            console.log("");
+            console.log("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
+            console.log("");
             throw new Error(err);
         }
         good("Build " + sha + " successfully!");
@@ -220,9 +220,9 @@ function attempt_to_merge(sha, next)
                 return warn("Merge conflict. Please fix manually.");
             } else {
                 error("Error: Cannot cherypick " + sha);
-                error("STDOUT:");
+                console.log("STDOUT:");
                 error(stdout);
-                error("STDERR:");
+                console.log("STDERR:");
                 error(stderr);
                 throw new Error(err);
             }
