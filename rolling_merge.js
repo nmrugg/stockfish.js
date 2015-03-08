@@ -147,7 +147,9 @@ function is_candidate(candidates, sha)
 {
     return candidates.some(function oneach(this_sha)
     {
+        //console.log(this_sha.substr(0, sha.length) + " === " + sha)
         if (this_sha.substr(0, sha.length) === sha) {
+            console.log("*********************************found")
             return true;
         }
     });
@@ -216,9 +218,16 @@ function init(cb)
                     
                     get_merge_candidates(branch, function onget(candidates)
                     {
-                        merge_candidates = candidates;
                         get_commit_history(starting_sha, to_sha, function onget(commits)
                         {
+                            merge_candidates = candidates;
+                            console.log("cand")
+                            console.log(candidates)
+                            console.log("")
+                            console.log("")
+                            console.log("commits")
+                            console.log(commits)
+                            process.exit()
                             async_loop(commits, cb, attempt_to_merge);
                         });
                     });
