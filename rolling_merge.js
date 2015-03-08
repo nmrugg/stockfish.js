@@ -57,6 +57,14 @@ function staged_files_found(cb)
     });
 }
 
+function check_for_changes(cb)
+{
+    git_cmd(["ls-files", "-m"], function onexec(data)
+    {
+        cb(Boolean(data.trim()));
+    });
+}
+
 function get_sha1_from_branch(branch, cb)
 {
     git_cmd(["rev-parse", branch], function onexec(data)
@@ -151,7 +159,7 @@ function attempt_to_merge(sha, cb)
 
 function init(cb)
 {
-    staged_files_found(function oncheck(changes)
+    check_for_changes(function oncheck(changes)
     {
         if (changes) {
             return console.log("Found changes. Commit your changes first.");
