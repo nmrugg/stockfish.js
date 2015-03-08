@@ -1,2 +1,2 @@
 set -e
-make -C ./src build ARCH=js
+make -C src build ARCH=js
