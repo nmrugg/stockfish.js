@@ -6,7 +6,7 @@
 
 var execFile = require("child_process").execFile;
 var merge_candidates;
-
+var build_dir = require("path").join(__dirname, "src");
 var branch = process.argv[2];
 
 if (!branch) {
@@ -150,10 +150,8 @@ function is_candidate(candidates, sha)
 {
     return candidates.some(function oneach(this_sha)
     {
-        //console.log(this_sha.substr(0, sha.length) + " === " + sha)
         if (this_sha.substr(0, sha.length) === sha) {
-            console.log("*********************************found")
-            return true;
+            return true; /// Break and return.
         }
     });
 }
@@ -162,6 +160,7 @@ function cherry_pick(sha, cb)
 {
     ///NOTE: Ideally, merge_candidates should'nt be a global.
     if (is_candidate(merge_candidates, sha)) {
+        console.log("Cherrypicking " + sha);
         git_cmd(["cherry-pick", sha], true, cb);
     } else {
         /// Skip
@@ -170,16 +169,34 @@ function cherry_pick(sha, cb)
     }
 }
 
-function attempt_to_merge(sha, cb)
+function test_it(sha, next)
 {
-    console.log("Cherrypicking " + sha);
-    ///NOTE: Undo commit: git reset --hard HEAD~1
+    execFile("make", ["build", "ARCH=js"], {cwd: build_dir, env: process.env}, function onexec(err, stdout, stderr)
+    {
+        if (err) {
+            console.error("Error: Cannot build " + sha);
+            console.error("STDOUT:");
+            console.error(stdout);
+            console.error("STDERR:");
+            console.error(stderr);
+            console.error("Error: Cannot build " + sha);
+            console.error("");
+            console.error("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
+            console.error("");
+            throw new Error(err);
+        }
+        setImmediate(next);
+    });
+}
+
+function attempt_to_merge(sha, next)
+{
     cherry_pick(sha, function onpick(err, stdout, stderr)
     {
         if (err) {
             /// Nothing changed, keep going.
             if (err === "skipped" || stdout.indexOf("no changes added to commit") > -1 || stdout.indexOf("nothing to commit (working directory clean)") > -1) {
-                return setImmediate(cb);
+                return setImmediate(next);
             } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1) {
                 return console.log("Merge conflict. Please fix manually.");
             } else {
@@ -191,7 +208,7 @@ function attempt_to_merge(sha, cb)
                 throw new Error(err);
             }
         }
-        console.log("TODO: test the commit.");
+        test_it(sha, next);
     });
 }
 
@@ -206,11 +223,8 @@ function init(cb)
         {
             get_sha1_from_branch(branch, function onget(to_sha)
             {
-                //console.log(head_sha);
-                //console.log(to_sha);
                 get_fork_point(head_sha, to_sha, function onget(starting_sha)
                 {
-                    //console.log(starting_sha);
                     if (!starting_sha) {
                         if (process.argv[3]) {
                             starting_sha = process.argv[3];
@@ -219,20 +233,12 @@ function init(cb)
                         }
                     }
                     
+                    /// Find out which commits have not been cherry picked yet.
                     get_merge_candidates(branch, function onget(candidates)
                     {
+                        merge_candidates = candidates;
                         get_commit_history(starting_sha, to_sha, function onget(commits)
                         {
-                            merge_candidates = candidates;
-                            /*
-                            console.log("cand")
-                            console.log(candidates)
-                            console.log("")
-                            console.log("")
-                            console.log("commits")
-                            console.log(commits)
-                            process.exit()
-                            */
                             async_loop(commits, cb, attempt_to_merge);
                         });
                     });
