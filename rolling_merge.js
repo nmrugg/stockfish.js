@@ -147,6 +147,7 @@ function is_candidate(candidates, sha)
 {
     console.log(candidates)
     console.log(sha)
+    process.exit();
 }
 
 function cherry_pick(sha, cb)
@@ -157,7 +158,7 @@ function cherry_pick(sha, cb)
     } else {
         /// Skip
         console.log("Skipping " + sha);
-        cb(false);
+        cb("skipped");
     }
 }
 
@@ -169,7 +170,7 @@ function attempt_to_merge(sha, cb)
     {
         if (err) {
             /// Nothing changed, keep going.
-            if (stdout.indexOf("no changes added to commit") > -1 || stdout.indexOf("nothing to commit (working directory clean)") > -1) {
+            if (err === "skipped" || stdout.indexOf("no changes added to commit") > -1 || stdout.indexOf("nothing to commit (working directory clean)") > -1) {
                 return setImmediate(cb);
             } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1) {
                 return console.log("Merge conflict. Please fix manually.");
