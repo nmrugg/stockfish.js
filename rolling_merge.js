@@ -6,7 +6,7 @@
 
 var execFile = require("child_process").execFile;
 var merge_candidates;
-var build_dir = require("path").join(__dirname, "src");
+var build_path = require("path").join(__dirname, "build.sh");
 var branch = process.argv[2];
 
 if (!branch) {
@@ -189,7 +189,8 @@ function cherry_pick(sha, cb)
 function test_it(sha, next)
 {
     console.log("Building " + sha + ". Please wait...");
-    execFile("make", ["build", "ARCH=js"], {cwd: build_dir, env: process.env}, function onexec(err, stdout, stderr)
+    //execFile("make", ["build", "ARCH=js"], {cwd: build_dir, env: process.env}, function onexec(err, stdout, stderr)
+    execFile(build_path, {env: process.env}, function onexec(err, stdout, stderr)
     {
         if (err) {
             error("Error: Cannot build " + sha);
