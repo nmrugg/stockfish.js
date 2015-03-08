@@ -10,8 +10,8 @@ var build_dir = require("path").join(__dirname, "src");
 var branch = process.argv[2];
 
 if (!branch) {
-    console.error("Error: No branch.");
-    console.log("Usage: node rolling-merge.js BRANCH_TO_MERGE [FORK_SHA]");
+    error("Error: No branch.");
+    error("Usage: node rolling-merge.js BRANCH_TO_MERGE [FORK_SHA]");
     return;
 }
 
@@ -19,6 +19,23 @@ function beep()
 {
     process.stdout.write("\u0007");
 }
+
+function good(mixed)
+{
+    console.log("\u001B[32m" + mixed + "\u001B[0m");
+}
+
+function warn(mixed)
+{
+    console.warn("\u001B[33m" + mixed + "\u001B[0m");
+}
+
+function error(mixed)
+{
+    console.error("\u001B[31m" + mixed + "\u001B[0m");
+}
+
+
 
 function git_cmd(args, dont_throw, cb)
 {
@@ -29,9 +46,9 @@ function git_cmd(args, dont_throw, cb)
     execFile("git", args, function onexec(err, stdout, stderr)
     {
         if (err && !dont_throw) {
-            console.error("Git error: git " + args.join(" ") + "\n");
-            console.error(stdout);
-            console.error(stderr);
+            error("Git error: git " + args.join(" ") + "\n");
+            error(stdout);
+            error(stderr);
             throw new Error(err);
         }
         if (cb) {
@@ -94,7 +111,7 @@ function get_commit_history(from_sha, to_sha, cb)
             if (sha) {
                 commits[i] = sha;
             } else {
-                console.log("Warning: Cannot parse \"" + line + "\" for sha.");
+                warn("Warning: Cannot parse \"" + line + "\" for sha.");
             }
         });
         
@@ -164,27 +181,29 @@ function cherry_pick(sha, cb)
         git_cmd(["cherry-pick", sha], true, cb);
     } else {
         /// Skip
-        console.log("Skipping " + sha);
+        good("Skipping " + sha);
         cb("skipped");
     }
 }
 
 function test_it(sha, next)
 {
+    console.log("Building " + sha + ". Please wait...");
     execFile("make", ["build", "ARCH=js"], {cwd: build_dir, env: process.env}, function onexec(err, stdout, stderr)
     {
         if (err) {
-            console.error("Error: Cannot build " + sha);
-            console.error("STDOUT:");
-            console.error(stdout);
-            console.error("STDERR:");
-            console.error(stderr);
-            console.error("Error: Cannot build " + sha);
-            console.error("");
-            console.error("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
-            console.error("");
+            error("Error: Cannot build " + sha);
+            error("STDOUT:");
+            error(stdout);
+            error("STDERR:");
+            error(stderr);
+            error("Error: Cannot build " + sha);
+            error("");
+            error("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
+            error("");
             throw new Error(err);
         }
+        good("Build " + sha + " successfully!");
         setImmediate(next);
     });
 }
@@ -198,13 +217,13 @@ function attempt_to_merge(sha, next)
             if (err === "skipped" || stdout.indexOf("no changes added to commit") > -1 || stdout.indexOf("nothing to commit (working directory clean)") > -1) {
                 return setImmediate(next);
             } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1) {
-                return console.log("Merge conflict. Please fix manually.");
+                return warn("Merge conflict. Please fix manually.");
             } else {
-                console.error("Error: Cannot cherypick " + sha);
-                console.error("STDOUT:");
-                console.error(stdout);
-                console.error("STDERR:");
-                console.error(stderr);
+                error("Error: Cannot cherypick " + sha);
+                error("STDOUT:");
+                error(stdout);
+                error("STDERR:");
+                error(stderr);
                 throw new Error(err);
             }
         }
@@ -217,7 +236,7 @@ function init(cb)
     check_for_changes(function oncheck(changes)
     {
         if (changes) {
-            return console.log("Found changes. Commit your changes first.");
+            return error("Found changes. Commit your changes first.");
         }
         get_sha1_from_branch("HEAD", function onget(head_sha)
         {
