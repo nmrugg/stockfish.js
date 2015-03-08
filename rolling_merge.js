@@ -145,9 +145,12 @@ function get_merge_candidates(branch, cb)
 
 function is_candidate(candidates, sha)
 {
-    console.log(candidates)
-    console.log(sha)
-    process.exit();
+    return candidates.some(function oneach(this_sha)
+    {
+        if (this_sha.substr(0, sha.length) === sha) {
+            return true;
+        }
+    });
 }
 
 function cherry_pick(sha, cb)
