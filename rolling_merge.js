@@ -134,6 +134,8 @@ function attempt_to_merge(sha, cb)
             /// Nothing changed, keep going.
             if (stdout.indexOf("no changes added to commit") > -1) {
                 return cb();
+            } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1) {
+                return console.log("Merge conflict. Please fix manually.");
             } else {
                 console.error("Error: Cannot cherypick " + sha);
                 console.error("STDOUT:");
