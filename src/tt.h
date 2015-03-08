@@ -94,7 +94,7 @@ public:
   void store(const Key key, Value v, Bound type, Depth d, Move m, Value statV);
 
 private:
-  size_t clusterCount;
+  uint32_t clusterCount;
   TTCluster* table;
   void* mem;
   uint8_t generation; // Size must be not bigger than TTEntry::genBound8
