@@ -181,7 +181,6 @@ function cherry_pick(sha, cb)
         git_cmd(["cherry-pick", sha], true, cb);
     } else {
         /// Skip
-        good("Skipping " + sha);
         cb("skipped");
     }
 }
@@ -216,6 +215,7 @@ function attempt_to_merge(sha, next)
         if (err) {
             /// Nothing changed, keep going.
             if (err === "skipped" || stdout.indexOf("no changes added to commit") > -1 || stdout.indexOf("nothing to commit (working directory clean)") > -1) {
+                good("Skipping " + sha + ".");
                 return setImmediate(next);
             } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1) {
                 return warn("Merge conflict. Please fix manually.");
