@@ -1,3 +1,2 @@
-cd src
-make build ARCH=js
-cd ..
+set -e
+make -C ./src build ARCH=js
