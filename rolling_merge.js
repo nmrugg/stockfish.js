@@ -5,6 +5,7 @@
 "use strict";
 
 var execFile = require("child_process").execFile;
+var merge_candidates;
 
 var branch = process.argv[2];
 
@@ -127,9 +128,37 @@ function async_loop(arr, done, oneach)
     }(0));
 }
 
+function get_merge_candidates(branch, cb)
+{
+    git_cmd(["cherry", branch], function oncheck(data)
+    {
+        var commits = []
+        data.trim().split("\n").forEach(function oneach(line, i)
+        {
+            /// Chop off the +/- and space.
+            commits[i] = line.substr(2);
+        });
+        
+        cb(commits);
+    });
+}
+
+function is_candidate(candidates, sha)
+{
+    console.log(candidates)
+    console.log(sha)
+}
+
 function cherry_pick(sha, cb)
 {
-    git_cmd(["cherry-pick", sha], true, cb);
+    ///NOTE: Ideally, merge_candidates should'nt be a global.
+    if (is_candidate(merge_candidates, sha)) {
+        git_cmd(["cherry-pick", sha], true, cb);
+    } else {
+        /// Skip
+        console.log("Skipping " + sha);
+        cb(false);
+    }
 }
 
 function attempt_to_merge(sha, cb)
@@ -141,7 +170,7 @@ function attempt_to_merge(sha, cb)
         if (err) {
             /// Nothing changed, keep going.
             if (stdout.indexOf("no changes added to commit") > -1 || stdout.indexOf("nothing to commit (working directory clean)") > -1) {
-                return cb();
+                return setImmediate(cb);
             } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1) {
                 return console.log("Merge conflict. Please fix manually.");
             } else {
@@ -181,9 +210,13 @@ function init(cb)
                         }
                     }
                     
-                    get_commit_history(starting_sha, to_sha, function onget(commits)
+                    get_merge_candidates(branch, function onget(candidates)
                     {
-                        async_loop(commits, cb, attempt_to_merge);
+                        merge_candidates = candidates;
+                        get_commit_history(starting_sha, to_sha, function onget(commits)
+                        {
+                            async_loop(commits, cb, attempt_to_merge);
+                        });
                     });
                 });
             });
