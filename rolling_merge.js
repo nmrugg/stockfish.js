@@ -43,6 +43,20 @@ function git_cmd(args, dont_throw, cb)
     });
 }
 
+function staged_files_found(cb)
+{
+    git_cmd(["diff-index", "--quiet", "--cached", "HEAD"], true, function onexec(err)
+    {
+        if (err) {
+            if (err.code === 1) {
+                return cb(true);
+            }
+            throw err;
+        }
+        cb(false);
+    });
+}
+
 function get_sha1_from_branch(branch, cb)
 {
     git_cmd(["rev-parse", branch], function onexec(data)
@@ -117,10 +131,17 @@ function attempt_to_merge(sha, cb)
     cherry_pick(sha, function onpick(err, stdout, stderr)
     {
         if (err) {
-            console.error("Error: Cannot cherypick " + sha);
-            console.error(stdout);
-            console.error(stderr);
-            throw new Error(err);
+            /// Nothing changed, keep going.
+            if (stdout.indexOf("no changes added to commit") > -1) {
+                return cb();
+            } else {
+                console.error("Error: Cannot cherypick " + sha);
+                console.error("STDOUT:");
+                console.error(stdout);
+                console.error("STDERR:");
+                console.error(stderr);
+                throw new Error(err);
+            }
         }
         console.log("TODO: test the commit.");
     });
@@ -128,26 +149,32 @@ function attempt_to_merge(sha, cb)
 
 function init(cb)
 {
-    get_sha1_from_branch("HEAD", function onget(head_sha)
+    staged_files_found(function oncheck(changes)
     {
-        get_sha1_from_branch(branch, function onget(to_sha)
+        if (changes) {
+            return console.log("Found changes. Commit your changes first.");
+        }
+        get_sha1_from_branch("HEAD", function onget(head_sha)
         {
-            //console.log(head_sha);
-            //console.log(to_sha);
-            get_fork_point(head_sha, to_sha, function onget(starting_sha)
+            get_sha1_from_branch(branch, function onget(to_sha)
             {
-                //console.log(starting_sha);
-                if (!starting_sha) {
-                    if (process.argv[3]) {
-                        starting_sha = process.argv[3];
-                    } else {
-                        throw new Error("Caanot find starting fork point. Override by supplying fork sha.");
-                    }
-                }
-                
-                get_commit_history(starting_sha, to_sha, function onget(commits)
+                //console.log(head_sha);
+                //console.log(to_sha);
+                get_fork_point(head_sha, to_sha, function onget(starting_sha)
                 {
-                    async_loop(commits, cb, attempt_to_merge);
+                    //console.log(starting_sha);
+                    if (!starting_sha) {
+                        if (process.argv[3]) {
+                            starting_sha = process.argv[3];
+                        } else {
+                            throw new Error("Caanot find starting fork point. Override by supplying fork sha.");
+                        }
+                    }
+                    
+                    get_commit_history(starting_sha, to_sha, function onget(commits)
+                    {
+                        async_loop(commits, cb, attempt_to_merge);
+                    });
                 });
             });
         });
