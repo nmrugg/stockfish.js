@@ -112,6 +112,7 @@ function cherry_pick(sha, cb)
 
 function attempt_to_merge(sha, cb)
 {
+    console.log("Cherrypicking " + sha);
     ///NOTE: Undo commit: git reset --hard HEAD~1
     cherry_pick(sha, function onpick(err, stdout, stderr)
     {
