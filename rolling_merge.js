@@ -130,13 +130,16 @@ function async_loop(arr, done, oneach)
 
 function get_merge_candidates(branch, cb)
 {
-    git_cmd(["cherry", branch], function oncheck(data)
+    git_cmd(["cherry", "HEAD", branch], function oncheck(data)
     {
         var commits = []
         data.trim().split("\n").forEach(function oneach(line, i)
         {
-            /// Chop off the +/- and space.
-            commits[i] = line.substr(2);
+            ///NOTE: If it's minus, we already have it.
+            if (line[0] === "+") {
+                /// Chop off the + and space.
+                commits[i] = line.substr(2);
+            }
         });
         
         cb(commits);
@@ -221,6 +224,7 @@ function init(cb)
                         get_commit_history(starting_sha, to_sha, function onget(commits)
                         {
                             merge_candidates = candidates;
+                            /*
                             console.log("cand")
                             console.log(candidates)
                             console.log("")
@@ -228,6 +232,7 @@ function init(cb)
                             console.log("commits")
                             console.log(commits)
                             process.exit()
+                            */
                             async_loop(commits, cb, attempt_to_merge);
                         });
                     });
