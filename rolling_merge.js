@@ -200,7 +200,7 @@ function test_it(sha, next)
             error(stderr);
             error("Error: Cannot build " + sha);
             console.log("");
-            console.log("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
+            warn("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
             console.log("");
             throw new Error(err);
         }
