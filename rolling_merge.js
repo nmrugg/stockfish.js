@@ -220,7 +220,7 @@ function cherry_pick(sha, cb)
     if (is_candidate(merge_candidates, sha)) {
         console.log("Cherrypicking " + sha);
         ///NOTE: -x adds the sha to the commit message to make it easier to see where it came from.
-        git_cmd(["cherry-pick", "-x", sha], true, cb);
+        git_cmd(["cherry-pick", "-Xignore-all-space", "-x", sha], true, cb);
     } else {
         /// Skip
         cb("skipped");
