@@ -218,7 +218,8 @@ function cherry_pick(sha, cb)
     ///NOTE: Ideally, merge_candidates should'nt be a global.
     if (is_candidate(merge_candidates, sha)) {
         console.log("Cherrypicking " + sha);
-        git_cmd(["cherry-pick", sha], true, cb);
+        ///NOTE: -x adds the sha to the commit message to make it easier to see where it came from.
+        git_cmd(["cherry-pick", "-x", sha], true, cb);
     } else {
         /// Skip
         cb("skipped");
