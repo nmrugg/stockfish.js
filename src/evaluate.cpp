@@ -515,6 +515,8 @@ namespace {
 
     const Color Them = (Us == WHITE ? BLACK : WHITE);
 
+    Bitboard protectedEnemies;
+    Score score = SCORE_ZERO;
     enum { Minor, Major };
 
     // Protected enemies
@@ -531,8 +533,6 @@ namespace {
                              &  ei.attackedBy[Us][ALL_PIECES];
     if (!weakEnemies)
         return SCORE_ZERO;
-
-    Score score = SCORE_ZERO;
 
     b = weakEnemies & (ei.attackedBy[Us][KNIGHT] | ei.attackedBy[Us][BISHOP]);
     if (b)
