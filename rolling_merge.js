@@ -234,10 +234,14 @@ function test_it(sha, next)
     {
         if (err || stdout.indexOf("warning: unresolved symbol") > -1 || stderr.indexOf("warning: unresolved symbol") > -1) {
             error("Error: Cannot properly build " + sha);
-            console.log("STDOUT:");
-            error(stdout);
-            console.log("STDERR:");
-            error(stderr);
+                if (stdout) {
+                    console.log("STDOUT:");
+                    error(stdout);
+                }
+                if (stderr) {
+                    console.log("STDERR:");
+                    error(stderr);
+                }
             error("Error: Cannot properly build " + sha);
             console.log("");
             warn("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
@@ -245,15 +249,20 @@ function test_it(sha, next)
             throw new Error(err);
         }
         
+        good("Built " + sha + " successfully!");
         console.log("Testing " + sha + ". Please wait...");
         execFile(process.execPath, ["tester.js"], {env: process.env}, function onexec(err, stdout, stderr)
         {
             if (err) {
                 error("Error: Failed testing: " + sha);
-                console.log("STDOUT:");
-                error(stdout);
-                console.log("STDERR:");
-                error(stderr);
+                if (stdout) {
+                    console.log("STDOUT:");
+                    error(stdout);
+                }
+                if (stderr) {
+                    console.log("STDERR:");
+                    error(stderr);
+                }
                 error("Error: Failed testing: " + sha);
                 console.log("");
                 warn("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
@@ -261,7 +270,7 @@ function test_it(sha, next)
                 throw new Error(err);
             }
             
-            good("Build " + sha + " and tested successfully!");
+            good("Tested " + sha + " successfully!");
             store_commit(sha);
             setImmediate(next);
         });
@@ -282,13 +291,20 @@ function attempt_to_merge(sha, next)
                 warn("Merge conflict. Please fix manually.");
                 warn("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
                 console.log("After merging, check build: ./build.sh && node tester.js");
+                if (data_file) {
+                    console.log("Note, you may need to add " + sha + " manually.");
+                }
                 return;
             } else {
                 error("Error: Cannot cherypick " + sha);
-                console.log("STDOUT:");
-                error(stdout);
-                console.log("STDERR:");
-                error(stderr);
+                if (stdout) {
+                    console.log("STDOUT:");
+                    error(stdout);
+                }
+                if (stderr) {
+                    console.log("STDERR:");
+                    error(stderr);
+                }
                 throw new Error(err);
             }
         }
