@@ -291,7 +291,7 @@ function attempt_to_merge(sha, next, i)
                 store_commit(sha);
                 good("Skipping " + sha + ".");
                 return setImmediate(next);
-            } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1) {
+            } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1 || stderr.indexOf("error: could not apply") > -1) {
                 warn("Merge conflict. Please fix manually.");
                 warn("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
                 console.log("After merging, check build: ./build.sh && node tester.js");
