@@ -30,17 +30,17 @@ EXE = stockfish
 PREFIX = /usr/local
 # Haiku has a non-standard filesystem layout
 ifeq ($(UNAME),Haiku)
-	PREFIX=/boot/system/non-packaged
+	PREFIX=/boot/common
 endif
 BINDIR = $(PREFIX)/bin
 
 ### Built-in benchmark for pgo-builds
-PGOBENCH = ./$(EXE) bench 16 1 1 default time
+PGOBENCH = ./$(EXE) bench 32 1 1 default time
 
 ### Object files
 OBJS = benchmark.o bitbase.o bitboard.o endgame.o evaluate.o main.o \
-	material.o misc.o movegen.o movepick.o pawns.o position.o \
-	search.o thread.o timeman.o tt.o uci.o ucioption.o
+	material.o misc.o movegen.o movepick.o notation.o pawns.o \
+	position.o search.o thread.o timeman.o tt.o uci.o ucioption.o
 
 ifeq ($(NO_BOOK),)
 	OBJS += book.o
@@ -56,6 +56,7 @@ endif
 # debug = yes/no      --- -DNDEBUG         --- Enable/Disable debug mode
 # optimize = yes/no   --- (-O3/-fast etc.) --- Enable/Disable optimizations
 # arch = (name)       --- (-arch)          --- Target architecture
+# os = (name)         ---                  --- Target operating system
 # bits = 64/32        --- -DIS_64BIT       --- 64-/32-bit operating system
 # prefetch = yes/no   --- -DUSE_PREFETCH   --- Use prefetch x86 asm-instruction
 # bsfq = yes/no       --- -DUSE_BSFQ       --- Use bsfq x86_64 asm-instruction (only
@@ -71,6 +72,7 @@ endif
 ### 2.1. General and architecture defaults
 optimize = yes
 debug = no
+os = any
 bits = 32
 prefetch = no
 bsfq = no
@@ -219,10 +221,6 @@ endif
 ifeq ($(COMP),emscripten)
 	CXXFLAGS += -s TOTAL_MEMORY=67108864
 endif
-# For Debugging purposes.
-ifeq ($(COMP),emscripten)
-	CXXFLAGS += -s ASSERTIONS=1
-endif
 
 ifeq ($(UNAME),Darwin)
 	CXXFLAGS += -arch $(arch) -mmacosx-version-min=10.6
@@ -293,9 +291,6 @@ ifeq ($(optimize),yes)
 		ifeq ($(COMP),emscripten)
 			CXXFLAGS += -O3
 			LDFLAGS += -O3
-			# Preserve variable names
-			CXXFLAGS += -g3
-			LDFLAGS += -g3
 		else
 			CXXFLAGS += -O3
 		endif
@@ -337,7 +332,7 @@ endif
 
 ### 3.9 popcnt
 ifeq ($(popcnt),yes)
-	CXXFLAGS += -msse3 -mpopcnt -DUSE_POPCNT
+	CXXFLAGS += -msse3 -DUSE_POPCNT
 endif
 
 ### 3.10 pext
@@ -403,6 +398,10 @@ help:
 	@echo "clang                   > LLVM Clang compiler"
 	@echo "icc                     > Intel compiler"
 	@echo ""
+	@echo "Non-standard targets:"
+	@echo ""
+	@echo "make hpux               >  Compile for HP-UX. Compiler = aCC"
+	@echo ""
 	@echo "Examples. If you don't know what to do, you likely want to run: "
 	@echo ""
 	@echo "make build ARCH=x86-64    (This is for 64-bit systems)"
@@ -428,7 +427,7 @@ profile-build:
 	@$(PGOBENCH) > /dev/null
 	@echo ""
 	@echo "Step 3/4. Building final executable ..."
-	@touch *.cpp *.h
+	@touch *.cpp
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) $(profile_use)
 	@echo ""
 	@echo "Step 4/4. Deleting profile data ..."
@@ -461,6 +460,7 @@ config-sanity:
 	@echo "debug: '$(debug)'"
 	@echo "optimize: '$(optimize)'"
 	@echo "arch: '$(arch)'"
+	@echo "os: '$(os)'"
 	@echo "bits: '$(bits)'"
 	@echo "prefetch: '$(prefetch)'"
 	@echo "bsfq: '$(bsfq)'"
@@ -479,6 +479,7 @@ config-sanity:
 	@test "$(optimize)" = "yes" || test "$(optimize)" = "no"
 	@test "$(arch)" = "any" || test "$(arch)" = "x86_64" || test "$(arch)" = "i386" || \
 	 test "$(arch)" = "ppc64" || test "$(arch)" = "ppc" || test "$(arch)" = "armv7"
+	@test "$(os)" = "any"
 	@test "$(bits)" = "32" || test "$(bits)" = "64"
 	@test "$(prefetch)" = "yes" || test "$(prefetch)" = "no"
 	@test "$(bsfq)" = "yes" || test "$(bsfq)" = "no"
@@ -495,16 +496,13 @@ gcc-profile-prepare:
 
 gcc-profile-make:
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) \
-	EXTRACXXFLAGS='-fprofile-arcs' \
+	EXTRACXXFLAGS='-fprofile-generate' \
 	EXTRALDFLAGS='-lgcov' \
 	all
 
 gcc-profile-use:
-# Deleting corrupt ucioption.gc* profile files is necessary to avoid an 
-# "internal compiler error" for gcc versions 4.7.x
-	@rm -f ucioption.gc*
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) \
-	EXTRACXXFLAGS='-fbranch-probabilities' \
+	EXTRACXXFLAGS='-fprofile-use' \
 	EXTRALDFLAGS='-lgcov' \
 	all
 
@@ -537,3 +535,14 @@ icc-profile-clean:
 ifeq ($(COMP),emscripten)
 $(EXE): main.js
 endif
+
+### ==========================================================================
+### Section 6. Non-standard targets
+### ==========================================================================
+
+hpux:
+	$(MAKE) \
+	CXX='/opt/aCC/bin/aCC -AA +hpxstd98 -mt +O3 -DNDEBUG -DNO_PREFETCH' \
+	CXXFLAGS="" \
+	LDFLAGS="" \
+	all
