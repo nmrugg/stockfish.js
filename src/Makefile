@@ -293,8 +293,8 @@ ifeq ($(optimize),yes)
 	ifeq ($(comp),clang)
 		### -O4 requires a linker that supports LLVM's LTO
 		ifeq ($(COMP),emscripten)
-			CXXFLAGS += -O3
-			LDFLAGS += -O3
+			#CXXFLAGS += -O3
+			#LDFLAGS += -O3
 			# Preserve variable names
 			CXXFLAGS += -g3
 			LDFLAGS += -g3
