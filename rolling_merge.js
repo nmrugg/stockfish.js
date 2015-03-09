@@ -195,9 +195,7 @@ function is_candidate(candidates, sha)
     if (merge_data && merge_data.merged && merge_data.merged.length) {
         is_commited = merge_data.merged.some(function oneach(this_sha)
         {
-            console.log(this_sha.substr(0, sha.length) + " === " + sha);
             if (this_sha.substr(0, sha.length) === sha) {
-                console.log("found")
                 return true; /// Break and return.
             }
         });
