@@ -14,15 +14,32 @@ stockfish.stdout.on("data", function onstdout(data)
         data = data.toString();
     }
     //console.log("STDOUT*************")
-    //process.stdout.write(data)
+    process.stdout.write(data)
     if (data.indexOf("uciok") > -1) {
+        console.log("**Found uciok**");
         stockfish.stdin.write("ucinewgame\n");
         stockfish.stdin.write("isready\n");
         stockfish.stdin.write("position startpos moves e2e3\n");
         stockfish.stdin.write("eval\n");
-        stockfish.stdin.write("go depth 1 wtime 300000 winc 2000 btime 300000 binc 2000\n");
+        stockfish.stdin.write("d\n");
     }
+    
+    if (data.indexOf("Legal uci moves") > -1) {
+        if (/Legal uci moves\: \S/.test(data)) {
+            console.log("**Found valid Legal uci moves**");
+            /// Make sure ponder works.
+            stockfish.stdin.write("go ponder\n");
+            setTimeout(function ()
+            {
+                stockfish.stdin.write("stop\n");
+            }, 100);
+        } else {
+            throw new Error("Cannot find valid legal uci moves");
+        }
+    }
+    
     if (data.indexOf("bestmove") > -1) {
+        console.log("**Found bestmove**");
         stockfish.stdin.write("quit\n");
         //stockfish.stdin.end();
         //process.exit();
