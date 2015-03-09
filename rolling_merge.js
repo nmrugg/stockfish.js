@@ -14,6 +14,7 @@ var build_path = require("path").join(__dirname, "build.sh");
 var data_file = process.argv[2];
 var branch;
 var merge_data;
+var total_commits;
 
 try {
     merge_data = JSON.parse(fs.readFileSync(data_file, "utf8"));
@@ -277,8 +278,11 @@ function test_it(sha, next)
     });
 }
 
-function attempt_to_merge(sha, next)
+function attempt_to_merge(sha, next, i)
 {
+    if (total_commits) {
+        console.log(i + " / " + total_commits + " (" + ((i / total_commits) * 100).toFixed(2) + "%)");
+    }
     cherry_pick(sha, function onpick(err, stdout, stderr)
     {
         if (err) {
@@ -342,6 +346,7 @@ function init(cb)
                         merge_candidates = candidates;
                         get_commit_history(starting_sha, to_sha, function onget(commits)
                         {
+                            total_commits = commits.length;
                             async_loop(commits, cb, attempt_to_merge);
                         });
                     });
