@@ -281,7 +281,7 @@ function test_it(sha, next)
 function attempt_to_merge(sha, next, i)
 {
     if (total_commits) {
-        console.log(i + " / " + total_commits + " (" + ((i / total_commits) * 100).toFixed(2) + "%)");
+        console.log((i + 1) + " / " + total_commits + " (" + (((i + 1) / total_commits) * 100).toFixed(2) + "%)");
     }
     cherry_pick(sha, function onpick(err, stdout, stderr)
     {
