@@ -293,7 +293,7 @@ function attempt_to_merge(sha, next, i)
                 return setImmediate(next);
             } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1 || stderr.indexOf("error: could not apply") > -1) {
                 warn("Merge conflict. Please fix manually.");
-                warn("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
+                warn("*NOTE* To abort the merge: git reset --hard HEAD");
                 console.log("After merging, check build: ./build.sh && node tester.js");
                 if (data_file) {
                     console.log("Note, you may need to add " + sha + " manually.");
