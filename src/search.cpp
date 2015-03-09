@@ -84,6 +84,7 @@ namespace {
     return (Depth) Reductions[PvNode][i][std::min(int(d) / ONE_PLY, 63)][std::min(mn, 63)];
   }
 
+  size_t multiPV;
   size_t PVIdx;
   TimeManager TimeMgr;
   double BestMoveChanges;
@@ -329,7 +330,7 @@ Skill *skill_p;
     Countermoves.clear();
     Followupmoves.clear();
 
-    size_t multiPV = Options["MultiPV"];
+    multiPV = Options["MultiPV"];
     //Skill skill(Options["Skill Level"], RootMoves.size());
     skill_p = new Skill(Options["Skill Level"], RootMoves.size());
 
