@@ -232,8 +232,8 @@ function test_it(sha, next)
     //execFile("make", ["build", "ARCH=js"], {cwd: build_dir, env: process.env}, function onexec(err, stdout, stderr)
     execFile(build_path, {env: process.env}, function onexec(err, stdout, stderr)
     {
-        if (err) {
-            error("Error: Cannot build " + sha);
+        if (err || stdout.indexOf("warning: unresolved symbol") > -1 || stderr.indexOf("warning: unresolved symbol") > -1) {
+            error("Error: Cannot properly build " + sha);
             console.log("STDOUT:");
             error(stdout);
             console.log("STDERR:");
