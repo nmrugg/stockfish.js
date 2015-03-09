@@ -245,6 +245,7 @@ function test_it(sha, next)
             throw new Error(err);
         }
         
+        console.log("Testing " + sha + ". Please wait...");
         execFile(process.execPath, ["tester.js"], {env: process.env}, function onexec(err, stdout, stderr)
         {
             if (err) {
