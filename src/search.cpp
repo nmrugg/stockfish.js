@@ -370,7 +370,8 @@ Skill *skill_p;
                 }
                 /// If it can't find another move, there's no need to change anything.
                 ///NOTE: Swapping when skill.best == 0 sometimes throws.
-                if (candidates) { // Swap best PV line with the sub-optimal one
+                ///NOTE: This could be skill.candidates.
+                if (skill.best) { // Swap best PV line with the sub-optimal one
                     std::swap(RootMoves[0], *std::find(RootMoves.begin(),
                                 RootMoves.end(), skill.best ? skill.best : skill.pick_move()));
                 }
