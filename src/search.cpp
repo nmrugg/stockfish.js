@@ -107,9 +107,9 @@ namespace {
   string uci_pv(const Position& pos, int depth, Value alpha, Value beta);
 
   struct Skill {
-    Skill(int l, int rootSize) : level(l),
-                                 candidates(l < 20 ? std::min(4, rootSize) : 0),
-                                 best(MOVE_NONE) {}
+    Skill(int l, size_t rootSize) : level(l),
+                                    candidates(l < 20 ? std::min(4, (int)rootSize) : 0),
+                                    best(MOVE_NONE) {}
     ///NOTE: The deconstructor, ~Skill(), breaks stuff when compiled to JavaScript. This code was moved to async_loop().
 
     size_t candidates_size() const { return candidates; }
