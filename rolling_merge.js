@@ -220,7 +220,7 @@ function cherry_pick(sha, cb)
     if (is_candidate(merge_candidates, sha)) {
         console.log("Cherrypicking " + sha);
         ///NOTE: -x adds the sha to the commit message to make it easier to see where it came from.
-        git_cmd(["cherry-pick", "--allow-empty", "-Xignore-all-space", "-x", sha], true, cb);
+        git_cmd(["cherry-pick", "-Xignore-all-space", "-x", sha], true, cb);
     } else {
         /// Skip
         cb("skipped");
@@ -287,7 +287,7 @@ function attempt_to_merge(sha, next, i)
     {
         if (err) {
             /// Nothing changed, keep going.
-            if (err === "skipped" || stdout.indexOf("no changes added to commit") > -1 || stdout.indexOf("nothing to commit (working directory clean)") > -1) {
+            if (err === "skipped" || stdout.indexOf("no changes added to commit") > -1 || stdout.indexOf("nothing to commit (working directory clean)") > -1 || stdout.indexOf("nothing to commit") > -1) {
                 store_commit(sha);
                 good("Skipping " + sha + ".");
                 return setImmediate(next);
