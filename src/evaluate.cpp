@@ -525,7 +525,7 @@ namespace {
                       & (ei.attackedBy[Us][KNIGHT] | ei.attackedBy[Us][BISHOP]);
 
     if(protectedEnemies)
-        score += Threat[0][type_of(pos.piece_on(lsb(protectedEnemies)))];
+        score += Threat[Minor][type_of(pos.piece_on(lsb(protectedEnemies)))];
 
     // Enemies not defended by a pawn and under our attack
     Bitboard b, weakEnemies =   pos.pieces(Them)
@@ -534,13 +534,16 @@ namespace {
     if (!weakEnemies)
         return SCORE_ZERO;
 
-    b = weakEnemies & (ei.attackedBy[Us][KNIGHT] | ei.attackedBy[Us][BISHOP]);
-    if (b)
-        score += Threat[Minor][type_of(pos.piece_on(lsb(b)))];
+    // Add a bonus according if the attacking pieces are minor or major
+    if (weakEnemies)
+    {
+        b = weakEnemies & (ei.attackedBy[Us][KNIGHT] | ei.attackedBy[Us][BISHOP]);
+        if (b)
+            score += Threat[Minor][type_of(pos.piece_on(lsb(b)))];
 
-    b = weakEnemies & (ei.attackedBy[Us][ROOK] | ei.attackedBy[Us][QUEEN]);
-    if (b)
-        score += Threat[Major][type_of(pos.piece_on(lsb(b)))];
+        b = weakEnemies & (ei.attackedBy[Us][ROOK] | ei.attackedBy[Us][QUEEN]);
+        if (b)
+            score += Threat[Major][type_of(pos.piece_on(lsb(b)))];
 
     b = weakEnemies & ~ei.attackedBy[Them][ALL_PIECES];
     if (b)
