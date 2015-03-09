@@ -162,25 +162,24 @@ namespace {
     S(0, 0), S(0, 0), S(80, 119), S(80, 119), S(117, 199), S(127, 218)
   };
 
-  // Hanging contains a bonus for each enemy hanging piece
-  const Score Hanging = S(23, 20);
-  const Score KingPawnThreatOne  = S(0, 64);
-  const Score KingPawnThreatMany = S(0, 128);
-
-  #undef S
-
-  const Score RookOnPawn       = make_score(10, 28);
-  const Score RookOpenFile     = make_score(43, 21);
-  const Score RookSemiopenFile = make_score(19, 10);
-  const Score BishopPawns      = make_score( 8, 12);
-  const Score MinorBehindPawn  = make_score(16,  0);
-  const Score TrappedRook      = make_score(92,  0);
-  const Score Unstoppable      = make_score( 0, 20);
+  // Assorted bonuses and penalties used by evaluation
+  const Score KingOnPawnOne    = S(0 , 64);
+  const Score KingOnPawnMany   = S(0 ,128);
+  const Score RookOnPawn       = S(10, 28);
+  const Score RookOpenFile     = S(43, 21);
+  const Score RookSemiOpenFile = S(19, 10);
+  const Score BishopPawns      = S( 8, 12);
+  const Score MinorBehindPawn  = S(16,  0);
+  const Score TrappedRook      = S(92,  0);
+  const Score Unstoppable      = S( 0, 20);
+  const Score Hanging          = S(23, 20);
 
   // Penalty for a bishop on a1/h1 (a8/h8 for black) which is trapped by
   // a friendly pawn on b2/g2 (b7/g7 for black). This can obviously only
   // happen in Chess960 games.
-  const Score TrappedBishopA1H1 = make_score(50, 50);
+  const Score TrappedBishopA1H1 = S(50, 50);
+
+  #undef S
 
   // SpaceMask[Color] contains the area of the board which is considered
   // by the space evaluation. In the middlegame, each side is given a bonus
@@ -211,7 +210,6 @@ namespace {
   // scores, indexed by a calculated integer number.
   Score KingDanger[128];
 
-  const int ScalePawnSpan[2] = { 38, 56 };
 
   // apply_weight() weighs score 'v' by weight 'w' trying to prevent overflow
   Score apply_weight(Score v, const Weight& w) {
@@ -360,7 +358,7 @@ namespace {
 
             // Give a bonus for a rook on a open or semi-open file
             if (ei.pi->semiopen_file(Us, file_of(s)))
-                score += ei.pi->semiopen_file(Them, file_of(s)) ? RookOpenFile : RookSemiopenFile;
+                score += ei.pi->semiopen_file(Them, file_of(s)) ? RookOpenFile : RookSemiOpenFile;
 
             if (mob > 3 || ei.pi->semiopen_file(Us, file_of(s)))
                 continue;
@@ -511,49 +509,38 @@ namespace {
 
 
   // evaluate_threats() assigns bonuses according to the type of attacking piece
-  // and the type of attacked one.
 
   template<Color Us, bool Trace>
   Score evaluate_threats(const Position& pos, const EvalInfo& ei) {
 
     const Color Them = (Us == WHITE ? BLACK : WHITE);
 
-    Bitboard b, weakEnemies, protectedEnemies;
-    Score score = SCORE_ZERO;
     enum { Minor, Major };
 
-    // Protected enemies
-    protectedEnemies = (pos.pieces(Them) ^ pos.pieces(Them,PAWN))
-                      & ei.attackedBy[Them][PAWN]
-                      & (ei.attackedBy[Us][KNIGHT] | ei.attackedBy[Us][BISHOP]);
-
-    if(protectedEnemies)
-        score += Threat[Minor][type_of(pos.piece_on(lsb(protectedEnemies)))];
-
     // Enemies not defended by a pawn and under our attack
-    weakEnemies =  pos.pieces(Them)
-                 & ~ei.attackedBy[Them][PAWN]
-                 & ei.attackedBy[Us][ALL_PIECES];
+    Bitboard b, weakEnemies =   pos.pieces(Them)
+                             & ~ei.attackedBy[Them][PAWN]
+                             &  ei.attackedBy[Us][ALL_PIECES];
+    if (!weakEnemies)
+        return SCORE_ZERO;
 
-    // Add a bonus according if the attacking pieces are minor or major
-    if (weakEnemies)
-    {
-        b = weakEnemies & (ei.attackedBy[Us][KNIGHT] | ei.attackedBy[Us][BISHOP]);
-        if (b)
-            score += Threat[Minor][type_of(pos.piece_on(lsb(b)))];
+    Score score = SCORE_ZERO;
 
-        b = weakEnemies & (ei.attackedBy[Us][ROOK] | ei.attackedBy[Us][QUEEN]);
-        if (b)
-            score += Threat[Major][type_of(pos.piece_on(lsb(b)))];
+    b = weakEnemies & (ei.attackedBy[Us][KNIGHT] | ei.attackedBy[Us][BISHOP]);
+    if (b)
+        score += Threat[Minor][type_of(pos.piece_on(lsb(b)))];
 
-        b = weakEnemies & ~ei.attackedBy[Them][ALL_PIECES];
-        if (b)
-            score += more_than_one(b) ? Hanging * popcount<Max15>(b) : Hanging;
+    b = weakEnemies & (ei.attackedBy[Us][ROOK] | ei.attackedBy[Us][QUEEN]);
+    if (b)
+        score += Threat[Major][type_of(pos.piece_on(lsb(b)))];
 
-        b = weakEnemies & pos.pieces(Them, PAWN) & ei.attackedBy[Us][KING];
-        if (b)
-            score += more_than_one(b) ? KingPawnThreatMany : KingPawnThreatOne;
-    }
+    b = weakEnemies & ~ei.attackedBy[Them][ALL_PIECES];
+    if (b)
+        score += more_than_one(b) ? Hanging * popcount<Max15>(b) : Hanging;
+
+    b = weakEnemies & pos.pieces(Them, PAWN) & ei.attackedBy[Us][KING];
+    if (b)
+        score += more_than_one(b) ? KingOnPawnMany : KingOnPawnOne;
 
     if (Trace)
         Tracing::terms[Us][Tracing::THREAT] = score;
@@ -628,8 +615,9 @@ namespace {
 
                 mbonus += k * rr, ebonus += k * rr;
             }
-            else if(pos.pieces(Us) & blockSq)
+            else if (pos.pieces(Us) & blockSq)
                 mbonus += rr * 3 + r * 2 + 3, ebonus += rr + r * 2;
+
         } // rr != 0
 
         if (pos.count<PAWN>(Us) < pos.count<PAWN>(Them))
@@ -760,35 +748,29 @@ namespace {
     }
 
     // Scale winning side if position is more drawish than it appears
-    Color strongSide = eg_value(score) > VALUE_DRAW ? WHITE : BLACK;
-    ScaleFactor sf = ei.mi->scale_factor(pos, strongSide);
+    ScaleFactor sf = eg_value(score) > VALUE_DRAW ? ei.mi->scale_factor(pos, WHITE)
+                                                  : ei.mi->scale_factor(pos, BLACK);
 
-    // If we don't already have an unusual scale factor, check for certain
-    // types of endgames, and use a lower scale for those.
+    // If we don't already have an unusual scale factor, check for opposite
+    // colored bishop endgames, and use a lower scale for those.
     if (    ei.mi->game_phase() < PHASE_MIDGAME
+        &&  pos.opposite_bishops()
         && (sf == SCALE_FACTOR_NORMAL || sf == SCALE_FACTOR_ONEPAWN))
     {
-        if (pos.opposite_bishops()) {
-            // Ignoring any pawns, do both sides only have a single bishop and no
-            // other pieces?
-            if (   pos.non_pawn_material(WHITE) == BishopValueMg
-                && pos.non_pawn_material(BLACK) == BishopValueMg)
-            {
-                // Check for KBP vs KB with only a single pawn that is almost
-                // certainly a draw or at least two pawns.
-                bool one_pawn = (pos.count<PAWN>(WHITE) + pos.count<PAWN>(BLACK) == 1);
-                sf = one_pawn ? ScaleFactor(8) : ScaleFactor(32);
-            }
-            else
-                // Endgame with opposite-colored bishops, but also other pieces. Still
-                // a bit drawish, but not as drawish as with only the two bishops.
-                 sf = ScaleFactor(50 * sf / SCALE_FACTOR_NORMAL);
-        } else if (    abs(eg_value(score)) <= BishopValueEg
-                   &&  ei.pi->pawn_span(strongSide) <= 1
-                   && !pos.pawn_passed(~strongSide, pos.king_square(~strongSide))) {
-            // Endings where weaker side can be place his king in front of the opponent's pawns are drawish.
-            sf = ScaleFactor(ScalePawnSpan[ei.pi->pawn_span(strongSide)]);
+        // Ignoring any pawns, do both sides only have a single bishop and no
+        // other pieces?
+        if (   pos.non_pawn_material(WHITE) == BishopValueMg
+            && pos.non_pawn_material(BLACK) == BishopValueMg)
+        {
+            // Check for KBP vs KB with only a single pawn that is almost
+            // certainly a draw or at least two pawns.
+            bool one_pawn = (pos.count<PAWN>(WHITE) + pos.count<PAWN>(BLACK) == 1);
+            sf = one_pawn ? ScaleFactor(8) : ScaleFactor(32);
         }
+        else
+            // Endgame with opposite-colored bishops, but also other pieces. Still
+            // a bit drawish, but not as drawish as with only the two bishops.
+             sf = ScaleFactor(50 * sf / SCALE_FACTOR_NORMAL);
     }
 
     // Interpolate between a middlegame and a (scaled by 'sf') endgame score
