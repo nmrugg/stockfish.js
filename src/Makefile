@@ -219,6 +219,10 @@ endif
 ifeq ($(COMP),emscripten)
 	CXXFLAGS += -s TOTAL_MEMORY=67108864
 endif
+# For Debugging purposes.
+ifeq ($(COMP),emscripten)
+	CXXFLAGS += -s ASSERTIONS=1
+endif
 
 ifeq ($(UNAME),Darwin)
 	CXXFLAGS += -arch $(arch) -mmacosx-version-min=10.6
@@ -289,6 +293,9 @@ ifeq ($(optimize),yes)
 		ifeq ($(COMP),emscripten)
 			CXXFLAGS += -O3
 			LDFLAGS += -O3
+			# Preserve variable names
+			CXXFLAGS += -g3
+			LDFLAGS += -g3
 		else
 			CXXFLAGS += -O3
 		endif
