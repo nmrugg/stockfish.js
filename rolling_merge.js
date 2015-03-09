@@ -1,18 +1,43 @@
 // jshint bitwise:true, curly:true, eqeqeq:true, forin:true, immed:true, latedef:true, newcap:true, noarg:true, noempty:true, nonew:true, plusplus:true, quotmark:double, strict:true, undef:true, unused:strict, node:true
 
-/// Usage: node rolling-merge.js BRANCH_TO_MERGE [FORK_SHA]
+/// Usage:
+///   node rolling-merge.js DATA_FILE.JSON
+///     OR
+///   node rolling-merge.js BRANCH_TO_MERGE [FORK_SHA]
 
 "use strict";
 
 var execFile = require("child_process").execFile;
+var fs = require("fs");
 var merge_candidates;
 var build_path = require("path").join(__dirname, "build.sh");
-var branch = process.argv[2];
+var data_file = process.argv[2];
+var branch;
+var merge_data;
+
+try {
+    merge_data = JSON.parse(fs.readFileSync(data_file, "utf8"));
+    branch = merge_data.branch;
+    merge_data.merged = merge_data.merged || [];
+} catch (e) {
+    branch = data_file;
+    data_file = undefined;
+}
 
 if (!branch) {
     error("Error: No branch.");
+    error("Usage: node rolling-merge.js DATA_FILE.JSON");
+    console.log("  OR");
     error("Usage: node rolling-merge.js BRANCH_TO_MERGE [FORK_SHA]");
     return;
+}
+
+function store_commit(sha)
+{
+    if (data_file && merge_data && merge_data.merged.indexOf(sha) === -1) {
+        merge_data.merged.push(sha);
+        fs.writeFileSync(data_file, JSON.stringify(merge_data, null, "    "));
+    }
 }
 
 function beep()
@@ -165,6 +190,23 @@ function get_merge_candidates(branch, cb)
 
 function is_candidate(candidates, sha)
 {
+    var is_commited;
+    
+    if (merge_data && merge_data.merged && merge_data.merged.length) {
+        is_commited = merge_data.merged.some(function oneach(this_sha)
+        {
+            console.log(this_sha.substr(0, sha.length) + " === " + sha);
+            if (this_sha.substr(0, sha.length) === sha) {
+                console.log("found")
+                return true; /// Break and return.
+            }
+        });
+    }
+    
+    if (is_commited) {
+        return false;
+    }
+    
     return candidates.some(function oneach(this_sha)
     {
         if (this_sha.substr(0, sha.length) === sha) {
@@ -204,6 +246,7 @@ function test_it(sha, next)
             throw new Error(err);
         }
         good("Build " + sha + " successfully!");
+        store_commit(sha);
         setImmediate(next);
     });
 }
@@ -215,6 +258,7 @@ function attempt_to_merge(sha, next)
         if (err) {
             /// Nothing changed, keep going.
             if (err === "skipped" || stdout.indexOf("no changes added to commit") > -1 || stdout.indexOf("nothing to commit (working directory clean)") > -1) {
+                store_commit(sha);
                 good("Skipping " + sha + ".");
                 return setImmediate(next);
             } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1) {
@@ -246,7 +290,11 @@ function init(cb)
                 get_fork_point(head_sha, to_sha, function onget(starting_sha)
                 {
                     /// Be able to override starting commit.
-                    starting_sha = process.argv[3] || starting_sha;
+                    if (merge_data && merge_data.starting_sha) {
+                        starting_sha = merge_data.starting_sha;
+                    } else {
+                        starting_sha = process.argv[3] || starting_sha;
+                    }
                     
                     if (!starting_sha) {
                         throw new Error("Caanot find starting fork point. Override by supplying fork sha.");
