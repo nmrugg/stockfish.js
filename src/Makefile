@@ -30,7 +30,7 @@ EXE = stockfish
 PREFIX = /usr/local
 # Haiku has a non-standard filesystem layout
 ifeq ($(UNAME),Haiku)
-	PREFIX=/boot/common
+	PREFIX=/boot/system/non-packaged
 endif
 BINDIR = $(PREFIX)/bin
 
@@ -221,6 +221,10 @@ endif
 ifeq ($(COMP),emscripten)
 	CXXFLAGS += -s TOTAL_MEMORY=67108864
 endif
+# For Debugging purposes.
+ifeq ($(COMP),emscripten)
+	CXXFLAGS += -s ASSERTIONS=1
+endif
 
 ifeq ($(UNAME),Darwin)
 	CXXFLAGS += -arch $(arch) -mmacosx-version-min=10.6
@@ -291,6 +295,9 @@ ifeq ($(optimize),yes)
 		ifeq ($(COMP),emscripten)
 			CXXFLAGS += -O3
 			LDFLAGS += -O3
+			# Preserve variable names
+			CXXFLAGS += -g3
+			LDFLAGS += -g3
 		else
 			CXXFLAGS += -O3
 		endif
@@ -332,7 +339,7 @@ endif
 
 ### 3.9 popcnt
 ifeq ($(popcnt),yes)
-	CXXFLAGS += -msse3 -DUSE_POPCNT
+	CXXFLAGS += -msse3 -mpopcnt -DUSE_POPCNT
 endif
 
 ### 3.10 pext
