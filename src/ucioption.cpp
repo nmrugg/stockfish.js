@@ -62,7 +62,7 @@ void init(OptionsMap& o) {
   o["Best Book Move"]           << Option(false);
   o["OwnBook"]                  << Option(false);
 #endif
-  o["Contempt Factor"]          << Option(0, -100,  100);
+  o["Contempt Factor"]          << Option(0, -50,  50);
   o["Mobility (Midgame)"]       << Option(100, 0, 200, on_eval);
   o["Mobility (Endgame)"]       << Option(100, 0, 200, on_eval);
   o["Pawn Structure (Midgame)"] << Option(100, 0, 200, on_eval);
@@ -73,7 +73,7 @@ void init(OptionsMap& o) {
   o["King Safety"]              << Option(100, 0, 200, on_eval);
   o["Min Split Depth"]          << Option(0, 0, 12, on_threads);
   o["Threads"]                  << Option(1, 1, MAX_THREADS, on_threads);
-  o["Hash"]                     << Option(16, 1, 1024 * 1024, on_hash_size);
+  o["Hash"]                     << Option(16, 1, 65536, on_hash_size);
   o["Clear Hash"]               << Option(on_clear_hash);
   o["Ponder"]                   << Option(true);
   o["MultiPV"]                  << Option(1, 1, 500);
