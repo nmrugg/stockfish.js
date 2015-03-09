@@ -212,16 +212,12 @@ static string format(Value v) {
   return ss.str();
 }
 
-string pretty_pv(Position& pos, int depth, Value value, int64_t msecs, Move pv[]) {
+string pretty_pv(const Position& pos, int depth, Value value, int64_t msecs, Move pv[]) {
 
   const uint64_t K = 1000;
   const uint64_t M = 1000000;
 
-  std::stack<StateInfo> st;
-  Move* m = pv;
-  string san, str, padding;
   stringstream ss;
-
   ss << setw(2) << depth << setw(8) << format(value) << setw(8) << format(msecs);
 
   if (pos.nodes_searched() < M)
@@ -233,24 +229,10 @@ string pretty_pv(Position& pos, int depth, Value value, int64_t msecs, Move pv[]
   else
       ss << setw(7) << pos.nodes_searched() / M << "M  ";
 
-  str = ss.str();
-  padding = string(str.length(), ' ');
+  string str = ss.str();
 
-  while (*m != MOVE_NONE)
-  {
-      san = move_to_san(pos, *m) + ' ';
-
-      if ((str.length() + san.length()) % 80 <= san.length()) // Exceed 80 cols
-          str += "\n" + padding;
-
-      str += san;
-
-      st.push(StateInfo());
-      pos.do_move(*m++, st.top());
-  }
-
-  while (m != pv)
-      pos.undo_move(*--m);
+  for (Move *m = pv; *m != MOVE_NONE; m++)
+      str += move_to_uci(*m, pos.is_chess960()) + ' ';
 
   return str;
 }
