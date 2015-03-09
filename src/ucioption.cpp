@@ -55,14 +55,12 @@ bool CaseInsensitiveLess::operator() (const string& s1, const string& s2) const 
 void init(OptionsMap& o) {
 
   o["Write Debug Log"]          << Option(false, on_logger);
-  o["Write Search Log"]         << Option(false);
-  o["Search Log Filename"]      << Option("SearchLog.txt");
 #ifndef NO_BOOK
   o["Book File"]                << Option("book.bin");
   o["Best Book Move"]           << Option(false);
   o["OwnBook"]                  << Option(false);
 #endif
-  o["Contempt Factor"]          << Option(0, -50,  50);
+  o["Contempt Factor"]          << Option(0, -100,  100);
   o["Mobility (Midgame)"]       << Option(100, 0, 200, on_eval);
   o["Mobility (Endgame)"]       << Option(100, 0, 200, on_eval);
   o["Pawn Structure (Midgame)"] << Option(100, 0, 200, on_eval);
