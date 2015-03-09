@@ -260,7 +260,10 @@ function attempt_to_merge(sha, next)
                 good("Skipping " + sha + ".");
                 return setImmediate(next);
             } else if (stderr.indexOf("Automatic cherry-pick failed.") > -1) {
-                return warn("Merge conflict. Please fix manually.");
+                warn("Merge conflict. Please fix manually.");
+                warn("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
+                console.log("After merging, check build: ./build.sh");
+                return;
             } else {
                 error("Error: Cannot cherypick " + sha);
                 console.log("STDOUT:");
