@@ -62,7 +62,7 @@ void init(OptionsMap& o) {
   o["Best Book Move"]           << Option(false);
   o["OwnBook"]                  << Option(false);
 #endif
-  o["Contempt Factor"]          << Option(0, -50,  50);
+  o["Contempt Factor"]          << Option(20, -100,  100);
   o["Mobility (Midgame)"]       << Option(100, 0, 200, on_eval);
   o["Mobility (Endgame)"]       << Option(100, 0, 200, on_eval);
   o["Pawn Structure (Midgame)"] << Option(100, 0, 200, on_eval);
