@@ -335,7 +335,7 @@ Skill *skill_p;
 
     // Do we have to play with skill handicap? In this case enable MultiPV search
     // that we will use behind the scenes to retrieve a set of possible moves.
-    multiPV = std::max(multiPV, skill.candidates_size());
+    multiPV = std::max(multiPV, skill_p->candidates_size());
 
     /// This stuff was moved to async_loop().
     // Iterative deepening loop until requested to stop or target depth reached
@@ -363,7 +363,7 @@ Skill *skill_p;
         /// This must match the while loop from upstream.
         if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
             ///NOTE: This code used to be in the deconstructor of skill, but that caused heap errors and memory unalignment.
-            if (skill.enabled()) {
+            if (skill.candidates) {
                 if (!skill.best) {
                     skill.best = skill.pick_move();
                 }
@@ -371,7 +371,7 @@ Skill *skill_p;
                 ///NOTE: Swapping when skill.best == 0 sometimes throws.
                 if (skill.best) {
                     std::swap(RootMoves[0], *std::find(RootMoves.begin(),
-                                RootMoves.end(), skill.best ? skill.best : pick_move()));
+                                RootMoves.end(), skill.best ? skill.best : skill.pick_move()));
                 }
             }
             Search::emscript_think_done();
