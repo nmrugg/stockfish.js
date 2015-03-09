@@ -238,15 +238,32 @@ function test_it(sha, next)
             error(stdout);
             console.log("STDERR:");
             error(stderr);
-            error("Error: Cannot build " + sha);
+            error("Error: Cannot properly build " + sha);
             console.log("");
             warn("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
             console.log("");
             throw new Error(err);
         }
-        good("Build " + sha + " successfully!");
-        store_commit(sha);
-        setImmediate(next);
+        
+        execFile(process.execPath, ["tester.js"], {env: process.env}, function onexec(err, stdout, stderr)
+        {
+            if (err) {
+                error("Error: Failed testing: " + sha);
+                console.log("STDOUT:");
+                error(stdout);
+                console.log("STDERR:");
+                error(stderr);
+                error("Error: Failed testing: " + sha);
+                console.log("");
+                warn("*NOTE* To undo commit the last commit: git reset --hard HEAD~1");
+                console.log("");
+                throw new Error(err);
+            }
+            
+            good("Build " + sha + " and tested successfully!");
+            store_commit(sha);
+            setImmediate(next);
+        });
     });
 }
 
