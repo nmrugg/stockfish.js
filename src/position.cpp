@@ -108,6 +108,39 @@ CheckInfo::CheckInfo(const Position& pos) {
 }
 
 
+/// operator<<(Position) returns an ASCII representation of the position
+
+std::ostream& operator<<(std::ostream& os, const Position& pos) {
+
+  os << "\n +---+---+---+---+---+---+---+---+\n";
+
+  for (Rank r = RANK_8; r >= RANK_1; --r)
+  {
+      for (File f = FILE_A; f <= FILE_H; ++f)
+          os << " | " << PieceToChar[pos.piece_on(make_square(f, r))];
+
+      os << " |\n +---+---+---+---+---+---+---+---+\n";
+  }
+
+  os << "\nFen: " << pos.fen() << "\nKey: " << std::hex << std::uppercase
+     << std::setfill('0') << std::setw(16) << pos.st->key << "\nCheckers: ";
+
+  for (Bitboard b = pos.checkers(); b; )
+      os << UCI::format_square(pop_lsb(&b)) << " ";
+
+  os << "\nLegal moves: ";
+  for (MoveList<LEGAL> it(*this); *it; ++it)
+      //os << UCI::move_to_san(*const_cast<Position*>(this), *it) << " ";
+      os << UCI::move_to_san(pos, *it) << " ";
+  os << "\nLegal uci moves: ";
+  /// Stockfish.js: Get legal moves in uci format too.
+  for (MoveList<LEGAL> it(*this); *it; ++it)
+      os << UCI::format_move(*it, pos.is_chess960()) << " ";
+
+  return os;
+}
+
+
 /// Position::init() initializes at startup the various arrays used to compute
 /// hash keys and the piece square tables. The latter is a two-step operation:
 /// Firstly, the white halves of the tables are copied from PSQT[] tables.
@@ -425,45 +458,6 @@ const string Position::fen() const {
 
   ss << (ep_square() == SQ_NONE ? " - " : " " + UCI::format_square(ep_square()) + " ")
      << st->rule50 << " " << 1 + (gamePly - (sideToMove == BLACK)) / 2;
-
-  return ss.str();
-}
-
-
-/// Position::pretty() returns an ASCII representation of the position to be
-/// printed to the standard output together with the move's san notation.
-
-const string Position::pretty(Move m) const {
-
-  std::ostringstream ss;
-
-  if (m)
-      ss << "\nMove: " << (sideToMove == BLACK ? ".." : "")
-         << UCI::move_to_san(*const_cast<Position*>(this), m);
-
-  ss << "\n +---+---+---+---+---+---+---+---+\n";
-
-  for (Rank r = RANK_8; r >= RANK_1; --r)
-  {
-      for (File f = FILE_A; f <= FILE_H; ++f)
-          ss << " | " << PieceToChar[piece_on(make_square(f, r))];
-
-      ss << " |\n +---+---+---+---+---+---+---+---+\n";
-  }
-
-  ss << "\nFen: " << fen() << "\nKey: " << std::hex << std::uppercase
-     << std::setfill('0') << std::setw(16) << st->key << "\nCheckers: ";
-
-  for (Bitboard b = checkers(); b; )
-      ss << UCI::format_square(pop_lsb(&b)) << " ";
-
-  ss << "\nLegal moves: ";
-  for (MoveList<LEGAL> it(*this); *it; ++it)
-      ss << UCI::move_to_san(*const_cast<Position*>(this), *it) << " ";
-  ss << "\nLegal uci moves: ";
-  /// Stockfish.js: Get legal moves in uci format too.
-  for (MoveList<LEGAL> it(*this); *it; ++it)
-      ss << UCI::format_move(*it, this->is_chess960()) << " ";
 
   return ss.str();
 }
