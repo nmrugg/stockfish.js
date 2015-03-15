@@ -8,7 +8,7 @@
 var execFile = require("child_process").execFile;
 var branch = process.argv[2];
 var sha = process.argv[3];
-var tmp_branch = "tmp_branch_";
+var tmp_branch = "TMP_branch_";
 
 if (!branch) {
     error("Error: No branch.");
@@ -74,8 +74,6 @@ function run()
         if (changes) {
             return error("Found changes. Commit your changes first.");
         }
-        console.log(tmp_branch)
-        process.exit();
         git_cmd(["branch", "-D", tmp_branch], true, function ondel()
         {
             git_cmd(["branch", "checkout", branch], function oncheckout()
