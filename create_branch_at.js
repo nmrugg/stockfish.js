@@ -91,7 +91,6 @@ function copy_files_and_return(cb)
     {
         var tmp_file = p.join(tmpdir, Math.random() + p.basename(file));
         
-        console.log("Copying " + file + " to " + tmp_file + ".");
         fs.writeFileSync(tmp_file, fs.readFileSync(file));
         
         tmp_files[i] = tmp_file;
@@ -102,7 +101,6 @@ function copy_files_and_return(cb)
     {
         tmp_files.forEach(function oneach(file, i)
         {
-            console.log("Replacing " + file + " over " + files[i] + ".");
             /// Replace the files.
             fs.renameSync(file, files[i]);
         });
