@@ -63,7 +63,7 @@ stockfish.stdout.on("data", function onstdout(data)
             setTimeout(function ()
             {
                 write("stop");
-            }, 100);
+            }, 3000);
         } else {
             error("Cannot find valid legal uci moves.");
             throw new Error("Cannot find valid legal uci moves.");
