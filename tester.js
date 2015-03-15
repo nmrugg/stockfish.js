@@ -10,6 +10,8 @@ stockfish.on("error", function (err)
 
 stockfish.stdout.on("data", function onstdout(data)
 {
+    var found_san_moves;
+    
     if (typeof data !== "string") {
         data = data.toString();
     }
@@ -34,15 +36,23 @@ stockfish.stdout.on("data", function onstdout(data)
                 stockfish.stdin.write("stop\n");
             }, 100);
         } else {
-            throw new Error("Cannot find valid legal uci moves");
+            throw new Error("Cannot find valid legal uci moves.");
+        }
+    } else if (data.indexOf("Legal moves") > -1) {
+        if (/Legal moves\: \S/.test(data)) {
+            console.log("**Found valid Legal san moves**");
+            found_san_moves = true;
         }
     }
     
     if (data.indexOf("bestmove") > -1) {
         console.log("**Found bestmove**");
-        stockfish.stdin.write("quit\n");
-        //stockfish.stdin.end();
-        //process.exit();
+        
+        if (found_san_moves) {
+            stockfish.stdin.write("quit\n");
+        } else {
+            throw new Error("Did not find valid legal san moves.");
+        }
     }
 });
 
