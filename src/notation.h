@@ -26,8 +26,6 @@
 
 class Position;
 
-const std::string move_to_san(Position& pos, Move m); ///READDED
-
 inline char to_char(File f, bool tolower = true) { /// READDED
   return char(f - FILE_A + (tolower ? 'a' : 'A'));
 }

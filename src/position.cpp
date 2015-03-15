@@ -442,7 +442,7 @@ const string Position::pretty(Move m) const {
 
   if (m)
       ss << "\nMove: " << (sideToMove == BLACK ? ".." : "")
-         << move_to_san(*const_cast<Position*>(this), m);
+         << UCI::move_to_san(*const_cast<Position*>(this), m);
 
   ss << "\n +---+---+---+---+---+---+---+---+\n";
 
@@ -462,7 +462,7 @@ const string Position::pretty(Move m) const {
 
   ss << "\nLegal moves: ";
   for (MoveList<LEGAL> it(*this); *it; ++it)
-      ss << move_to_san(*const_cast<Position*>(this), *it) << " ";
+      ss << UCI::move_to_san(*const_cast<Position*>(this), *it) << " ";
   ss << "\nLegal uci moves: ";
   /// Stockfish.js: Get legal moves in uci format too.
   for (MoveList<LEGAL> it(*this); *it; ++it)

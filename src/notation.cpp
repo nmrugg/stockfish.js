@@ -102,7 +102,7 @@ Move UCI::move_from_uci(const Position& pos, string& str) {
 /// move_to_san() takes a position and a legal Move as input and returns its
 /// short algebraic notation representation.
 
-const string move_to_san(Position& pos, Move m) {
+const string UCI::move_to_san(Position& pos, Move m) {
 
   if (m == MOVE_NONE)
       return "(none)";
