@@ -128,13 +128,13 @@ std::ostream& operator<<(std::ostream& os, const Position& pos) {
   for (Bitboard b = pos.checkers(); b; )
       os << UCI::format_square(pop_lsb(&b)) << " ";
 
+  /// READDED
   os << "\nLegal moves: ";
-  for (MoveList<LEGAL> it(*this); *it; ++it)
-      //os << UCI::move_to_san(*const_cast<Position*>(this), *it) << " ";
-      os << UCI::move_to_san(pos, *it) << " ";
+  for (MoveList<LEGAL> it(pos); *it; ++it)
+      os << UCI::move_to_san(const_cast<Position&>(pos), *it) << " ";
   os << "\nLegal uci moves: ";
   /// Stockfish.js: Get legal moves in uci format too.
-  for (MoveList<LEGAL> it(*this); *it; ++it)
+  for (MoveList<LEGAL> it(pos); *it; ++it)
       os << UCI::format_move(*it, pos.is_chess960()) << " ";
 
   return os;
