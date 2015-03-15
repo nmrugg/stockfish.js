@@ -1,4 +1,5 @@
 var spawn = require("child_process").spawn;
+var found_san_moves;
 
 var stockfish = spawn(require("path").join(__dirname, "stockfishjs"));
 
@@ -10,8 +11,6 @@ stockfish.on("error", function (err)
 
 stockfish.stdout.on("data", function onstdout(data)
 {
-    var found_san_moves;
-    
     if (typeof data !== "string") {
         data = data.toString();
     }
@@ -26,9 +25,16 @@ stockfish.stdout.on("data", function onstdout(data)
         stockfish.stdin.write("d\n");
     }
     
+    if (data.indexOf("Legal moves") > -1) {
+        if (/Legal moves\: [a-hBKNQRO0]/.test(data)) {
+            console.log("**Found valid legal san moves**");
+            found_san_moves = true;
+        }
+    }
+    
     if (data.indexOf("Legal uci moves") > -1) {
-        if (/Legal uci moves\: \S/.test(data)) {
-            console.log("**Found valid Legal uci moves**");
+        if (/Legal uci moves\: [a-h][1-8][a-h][1-8]/.test(data)) {
+            console.log("**Found valid legal uci moves**");
             /// Make sure ponder works.
             stockfish.stdin.write("go ponder\n");
             setTimeout(function ()
@@ -37,11 +43,6 @@ stockfish.stdout.on("data", function onstdout(data)
             }, 100);
         } else {
             throw new Error("Cannot find valid legal uci moves.");
-        }
-    } else if (data.indexOf("Legal moves") > -1) {
-        if (/Legal moves\: \S/.test(data)) {
-            console.log("**Found valid Legal san moves**");
-            found_san_moves = true;
         }
     }
     
