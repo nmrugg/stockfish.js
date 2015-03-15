@@ -47,8 +47,14 @@ function git_cmd(args, dont_throw, cb)
     {
         if (err && !dont_throw) {
             error("Git error: git " + args.join(" ") + "\n");
-            error(stdout);
-            error(stderr);
+            if (stdout) {
+                console.log("STDOUT***");
+                error(stdout);
+            }
+            if (stderr) {
+                console.log("STDERR***");
+                error(stderr);
+            }
             throw new Error(err);
         }
         if (cb) {
