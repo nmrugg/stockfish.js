@@ -42,6 +42,7 @@ function git_cmd(args, dont_throw, cb)
         cb = dont_throw;
         dont_throw = false;
     }
+    
     execFile("git", args, function onexec(err, stdout, stderr)
     {
         if (err && !dont_throw) {
@@ -76,7 +77,7 @@ function run()
         }
         git_cmd(["branch", "-D", tmp_branch], true, function ondel()
         {
-            git_cmd(["branch", "checkout", branch], function oncheckout()
+            git_cmd(["checkout", branch], function oncheckout()
             {
                 git_cmd(["branch", "checkout", "-b", tmp_branch], function oncreatecheckout()
                 {
