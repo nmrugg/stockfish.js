@@ -107,14 +107,6 @@ Move UCI::to_move(const Position& pos, string& str) {
 /// move_to_san() takes a position and a legal Move as input and returns its
 /// short algebraic notation representation.
 
-inline char to_char(File f, bool tolower = true) { /// READDED
-  return char(f - FILE_A + (tolower ? 'a' : 'A'));
-}
-
-inline char to_char(Rank r) { /// READDED
-  return char(r - RANK_1 + '1');
-}
-
 const string UCI::move_to_san(Position& pos, Move m) {
 
   if (m == MOVE_NONE)
@@ -156,16 +148,16 @@ const string UCI::move_to_san(Position& pos, Move m) {
           { /* Disambiguation is not needed */ }
 
           else if (!(others & file_bb(from)))
-              san += to_char(file_of(from));
+              san += char(file_of(from) - FILE_A + 'a');
 
           else if (!(others & rank_bb(from)))
-              san += to_char(rank_of(from));
+              san += char(rank_of(from) - RANK_1 + '1');
 
           else
               san += format_square(from);
       }
       else if (pos.capture(m))
-          san = to_char(file_of(from));
+          san = char(file_of(from) - FILE_A + 'a');
 
       if (pos.capture(m))
           san += 'x';
