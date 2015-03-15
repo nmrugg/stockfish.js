@@ -70,10 +70,10 @@ void command(const std::string&);
 
 const std::string move_to_san(Position& pos, Move m); ///READDED
 
-Move to_move(const Position& pos, std::string& str);
-std::string format_move(Move m, bool chess960);
 std::string format_value(Value v, Value alpha = -VALUE_INFINITE, Value beta = VALUE_INFINITE);
 std::string format_square(Square s);
+std::string format_move(Move m, bool chess960);
+Move to_move(const Position& pos, std::string& str);
 
 } // namespace UCI
 
