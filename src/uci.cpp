@@ -290,7 +290,7 @@ Move UCI::to_move(const Position& pos, string& str) {
 
 static const char* PieceToChar[COLOR_NB] = { " PNBRQK", " pnbrqk" };
 
-const string UCI::move_to_san(Position& pos, Move m) {
+const string UCI::move_to_san(const Position& pos, Move m) {
 
   if (m == MOVE_NONE)
       return "(none)";
@@ -353,6 +353,8 @@ const string UCI::move_to_san(Position& pos, Move m) {
 
   if (pos.gives_check(m, CheckInfo(pos)))
   {
+      //NOTE: Use could use "Position& pos2 = const_cast<Position&>(pos);" and then use pos2 instead of pos, but that is much slower.
+      //      If we did to that, we could remove "void do_move(Move m, StateInfo& st) const;" and "void undo_move(Move m) const;" from uci.h.
       StateInfo st;
       pos.do_move(m, st);
       san += MoveList<LEGAL>(pos).size() ? "+" : "#";
