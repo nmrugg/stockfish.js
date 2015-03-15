@@ -1,7 +1,7 @@
 // jshint bitwise:true, curly:true, eqeqeq:true, forin:true, immed:true, latedef:true, newcap:true, noarg:true, noempty:true, nonew:true, plusplus:true, quotmark:double, strict:true, undef:true, unused:strict, node:true
 
 /// Usage:
-///   node rolling-merge.js BRANCH_TO_MERGE SHA
+///   node rolling-merge.js BRANCH_TO_MERGE SHA [FILE_1 ...FILE_N]
 
 "use strict";
 
@@ -9,6 +9,9 @@ var execFile = require("child_process").execFile;
 var branch = process.argv[2];
 var sha = process.argv[3];
 var tmp_branch = "TMP_branch_";
+var files = [];
+var tmp_files = [];
+var current_branch;
 
 if (!branch) {
     error("Error: No branch.");
@@ -21,6 +24,8 @@ if (!sha) {
     error("Usage: node rolling-merge.js BRANCH_TO_MERGE SHA");
     return;
 }
+
+
 
 function check_for_changes(cb)
 {
@@ -72,7 +77,41 @@ function beep()
     process.stdout.write("\u0007");
 }
 
-
+function copy_files_and_return(cb)
+{
+    var fs = require("fs"),
+        p = require("path"),
+        tmpdir = require("os").tmpdir();
+    
+    if (!current_branch) {
+        throw new Error("Can't get current branch.");
+    }
+    
+    files.forEach(function oneach(file, i)
+    {
+        var tmp_file = p.join(tmpdir, Math.random() + p.basename(file));
+        
+        console.log("Copying " + file + " to " + tmp_file + ".");
+        fs.writeFileSync(tmp_file, fs.readFileSync(file));
+        
+        tmp_files[i] = tmp_file;
+    });
+    
+    /// Return
+    git_cmd(["checkout", current_branch], function oncheckout()
+    {
+        tmp_files.forEach(function oneach(file, i)
+        {
+            console.log("Replacing " + file + " over " + files[i] + ".");
+            /// Replace the files.
+            fs.renameSync(file, files[i]);
+        });
+        
+        if (cb) {
+            cb();
+        }
+    });
+}
 
 function run()
 {
@@ -87,11 +126,36 @@ function run()
             {
                 git_cmd(["checkout", "-b", tmp_branch], function oncreatecheckout()
                 {
-                    //git_cmd(["reset", "--hard", sha], beep);
+                    git_cmd(["reset", "--hard", sha], function onreset()
+                    {
+                        if (files.length) {
+                            copy_files_and_return(beep);
+                        } else {
+                            beep();
+                        }
+                    });
                 });
             });
         });
     });
 }
 
-run();
+(function get_files()
+{
+    var i,
+        len = process.argv.length;
+    
+    for (i = 4; i < len; i += 1) {
+        files[files.length] = process.argv[i];
+    }
+}());
+
+(function get_current_branch()
+{
+    git_cmd(["rev-parse", "--abbrev-ref", "HEAD"], function onget(data)
+    {
+        current_branch = data.trim();
+        
+        run();
+    });
+}());
