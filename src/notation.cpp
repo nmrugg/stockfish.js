@@ -17,9 +17,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/// READDED
-#include "notation.h"
-
 #include <cassert>
 #include <sstream>
 
@@ -109,6 +106,14 @@ Move UCI::to_move(const Position& pos, string& str) {
 ///READDED
 /// move_to_san() takes a position and a legal Move as input and returns its
 /// short algebraic notation representation.
+
+inline char to_char(File f, bool tolower = true) { /// READDED
+  return char(f - FILE_A + (tolower ? 'a' : 'A'));
+}
+
+inline char to_char(Rank r) { /// READDED
+  return char(r - RANK_1 + '1');
+}
 
 const string UCI::move_to_san(Position& pos, Move m) {
 
