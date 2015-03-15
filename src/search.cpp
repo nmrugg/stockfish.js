@@ -33,7 +33,6 @@
 #include "evaluate.h"
 #include "movegen.h"
 #include "movepick.h"
-#include "notation.h"
 #include "rkiss.h"
 #include "search.h"
 #include "timeman.h"
@@ -177,7 +176,7 @@ uint64_t Search::perft(Position& pos, Depth depth) {
           pos.undo_move(*it);
       }
       if (Root)
-          sync_cout << move_to_uci(*it, pos.is_chess960()) << ": " << cnt << sync_endl;
+          sync_cout << UCI::move_to_uci(*it, pos.is_chess960()) << ": " << cnt << sync_endl;
   }
   return nodes;
 }
@@ -205,7 +204,7 @@ void Search::think() {
   {
       RootMoves.push_back(MOVE_NONE);
       sync_cout << "info depth 0 score "
-                << score_to_uci(RootPos.checkers() ? -VALUE_MATE : VALUE_DRAW)
+                << UCI::score_to_uci(RootPos.checkers() ? -VALUE_MATE : VALUE_DRAW)
                 << sync_endl;
 
       //goto finalize; /// Old sync code
@@ -268,8 +267,8 @@ void Search::emscript_finalize(void *arg) {
   }
 
   // Best move could be MOVE_NONE when searching on a stalemate position
-  sync_cout << "bestmove " << move_to_uci(RootMoves[0].pv[0], RootPos.is_chess960())
-            << " ponder "  << move_to_uci(RootMoves[0].pv[1], RootPos.is_chess960())
+  sync_cout << "bestmove " << UCI::move_to_uci(RootMoves[0].pv[0], RootPos.is_chess960())
+            << " ponder "  << UCI::move_to_uci(RootMoves[0].pv[1], RootPos.is_chess960())
             << sync_endl;
 }
 
@@ -800,7 +799,7 @@ moves_loop: // When in check and at SpNode search starts from here
 
           if (thisThread == Threads.main() && Time::now() - SearchTime > 3000)
               sync_cout << "info depth " << depth
-                        << " currmove " << move_to_uci(move, pos.is_chess960())
+                        << " currmove " << UCI::move_to_uci(move, pos.is_chess960())
                         << " currmovenumber " << moveCount + PVIdx << sync_endl;
       }
 
@@ -1432,7 +1431,7 @@ moves_loop: // When in check and at SpNode search starts from here
 
         ss << "info depth " << d
            << " seldepth "  << selDepth
-           << " score "     << (i == PVIdx ? score_to_uci(v, alpha, beta) : score_to_uci(v))
+           << " score "     << (i == PVIdx ? UCI::score_to_uci(v, alpha, beta) : UCI::score_to_uci(v))
            << " nodes "     << pos.nodes_searched()
            << " nps "       << pos.nodes_searched() * 1000 / elapsed
            << " time "      << elapsed
@@ -1440,7 +1439,7 @@ moves_loop: // When in check and at SpNode search starts from here
            << " pv";
 
         for (size_t j = 0; RootMoves[i].pv[j] != MOVE_NONE; ++j)
-            ss << " " << move_to_uci(RootMoves[i].pv[j], pos.is_chess960());
+            ss << " " << UCI::move_to_uci(RootMoves[i].pv[j], pos.is_chess960());
     }
 
     return ss.str();
