@@ -157,7 +157,7 @@ const string UCI::move_to_san(Position& pos, Move m) {
               san += to_char(rank_of(from));
 
           else
-              san += to_string(from);
+              san += format_square(from);
       }
       else if (pos.capture(m))
           san = to_char(file_of(from));
@@ -165,7 +165,7 @@ const string UCI::move_to_san(Position& pos, Move m) {
       if (pos.capture(m))
           san += 'x';
 
-      san += to_string(to);
+      san += format_square(to);
 
       if (type_of(m) == PROMOTION)
           san += string("=") + PieceToChar[WHITE][promotion_type(m)];
