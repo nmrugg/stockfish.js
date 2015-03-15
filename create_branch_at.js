@@ -85,7 +85,7 @@ function run()
         {
             git_cmd(["checkout", branch], function oncheckout()
             {
-                git_cmd(["branch", "checkout", "-b", tmp_branch], function oncreatecheckout()
+                git_cmd(["checkout", "-b", tmp_branch], function oncreatecheckout()
                 {
                     //git_cmd(["reset", "--hard", sha], beep);
                 });
