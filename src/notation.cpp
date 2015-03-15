@@ -169,4 +169,3 @@ const string move_to_san(Position& pos, Move m) {
 
   return san;
 }
-
