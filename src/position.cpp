@@ -426,7 +426,7 @@ const string Position::fen() const {
   if (!can_castle(WHITE) && !can_castle(BLACK))
       ss << '-';
 
-  ss << (ep_square() == SQ_NONE ? " - " : " " + UCI::to_string(ep_square()) + " ")
+  ss << (ep_square() == SQ_NONE ? " - " : " " + UCI::format_square(ep_square()) + " ")
      << st->rule50 << " " << 1 + (gamePly - (sideToMove == BLACK)) / 2;
 
   return ss.str();
@@ -458,7 +458,7 @@ const string Position::pretty(Move m) const {
      << std::setfill('0') << std::setw(16) << st->key << "\nCheckers: ";
 
   for (Bitboard b = checkers(); b; )
-      ss << UCI::to_string(pop_lsb(&b)) << " ";
+      ss << UCI::format_square(pop_lsb(&b)) << " ";
 
   ss << "\nLegal moves: ";
   for (MoveList<LEGAL> it(*this); *it; ++it)
