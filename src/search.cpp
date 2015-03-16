@@ -279,7 +279,7 @@ int depth_ref;
 Value bestValue_ref, alpha_ref, beta_ref, delta_ref;
 Position pos_ref;
 Stack *ss_ref;
-Stack stack[MAX_PLY_PLUS_6];
+Stack stack[MAX_PLY+4];
 Skill *skill_p;
   // id_loop() is the main iterative deepening loop. It calls search() repeatedly
   // with increasing depth until the allocated thinking time has been consumed,
@@ -288,7 +288,8 @@ Skill *skill_p;
   void id_loop(Position& pos) {
 
     ///NOTE: The stack was moved out to prevent garbage collection.
-    //Stack stack[MAX_PLY_PLUS_6], *ss = stack+2; // To allow referencing (ss-2)
+    ///      See Stack stack[MAX_PLY+4]; above.
+    //Stack stack[MAX_PLY+4], *ss = stack+2; // To allow referencing (ss-2) and (ss+2)
     Stack *ss = stack+2; // To allow referencing (ss-2)
     int depth;
     Value bestValue, alpha, beta, delta;
@@ -338,7 +339,7 @@ Skill *skill_p;
         Stack *ss = ss_ref;
         Skill skill = *skill_p;
         /// This must match the while loop from upstream.
-        if(!(++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
+        if(!(++depth < MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
             ///NOTE: This code used to be in the deconstructor of skill, but that caused heap errors and memory unalignment.
             if (skill.candidates) {
                 if (!skill.best) {
@@ -535,10 +536,7 @@ Skill *skill_p;
 
     moveCount = quietCount = 0;
     bestValue = -VALUE_INFINITE;
-    ss->currentMove = ss->ttMove = (ss+1)->excludedMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
-    (ss+1)->skipNullMove = false; (ss+1)->reduction = DEPTH_ZERO;
-    (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
 
     // Used to send selDepth info to GUI
     if (PvNode && thisThread->maxPly < ss->ply)
@@ -547,8 +545,8 @@ Skill *skill_p;
     if (!RootNode)
     {
         // Step 2. Check for aborted search and immediate draw
-        if (Signals.stop || pos.is_draw() || ss->ply > MAX_PLY)
-            return ss->ply > MAX_PLY && !inCheck ? evaluate(pos) : DrawValue[pos.side_to_move()];
+        if (Signals.stop || pos.is_draw() || ss->ply >= MAX_PLY)
+            return ss->ply >= MAX_PLY && !inCheck ? evaluate(pos) : DrawValue[pos.side_to_move()];
 
         // Step 3. Mate distance pruning. Even if we mate at the next move our score
         // would be at best mate_in(ss->ply+1), but if alpha is already bigger because
@@ -561,6 +559,12 @@ Skill *skill_p;
         if (alpha >= beta)
             return alpha;
     }
+
+    assert(0 <= ss->ply && ss->ply < MAX_PLY);
+
+    ss->currentMove = ss->ttMove = (ss+1)->excludedMove = bestMove = MOVE_NONE;
+    (ss+1)->skipNullMove = false; (ss+1)->reduction = DEPTH_ZERO;
+    (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
 
     // Step 4. Transposition table lookup
     // We don't want the score of a partial search to overwrite a previous full search
@@ -1126,8 +1130,10 @@ moves_loop: // When in check and at SpNode search starts from here
     ss->ply = (ss-1)->ply + 1;
 
     // Check for an instant draw or if the maximum ply has been reached
-    if (pos.is_draw() || ss->ply > MAX_PLY)
-        return ss->ply > MAX_PLY && !InCheck ? evaluate(pos) : DrawValue[pos.side_to_move()];
+    if (pos.is_draw() || ss->ply >= MAX_PLY)
+        return ss->ply >= MAX_PLY && !InCheck ? evaluate(pos) : DrawValue[pos.side_to_move()];
+
+    assert(0 <= ss->ply && ss->ply < MAX_PLY);
 
     // Decide whether or not to include checks: this fixes also the type of
     // TT entry depth that we are going to use. Note that in qsearch we use
@@ -1457,7 +1463,7 @@ moves_loop: // When in check and at SpNode search starts from here
 
 void RootMove::extract_pv_from_tt(Position& pos) {
 
-  StateInfo state[MAX_PLY_PLUS_6], *st = state;
+  StateInfo state[MAX_PLY], *st = state;
   const TTEntry* tte;
   int ply = 1;    // At root ply is 1...
   Move m = pv[0]; // ...instead pv[] array starts from 0
@@ -1493,7 +1499,7 @@ void RootMove::extract_pv_from_tt(Position& pos) {
 
 void RootMove::insert_pv_in_tt(Position& pos) {
 
-  StateInfo state[MAX_PLY_PLUS_6], *st = state;
+  StateInfo state[MAX_PLY], *st = state;
   const TTEntry* tte;
   int idx = 0; // Ply starts from 1, we need to start from 0
 
@@ -1535,7 +1541,7 @@ void Thread::idle_loop() {
 
           Threads.mutex.unlock();
 
-          Stack stack[MAX_PLY_PLUS_6], *ss = stack+2; // To allow referencing (ss-2)
+          Stack stack[MAX_PLY+4], *ss = stack+2; // To allow referencing (ss-2) and (ss+2)
           Position pos(*sp->pos, this);
 
           std::memcpy(ss-2, sp->ss-2, 5 * sizeof(Stack));
