@@ -290,7 +290,7 @@ Move UCI::to_move(const Position& pos, string& str) {
 
 const char* PieceToChar[COLOR_NB] = { " PNBRQK", " pnbrqk" };
 
-const string UCI::move_to_san(const Position& pos, Move m) {
+const string UCI::move_to_san(Position& pos, Move m) {
 
   if (m == MOVE_NONE)
       return "(none)";

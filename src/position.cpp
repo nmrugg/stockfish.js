@@ -129,8 +129,9 @@ std::ostream& operator<<(std::ostream& os, const Position& pos) {
 
   /// READDED
   os << "\nLegal moves: ";
-  for (MoveList<LEGAL> it(pos); *it; ++it)
-      os << UCI::move_to_san(pos, *it) << " ";
+  Position& pos2 = const_cast<Position&>(pos);
+  for (MoveList<LEGAL> it(pos2); *it; ++it)
+      os << UCI::move_to_san(pos2, *it) << " ";
   os << "\nLegal uci moves: ";
   /// Stockfish.js: Get legal moves in uci format too.
   for (MoveList<LEGAL> it(pos); *it; ++it)

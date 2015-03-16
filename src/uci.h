@@ -68,7 +68,7 @@ void init(OptionsMap&);
 void commandInit();
 void command(const std::string&);
 
-const std::string move_to_san(const Position& pos, Move m); ///READDED
+const std::string move_to_san(Position& pos, Move m); ///READDED
 
 std::string format_value(Value v, Value alpha = -VALUE_INFINITE, Value beta = VALUE_INFINITE);
 std::string format_square(Square s);

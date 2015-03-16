@@ -137,10 +137,8 @@ public:
 
   // Doing and undoing moves
   void do_move(Move m, StateInfo& st);
-  void do_move(Move m, StateInfo& st) const; /// Added to make move_to_san() work properly.
   void do_move(Move m, StateInfo& st, const CheckInfo& ci, bool moveIsCheck);
   void undo_move(Move m);
-  void undo_move(Move m) const; /// Added to make move_to_san() work properly.
   void do_null_move(StateInfo& st);
   void undo_null_move();
 
