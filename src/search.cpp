@@ -1696,4 +1696,5 @@ void check_time() {
 
       if (nodes >= Limits.nodes)
       Signals.stop = true;
-}}
+  }
+}
