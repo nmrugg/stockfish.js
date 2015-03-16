@@ -288,7 +288,7 @@ Move UCI::to_move(const Position& pos, string& str) {
 /// move_to_san() takes a position and a legal Move as input and returns its
 /// short algebraic notation representation.
 
-static const char* PieceToChar[COLOR_NB] = { " PNBRQK", " pnbrqk" };
+const char* PieceToChar[COLOR_NB] = { " PNBRQK", " pnbrqk" };
 
 const string UCI::move_to_san(const Position& pos, Move m) {
 
