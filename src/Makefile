@@ -218,20 +218,13 @@ else
 	profile_clean = gcc-profile-clean
 endif
 
-ifeq ($(COMP),emscripten)
-	CXXFLAGS += -s TOTAL_MEMORY=67108864
-endif
-# For Debugging purposes.
-ifeq ($(COMP),emscripten)
-	CXXFLAGS += -s ASSERTIONS=1
-endif
-
 ifeq ($(UNAME),Darwin)
 	CXXFLAGS += -arch $(arch) -mmacosx-version-min=10.6
 	LDFLAGS += -arch $(arch) -mmacosx-version-min=10.6
 endif
 
 ifeq ($(COMP),emscripten)
+	CXXFLAGS += -s TOTAL_MEMORY=67108864
 	#NOTE: --closure 1 breaks the code
 	#TODO: File bug report for --closure 1.
 	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js
@@ -293,11 +286,14 @@ ifeq ($(optimize),yes)
 	ifeq ($(comp),clang)
 		### -O4 requires a linker that supports LLVM's LTO
 		ifeq ($(COMP),emscripten)
-			#CXXFLAGS += -O3
-			#LDFLAGS += -O3
-			# Preserve variable names
-			CXXFLAGS += -g3
-			LDFLAGS += -g3
+			# Use for smaller, faster code (slower build times)
+			CXXFLAGS += -O3
+			LDFLAGS += -O3
+			# Use for debuggin (preserve variable names)
+			#CXXFLAGS += -g3
+			#LDFLAGS += -g3
+			# For Debugging purposes.
+			CXXFLAGS += -s ASSERTIONS=1
 		else
 			CXXFLAGS += -O3
 		endif
