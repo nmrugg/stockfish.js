@@ -31,6 +31,13 @@ stockfish.on("error", function (err)
     throw err;
 });
 
+///TODO: Test currmovenumber and time
+/// e.g., info depth 6 currmove e6e5 currmovenumber 1E
+///       info nodes 0 time 3D94
+/// Was something like
+///       info depth 8 currmove a2a3 currmovenumber 20
+///       info nodes 0 time 19543
+
 
 stockfish.stdout.on("data", function onstdout(data)
 {

@@ -15,13 +15,13 @@ var current_branch;
 
 if (!branch) {
     error("Error: No branch.");
-    error("Usage: node rolling-merge.js BRANCH_TO_MERGE SHA");
+    error("Usage: node rolling-merge.js BRANCH_TO_MERGE SHA [FILE_1 ...FILE_N]");
     return;
 }
 tmp_branch += branch;
 if (!sha) {
     error("Error: No SHA.");
-    error("Usage: node rolling-merge.js BRANCH_TO_MERGE SHA");
+    error("Usage: node rolling-merge.js BRANCH_TO_MERGE SHA [FILE_1 ...FILE_N]");
     return;
 }
 
