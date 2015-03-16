@@ -286,10 +286,10 @@ ifeq ($(optimize),yes)
 	ifeq ($(comp),clang)
 		### -O4 requires a linker that supports LLVM's LTO
 		ifeq ($(COMP),emscripten)
-			# Use for smaller, faster code (slower build times)
-			CXXFLAGS += -O3
-			LDFLAGS += -O3
-			# Use for debuggin (preserve variable names)
+			# Use for smaller, faster code (slower build times though)
+			#CXXFLAGS += -O3
+			#LDFLAGS += -O3
+			# Use for debugging (preserve variable names)
 			#CXXFLAGS += -g3
 			#LDFLAGS += -g3
 			# For Debugging purposes.
