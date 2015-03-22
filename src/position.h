@@ -76,6 +76,9 @@ class Position {
 
   friend std::ostream& operator<<(std::ostream&, const Position&);
 
+  // Disable the default copy constructor
+  //Position(const Position&); /// Removed because it causes problems "Position pos = pos_ref;" in seach.cpp.
+
 public:
   Position() {}
   Position(const Position& pos, Thread* th) { *this = pos; thisThread = th; }

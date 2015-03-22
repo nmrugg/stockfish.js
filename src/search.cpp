@@ -23,7 +23,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <cstring>
+#include <cstring>   // For std::memset
 #include <iostream>
 #include <sstream>
 
@@ -184,7 +184,7 @@ template uint64_t Search::perft<true>(Position& pos, Depth depth);
 
 void Search::think() {
 
-  TimeMgr.init(Limits, RootPos.game_ply(), RootPos.side_to_move());
+  TimeMgr.init(Limits, RootPos.side_to_move(), RootPos.game_ply());
 
   int contempt = Options["Contempt"] * PawnValueEg / 100; // From centipawns
   DrawValue[ RootPos.side_to_move()] = VALUE_DRAW - Value(contempt);
