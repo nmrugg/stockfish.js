@@ -310,7 +310,7 @@ Skill *skill_p;
 
     /// This stuff was moved to async_loop().
     // Iterative deepening loop until requested to stop or target depth reached
-    //while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth)) /// Old sync code. The "if" statement in async_loop() must match it
+    //while (++depth <= DEPTH_MAX && !Signals.stop && (!Limits.depth || depth <= Limits.depth)) /// Old sync code. The "if" statement in async_loop() must match it
     /// Define variables so that async_loop() can read them.
     depth_ref = depth;
     bestValue_ref = bestValue;
@@ -332,7 +332,7 @@ Skill *skill_p;
         Stack *ss = ss_ref;
         Skill skill = *skill_p;
         /// This must match the while loop from upstream.
-        if(!(++depth < MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
+        if(!(++depth < DEPTH_MAX && !Signals.stop && (!Limits.depth || depth <= Limits.depth))) {
             ///NOTE: This code used to be in the deconstructor of skill, but that caused heap errors and memory unalignment.
             if (skill.candidates) {
                 if (!skill.best) {
