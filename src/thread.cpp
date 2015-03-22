@@ -92,6 +92,19 @@ Thread::Thread() /* : splitPoints() */ { // Value-initialization bug in MSVC
 }
 
 
+// cutoff_occurred() checks whether a beta cutoff has occurred in the
+// current active split point, or in some ancestor of the split point.
+
+bool Thread::cutoff_occurred() const {
+
+  for (SplitPoint* sp = activeSplitPoint; sp; sp = sp->parentSplitPoint)
+      if (sp->cutoff)
+          return true;
+
+  return false;
+}
+
+
 // Thread::available_to() checks whether the thread is available to help the
 // thread 'master' at a split point. An obvious requirement is that thread must
 // be idle. With more than two threads, this is not sufficient: If the thread is
@@ -164,19 +177,6 @@ void MainThread::idle_loop() {
 
       searching = false;
   }
-}
-
-
-// Thread::cutoff_occurred() checks whether a beta cutoff has occurred in the
-// current active split point, or in some ancestor of the split point.
-
-bool Thread::cutoff_occurred() const {
-
-  for (SplitPoint* sp = activeSplitPoint; sp; sp = sp->parentSplitPoint)
-      if (sp->cutoff)
-          return true;
-
-  return false;
 }
 
 
@@ -255,7 +255,6 @@ Thread* ThreadPool::available_slave(const Thread* master) const {
 // leave their idle loops and call search(). When all threads have returned from
 // search() then split() returns.
 
-template <bool Fake>
 void Thread::split(Position& pos, Stack* ss, Value alpha, Value beta, Value* bestValue,
                    Move* bestMove, Depth depth, int moveCount,
                    MovePicker* movePicker, int nodeType, bool cutNode) {
@@ -297,14 +296,13 @@ void Thread::split(Position& pos, Stack* ss, Value alpha, Value beta, Value* bes
   activeSplitPoint = &sp;
   activePosition = NULL;
 
-  if (!Fake)
-      for (Thread* slave; (slave = Threads.available_slave(this)) != NULL; )
-      {
-          sp.slavesMask.set(slave->idx);
-          slave->activeSplitPoint = &sp;
-          slave->searching = true; // Slave leaves idle_loop()
-          slave->notify_one(); // Could be sleeping
-      }
+  for (Thread* slave; (slave = Threads.available_slave(this)) != NULL; )
+  {
+      sp.slavesMask.set(slave->idx);
+      slave->activeSplitPoint = &sp;
+      slave->searching = true; // Slave leaves idle_loop()
+      slave->notify_one(); // Could be sleeping
+  }
 
   // Everything is set up. The master thread enters the idle loop, from which
   // it will instantly launch a search, because its 'searching' flag is set.
@@ -338,11 +336,6 @@ void Thread::split(Position& pos, Stack* ss, Value alpha, Value beta, Value* bes
   sp.mutex.unlock();
   Threads.mutex.unlock();
 }
-
-// Explicit template instantiations
-template void Thread::split<false>(Position&, Stack*, Value, Value, Value*, Move*, Depth, int, MovePicker*, int, bool);
-template void Thread::split< true>(Position&, Stack*, Value, Value, Value*, Move*, Depth, int, MovePicker*, int, bool);
-
 
 // wait_for_think_finished() waits for main thread to go to sleep then returns
 
