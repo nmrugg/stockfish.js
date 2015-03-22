@@ -19,9 +19,6 @@
 
 #include <iostream>
 
-#ifndef NO_BOOK
-#include "book.h"
-#endif
 #include "bitboard.h"
 #include "evaluate.h"
 #include "position.h"
@@ -70,11 +67,4 @@ int main(int argc, char* argv[]) {
 
 extern "C" void uci_command(const char* cmd) {
 	UCI::command(cmd);
-}
-
-extern "C" void set_book(unsigned char* pBookData, unsigned int size) {
-#ifndef NO_BOOK
-	PolyglotBook::setBookData(pBookData, size);
-	UCI::command("setoption name OwnBook value true");
-#endif
 }

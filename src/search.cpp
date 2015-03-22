@@ -27,9 +27,6 @@
 #include <iostream>
 #include <sstream>
 
-#ifndef NO_BOOK
-#include "book.h" /// Re-added
-#endif
 #include "evaluate.h"
 #include "movegen.h"
 #include "movepick.h"
@@ -186,10 +183,6 @@ template uint64_t Search::perft<true>(Position& pos, Depth depth);
 /// searches from RootPos and at the end prints the "bestmove" to output.
 
 void Search::think() {
-  /// Re-added
-  #ifndef NO_BOOK
-  static PolyglotBook book; // Defined static to initialize the PRNG only once
-  #endif
 
   TimeMgr.init(Limits, RootPos.game_ply(), RootPos.side_to_move());
 
@@ -208,20 +201,6 @@ void Search::think() {
   }
   else
   {
-    /// Re-added
-#ifndef NO_BOOK
-    if (Options["OwnBook"] && !Limits.infinite && !Limits.mate)
-    {
-        Move bookMove = book.probe(RootPos, Options["Book File"], Options["Best Book Move"]);
-        if (bookMove && std::count(RootMoves.begin(), RootMoves.end(), bookMove))
-        {
-            std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), bookMove));
-            
-            Search::emscript_finalize(NULL);
-            return;
-        }
-    }
-#endif
     for (size_t i = 0; i < Threads.size(); ++i)
         Threads[i]->maxPly = 0;
     

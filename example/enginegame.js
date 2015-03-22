@@ -36,11 +36,7 @@ setInterval(function ()
 }, 1000);
 
     function uciCmd(cmd, which) {
-        if (typeof cmd === "object") {
-            console.log("UCI: <adding book>")
-        } else {
-            console.log("UCI: " + cmd)
-        }
+        console.log("UCI: " + cmd)
         
         (which || engine).postMessage(cmd);
     }
@@ -59,7 +55,7 @@ setInterval(function ()
         } else {
             status += 'ready.';
         }
-        status += ' Book: ' + engineStatus.book;
+        
         if(engineStatus.search) {
             status += '<br>' + engineStatus.search;
             if(engineStatus.score && displayScore) {
@@ -251,27 +247,6 @@ setInterval(function ()
         onDrop: onDrop,
         onSnapEnd: onSnapEnd
     };
-
-    if(options.book) {
-        var bookRequest = new XMLHttpRequest();
-        bookRequest.open('GET', options.book, true);
-        bookRequest.responseType = "arraybuffer";
-        bookRequest.onload = function(event) {
-            if(bookRequest.status == 200) {
-                /// command line: setoption name OwnBook value true
-                //engine.postMessage({book: bookRequest.response});
-                uciCmd({book: bookRequest.response})
-                engineStatus.book = 'ready.';
-                displayStatus();
-            } else {
-                engineStatus.book = 'failed!';
-                displayStatus();
-            }
-        };
-        bookRequest.send(null);
-    } else {
-        engineStatus.book = 'none';
-    }
 
     board = new ChessBoard('board', cfg);
 

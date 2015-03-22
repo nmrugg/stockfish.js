@@ -38,10 +38,6 @@ OBJS = benchmark.o bitbase.o bitboard.o endgame.o evaluate.o main.o \
 	material.o misc.o movegen.o movepick.o pawns.o position.o \
 	search.o thread.o timeman.o tt.o uci.o ucioption.o
 
-ifeq ($(NO_BOOK),)
-	OBJS += book.o
-endif
-
 ### ==========================================================================
 ### Section 2. High-level Configuration
 ### ==========================================================================
@@ -192,9 +188,6 @@ ifeq ($(COMP),emscripten)
 	profile_use = gcc-profile-use
 	profile_clean = gcc-profile-clean
 endif
-ifeq ($(NO_BOOK),true)
-	CXXFLAGS += -DNO_BOOK
-endif
 
 ifeq ($(COMP),clang)
 	comp=clang
@@ -223,7 +216,7 @@ ifeq ($(COMP),emscripten)
 	CXXFLAGS += -s TOTAL_MEMORY=67108864
 	#NOTE: --closure 1 breaks the code
 	#TODO: File bug report for --closure 1.
-	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --pre-js main.js
 endif
 
 # We don't want this in JS either. (Not indenting to make merging easier.)
