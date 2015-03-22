@@ -30,6 +30,10 @@
 #include "tt.h"
 #include "uci.h"
 
+#ifdef SYZYGY
+#include "syzygy/tbprobe.h"
+#endif
+
 extern "C" void init() {
 
 	  std::cout << engine_info() << std::endl;
@@ -40,9 +44,12 @@ extern "C" void init() {
 	  Bitbases::init_kpk();
 	  Search::init();
 	  Eval::init();
-  Pawns::init();
+      Pawns::init();
 	  Threads.init();
 	  TT.resize(Options["Hash"]);
+#ifdef SYZYGY
+      Tablebases::init(Options["SyzygyPath"]);
+#endif
 
 	  UCI::commandInit();
 }
