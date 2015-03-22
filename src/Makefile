@@ -325,8 +325,8 @@ ifeq ($(popcnt),yes)
 	ifeq ($(comp),icc)
 		CXXFLAGS += -msse3 -DUSE_POPCNT
 	else
-	CXXFLAGS += -msse3 -mpopcnt -DUSE_POPCNT
-endif
+		CXXFLAGS += -msse3 -mpopcnt -DUSE_POPCNT
+	endif
 endif
 
 ### 3.10 pext
@@ -484,13 +484,16 @@ gcc-profile-prepare:
 
 gcc-profile-make:
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) \
-	EXTRACXXFLAGS='-fprofile-generate' \
+	EXTRACXXFLAGS='-fprofile-arcs' \
 	EXTRALDFLAGS='-lgcov' \
 	all
 
 gcc-profile-use:
+# Deleting corrupt ucioption.gc* profile files is necessary to avoid an 
+# "internal compiler error" for gcc versions 4.7.x
+	@rm -f ucioption.gc*
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) \
-	EXTRACXXFLAGS='-fprofile-use' \
+	EXTRACXXFLAGS='-fbranch-probabilities' \
 	EXTRALDFLAGS='-lgcov' \
 	all
 
@@ -522,4 +525,3 @@ icc-profile-clean:
 ifeq ($(COMP),emscripten)
 $(EXE): main.js
 endif
-

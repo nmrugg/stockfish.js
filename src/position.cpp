@@ -123,7 +123,7 @@ std::ostream& operator<<(std::ostream& os, const Position& pos) {
      << std::setfill('0') << std::setw(16) << pos.st->key << std::dec << "\nCheckers: ";
 
   for (Bitboard b = pos.checkers(); b; )
-      os << UCI::format_square(pop_lsb(&b)) << " ";
+      os << UCI::square(pop_lsb(&b)) << " ";
 
   /// READDED
   os << "\nLegal moves: ";
@@ -454,7 +454,7 @@ const string Position::fen() const {
   if (!can_castle(WHITE) && !can_castle(BLACK))
       ss << '-';
 
-  ss << (ep_square() == SQ_NONE ? " - " : " " + UCI::format_square(ep_square()) + " ")
+  ss << (ep_square() == SQ_NONE ? " - " : " " + UCI::square(ep_square()) + " ")
      << st->rule50 << " " << 1 + (gamePly - (sideToMove == BLACK)) / 2;
 
   return ss.str();
@@ -506,12 +506,12 @@ Bitboard Position::check_blockers(Color c, Color kingColor) const {
 
 Bitboard Position::attackers_to(Square s, Bitboard occupied) const {
 
-  return  (attacks_from<PAWN>(s, BLACK) & pieces(WHITE, PAWN))
-        | (attacks_from<PAWN>(s, WHITE) & pieces(BLACK, PAWN))
-        | (attacks_from<KNIGHT>(s)      & pieces(KNIGHT))
+  return  (attacks_from<PAWN>(s, BLACK)    & pieces(WHITE, PAWN))
+        | (attacks_from<PAWN>(s, WHITE)    & pieces(BLACK, PAWN))
+        | (attacks_from<KNIGHT>(s)         & pieces(KNIGHT))
         | (attacks_bb<ROOK>(s, occupied)   & pieces(ROOK, QUEEN))
         | (attacks_bb<BISHOP>(s, occupied) & pieces(BISHOP, QUEEN))
-        | (attacks_from<KING>(s)        & pieces(KING));
+        | (attacks_from<KING>(s)           & pieces(KING));
 }
 
 

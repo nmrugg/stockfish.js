@@ -27,7 +27,7 @@
 #include "material.h"
 #include "pawns.h"
 #include "thread.h"
-#include "uci.h"
+#include "uci.h" /// Stockfish.js
 
 namespace {
 
@@ -165,9 +165,9 @@ namespace {
   };
 
   // Assorted bonuses and penalties used by evaluation
-  const Score KingOnOne        = S(2 , 58);
-  const Score KingOnMany       = S(6 ,125);
-  const Score RookOnPawn       = S(7 , 27);
+  const Score KingOnOne        = S( 2, 58);
+  const Score KingOnMany       = S( 6,125);
+  const Score RookOnPawn       = S( 7, 27);
   const Score RookOpenFile     = S(43, 21);
   const Score RookSemiOpenFile = S(19, 10);
   const Score BishopPawns      = S( 8, 12);
@@ -542,8 +542,8 @@ namespace {
 
     // Enemies not defended by a pawn and under our attack
     weak =   pos.pieces(Them)
-                 & ~ei.attackedBy[Them][PAWN]
-                 & ei.attackedBy[Us][ALL_PIECES];
+          & ~ei.attackedBy[Them][PAWN]
+          &  ei.attackedBy[Us][ALL_PIECES];
 
     // Add a bonus according to the kind of attacking pieces
     if (weak)
@@ -786,18 +786,18 @@ namespace {
                 && pos.non_pawn_material(BLACK) == BishopValueMg)
                 sf = more_than_one(pos.pieces(PAWN)) ? ScaleFactor(32) : ScaleFactor(8);
 
-                // Endgame with opposite-colored bishops, but also other pieces. Still
-                // a bit drawish, but not as drawish as with only the two bishops.
+            // Endgame with opposite-colored bishops, but also other pieces. Still
+            // a bit drawish, but not as drawish as with only the two bishops.
             else
                  sf = ScaleFactor(50 * sf / SCALE_FACTOR_NORMAL);
         }
         // Endings where weaker side can place his king in front of the opponent's
         // pawns are drawish.
         else if (    abs(eg_value(score)) <= BishopValueEg
-                   &&  ei.pi->pawn_span(strongSide) <= 1
+                 &&  ei.pi->pawn_span(strongSide) <= 1
                  && !pos.pawn_passed(~strongSide, pos.king_square(~strongSide)))
                  sf = ei.pi->pawn_span(strongSide) ? ScaleFactor(56) : ScaleFactor(38);
-        }
+    }
 
     // Interpolate between a middlegame and a (scaled by 'sf') endgame score
     Value v =  mg_value(score) * int(ei.mi->game_phase())
@@ -915,8 +915,7 @@ namespace Eval {
   }
 
 
-  /// init() computes evaluation weights from the corresponding UCI parameters
-  /// and setup king tables.
+  /// init() computes evaluation weights.
 
   void init() {
     /// Re-added

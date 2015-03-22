@@ -40,9 +40,6 @@ extern "C" void init() {
       Pawns::init();
 	  Threads.init();
 	  TT.resize(Options["Hash"]);
-#ifdef SYZYGY
-      Tablebases::init(Options["SyzygyPath"]);
-#endif
 
 	  UCI::commandInit();
 }
