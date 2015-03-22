@@ -253,7 +253,7 @@ setInterval(function ()
     return {
         reset: function() {
             game.reset();
-            uciCmd('setoption name Contempt Factor value 0');
+            uciCmd('setoption name Contempt value 0');
             //uciCmd('setoption name Skill Level value 20');
             this.setSkillLevel(0);
             uciCmd('setoption name King Safety value 0'); /// Agressive 100 (it's now symetric)
@@ -310,7 +310,7 @@ setInterval(function ()
             time = { nodes: nodes };
         },
         setContempt: function(contempt) {
-            uciCmd('setoption name Contempt Factor value ' + contempt);
+            uciCmd('setoption name Contempt value ' + contempt);
         },
         setAggressiveness: function(value) {
             uciCmd('setoption name Aggressiveness value ' + value);
