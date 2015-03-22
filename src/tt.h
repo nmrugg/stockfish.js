@@ -66,7 +66,7 @@ private:
 
 
 /// A TranspositionTable consists of a power of 2 number of clusters and each
-/// cluster consists of TTClusterSize number of TTEntry. Each non-empty entry
+/// cluster consists of ClusterSize number of TTEntry. Each non-empty entry
 /// contains information of exactly one position. The size of a cluster should
 /// not be bigger than a cache line size. In case it is less, it should be padded
 /// to guarantee always aligned accesses.
@@ -74,10 +74,10 @@ private:
 class TranspositionTable {
 
   static const int CacheLineSize = 64;
-  static const int TTClusterSize = 3;
+  static const int ClusterSize = 3;
 
-  struct TTCluster {
-    TTEntry entry[TTClusterSize];
+  struct Cluster {
+    TTEntry entry[ClusterSize];
     char padding[2]; // Align to the cache line size
   };
 
@@ -86,17 +86,17 @@ public:
   void new_search() { generation8 += 4; } // Lower 2 bits are used by Bound
   uint8_t generation() const { return generation8; }
   TTEntry* probe(const Key key, bool& found) const;
-  void resize(uint64_t mbSize);
+  void resize(size_t mbSize);
   void clear();
 
   // The lowest order bits of the key are used to get the index of the cluster
   TTEntry* first_entry(const Key key) const {
-    return &table[(uint32_t)key & (clusterCount - 1)].entry[0];
+    return &table[(size_t)key & (clusterCount - 1)].entry[0];
   }
 
 private:
-  uint32_t clusterCount;
-  TTCluster* table;
+  size_t clusterCount;
+  Cluster* table;
   void* mem;
   uint8_t generation8; // Size must be not bigger than TTEntry::genBound8
 };
