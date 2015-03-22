@@ -205,45 +205,41 @@ void Search::think() {
                 << UCI::format_value(RootPos.checkers() ? -VALUE_MATE : VALUE_DRAW)
                 << sync_endl;
 
-      //goto finalize; /// Old sync code
       Search::emscript_finalize(NULL);
-      return;
   }
-  
-  /// Re-added
-  #ifndef NO_BOOK
-  if (Options["OwnBook"] && !Limits.infinite && !Limits.mate)
+  else
   {
-      Move bookMove = book.probe(RootPos, Options["Book File"], Options["Best Book Move"]);
-      if (bookMove && std::count(RootMoves.begin(), RootMoves.end(), bookMove))
-      {
-          std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), bookMove));
-          //goto finalize;  /// Old sync code
-          Search::emscript_finalize(NULL);
-          return;
-      }
+    /// Re-added
+    #ifndef NO_BOOK
+    if (Options["OwnBook"] && !Limits.infinite && !Limits.mate)
+    {
+        Move bookMove = book.probe(RootPos, Options["Book File"], Options["Best Book Move"]);
+        if (bookMove && std::count(RootMoves.begin(), RootMoves.end(), bookMove))
+        {
+            std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), bookMove));
+            
+            Search::emscript_finalize(NULL);
+            return;
+        }
+    }
+    #endif
+    
+    // Reset the threads, still sleeping: will wake up at split time
+    for (size_t i = 0; i < Threads.size(); ++i)
+        Threads[i]->maxPly = 0;
+    
+    Threads.timer->run = true;
+    Threads.timer->notify_one(); // Wake up the recurring timer
+    
+    id_loop(RootPos); // Let's start searching !
   }
-  #endif
-
-  // Reset the threads, still sleeping: will wake up at split time
-  for (size_t i = 0; i < Threads.size(); ++i)
-      Threads[i]->maxPly = 0;
-
-  Threads.timer->run = true;
-  Threads.timer->notify_one(); // Wake up the recurring timer
-
-  id_loop(RootPos); // Let's start searching !
-
 }
+/// Async code
 void Search::emscript_think_done() {
   Threads.timer->run = false; // Stop the timer
-
-
   Search::emscript_finalize(NULL);
 }
 void Search::emscript_finalize(void *arg) {
-//finalize: /// Old sync code
-
   // When search is stopped this info is not printed
   sync_cout << "info nodes " << RootPos.nodes_searched()
             << " time " << Time::now() - SearchTime + 1 << sync_endl;
@@ -264,7 +260,6 @@ void Search::emscript_finalize(void *arg) {
       #endif
   }
 
-  // Best move could be MOVE_NONE when searching on a stalemate position
   sync_cout << "bestmove " << UCI::format_move(RootMoves[0].pv[0], RootPos.is_chess960())
             << " ponder "  << UCI::format_move(RootMoves[0].pv[1], RootPos.is_chess960())
             << sync_endl;
@@ -434,9 +429,12 @@ Skill *skill_p;
             // Sort the PV lines searched so far and update the GUI
             std::stable_sort(RootMoves.begin(), RootMoves.begin() + PVIdx + 1);
 
-            if (   !Signals.stop
-                && (   PVIdx + 1 == std::min(multiPV, RootMoves.size())
-                    || Time::now() - SearchTime > 3000))
+            if (Signals.stop)
+                sync_cout << "info nodes " << RootPos.nodes_searched()
+                          << " time " << Time::now() - SearchTime << sync_endl;
+
+            else if (   PVIdx + 1 == std::min(multiPV, RootMoves.size())
+                     || Time::now() - SearchTime > 3000)
                 sync_cout << uci_pv(pos, depth, alpha, beta) << sync_endl;
         }
 
