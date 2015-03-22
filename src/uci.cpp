@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2014 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -203,38 +203,8 @@ Position pos;
    ///Threads.wait_for_think_finished(); // Cannot quit whilst the search is running /// Don't need this either.
 }
 
-/// format_value() converts a Value to a string suitable for use with the UCI
-/// protocol specifications:
-///
-/// cp <x>     The score from the engine's point of view in centipawns.
-/// mate <y>   Mate in y moves, not plies. If the engine is getting mated
-///            use negative values for y.
 
-string UCI::format_value(Value v, Value alpha, Value beta) {
-
-  stringstream ss;
-
-  if (abs(v) < VALUE_MATE_IN_MAX_PLY)
-      ss << "cp " << v * 100 / PawnValueEg;
-  else
-      ss << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
-
-  ss << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
-
-  return ss.str();
-}
-
-
-/// format_square() converts a Square to a string (g1, a7, etc.)
-
-std::string UCI::format_square(Square s) {
-
-  char ch[] = { char('a' + file_of(s)),
-                char('1' + rank_of(s)), 0 }; // Zero-terminating
-  return ch;
-}
-
-
+///READDED
 /// format_move() converts a Move to a string in coordinate notation
 /// (g1f3, a7a8q, etc.). The only special case is castling moves, where we print
 /// in the e1g1 notation in normal chess mode, and in e1h1 notation in chess960
@@ -254,7 +224,7 @@ string UCI::format_move(Move m, bool chess960) {
   if (type_of(m) == CASTLING && !chess960)
       to = make_square(to > from ? FILE_G : FILE_C, rank_of(from));
 
-  string move = format_square(from) + format_square(to);
+  string move = square(from) + square(to);
 
   if (type_of(m) == PROMOTION)
       move += " pnbrqk"[promotion_type(m)];
@@ -316,7 +286,7 @@ const string UCI::move_to_san(Position& pos, Move m) {
               san += char(rank_of(from) - RANK_1 + '1');
 
           else
-              san += format_square(from);
+              san += square(from);
       }
       else if (pos.capture(m))
           san = char(file_of(from) - FILE_A + 'a');
@@ -324,7 +294,7 @@ const string UCI::move_to_san(Position& pos, Move m) {
       if (pos.capture(m))
           san += 'x';
 
-      san += format_square(to);
+      san += square(to);
 
       if (type_of(m) == PROMOTION)
           san += string("=") + PieceToChar[WHITE][promotion_type(m)];

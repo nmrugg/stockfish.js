@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2014 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -50,8 +50,8 @@ public:
   Option(const char* v, OnChange = NULL);
   Option(int v, int min, int max, OnChange = NULL);
 
-  Option& operator=(const std::string& v);
-  void operator<<(const Option& o);
+  Option& operator=(const std::string&);
+  void operator<<(const Option&);
   operator int() const;
   operator std::string() const;
 
@@ -65,16 +65,12 @@ private:
 };
 
 void init(OptionsMap&);
-void commandInit();
-void command(const std::string&);
-
+void commandInit(); /// Stockfish.js
+void command(const std::string&); /// Stockfish.js
+std::string format_move(Move m, bool chess960); /// READDED
 const std::string move_to_san(Position& pos, Move m); ///READDED
 
-std::string format_value(Value v, Value alpha = -VALUE_INFINITE, Value beta = VALUE_INFINITE);
-std::string format_square(Square s);
-std::string format_move(Move m, bool chess960);
-Move to_move(const Position& pos, std::string& str);
-
+void loop(int argc, char* argv[]);
 std::string value(Value v);
 std::string square(Square s);
 std::string move(Move m, bool chess960);
