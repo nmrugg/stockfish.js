@@ -40,10 +40,6 @@
 #include "tt.h"
 #include "uci.h"
 
-#ifdef SYZYGY
-#include "syzygy/tbprobe.h"
-#endif
-
 namespace Search {
 
   volatile SignalsType Signals;
@@ -56,19 +52,6 @@ namespace Search {
   void emscript_finalize(void *arg);
 }
 
-#ifdef SYZYGY
-namespace Tablebases {
-
-  int Cardinality;
-  uint64_t Hits;
-  bool RootInTB;
-  bool UseRule50;
-  Depth ProbeDepth;
-  Value Score;
-}
-
-namespace TB = Tablebases;
-#endif
 
 using std::string;
 using Eval::evaluate;
@@ -213,20 +196,6 @@ void Search::think() {
   int cf = Options["Contempt"] * PawnValueEg / 100; // From centipawns
   DrawValue[ RootPos.side_to_move()] = VALUE_DRAW - Value(cf);
   DrawValue[~RootPos.side_to_move()] = VALUE_DRAW + Value(cf);
-#ifdef SYZYGY
-  TB::Hits = 0;
-  TB::RootInTB = false;
-  TB::UseRule50 = Options["Syzygy50MoveRule"];
-  TB::ProbeDepth = Options["SyzygyProbeDepth"] * ONE_PLY;
-  TB::Cardinality = Options["SyzygyProbeLimit"];
-
-  // Skip TB probing when no TB found: !TBLargest -> !TB::Cardinality
-  if (TB::Cardinality > TB::MaxCardinality)
-  {
-      TB::Cardinality = TB::MaxCardinality;
-      TB::ProbeDepth = DEPTH_ZERO;
-  }
-#endif
 
   if (RootMoves.empty())
   {
@@ -253,39 +222,6 @@ void Search::think() {
         }
     }
 #endif
-#ifdef SYZYGY
-      if (TB::Cardinality >=  RootPos.count<ALL_PIECES>(WHITE)
-                          + RootPos.count<ALL_PIECES>(BLACK))
-      {
-          // If the current root position is in the tablebases then RootMoves
-          // contains only moves that preserve the draw or win.
-          TB::RootInTB = Tablebases::root_probe(RootPos, RootMoves, TB::Score);
-
-          if (TB::RootInTB)
-              TB::Cardinality = 0; // Do not probe tablebases during the search
-
-          else // If DTZ tables are missing, use WDL tables as a fallback
-          {
-              // Filter out moves that do not preserve a draw or win
-              TB::RootInTB = Tablebases::root_probe_wdl(RootPos, RootMoves, TB::Score);
-
-              // Only probe during search if winning
-              if (TB::Score <= VALUE_DRAW)
-                  TB::Cardinality = 0;
-          }
-
-          if (TB::RootInTB)
-          {
-              TB::Hits = RootMoves.size();
-
-              if (!TB::UseRule50)
-                  TB::Score =  TB::Score > VALUE_DRAW ?  VALUE_MATE - MAX_PLY - 1
-                             : TB::Score < VALUE_DRAW ? -VALUE_MATE + MAX_PLY + 1
-                                                  :  VALUE_DRAW;
-          }
-      }
-#endif
-    // Reset the threads, still sleeping: will wake up at split time
     for (size_t i = 0; i < Threads.size(); ++i)
         Threads[i]->maxPly = 0;
     
@@ -654,38 +590,6 @@ Skill *skill_p;
 
         return ttValue;
     }
-
-#ifdef SYZYGY
-    // Step 4a. Tablebase probe
-    if (!RootNode && TB::Cardinality)
-    {
-        int piecesCnt = pos.count<ALL_PIECES>(WHITE) + pos.count<ALL_PIECES>(BLACK);
-
-        if (    piecesCnt <= TB::Cardinality
-            && (piecesCnt <  TB::Cardinality || depth >= TB::ProbeDepth)
-            &&  pos.rule50_count() == 0)
-        {
-            int found, v = Tablebases::probe_wdl(pos, &found);
-
-            if (found)
-            {
-                TB::Hits++;
-
-                int drawScore = TB::UseRule50 ? 1 : 0;
-
-                value =  v < -drawScore ? -VALUE_MATE + MAX_PLY + ss->ply
-                       : v >  drawScore ?  VALUE_MATE - MAX_PLY - ss->ply
-                                        :  VALUE_DRAW + 2 * v * drawScore;
-
-                TT.store(posKey, value_to_tt(value, ss->ply), BOUND_EXACT,
-                         std::min(DEPTH_MAX - ONE_PLY, depth + 6 * ONE_PLY),
-                         MOVE_NONE, VALUE_NONE);
-
-                return value;
-            }
-        }
-    }
-#endif
 
     // Step 5. Evaluate the position statically and update parent's gain statistics
     if (inCheck)
@@ -1553,27 +1457,15 @@ moves_loop: // When in check and at SpNode search starts from here
         Depth d = updated ? depth : depth - ONE_PLY;
         Value v = updated ? RootMoves[i].score : RootMoves[i].prevScore;
 
-#ifdef SYZYGY
-        bool tb = TB::RootInTB && abs(v) < VALUE_MATE - MAX_PLY;
-        v = tb ? TB::Score : v;
-#endif
-#ifndef SYZYGY
-        /// Make "score" work below.
-        bool tb;
-#endif
-
         if (ss.rdbuf()->in_avail()) // Not at first line
             ss << "\n";
 
         ss << "info depth " << d / ONE_PLY
            << " seldepth "  << selDepth
            << " multipv "   << i + 1
-           << " score "     << ((!tb && i == PVIdx) ? UCI::format_value(v, alpha, beta) : UCI::format_value(v))
+           << " score "     << (i == PVIdx ? UCI::format_value(v, alpha, beta) : UCI::format_value(v))
            << " nodes "     << pos.nodes_searched()
            << " nps "       << pos.nodes_searched() * 1000 / elapsed
-#ifdef SYZYGY
-           << " tbhits "    << TB::Hits
-#endif
            << " time "      << elapsed
            << " pv";
 

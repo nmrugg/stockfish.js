@@ -28,10 +28,6 @@
 #include "tt.h"
 #include "uci.h"
 
-#ifdef SYZYGY
-#include "syzygy/tbprobe.h"
-#endif
-
 using std::string;
 
 UCI::OptionsMap Options; // Global object
@@ -44,10 +40,6 @@ void on_eval(const Option&) { Eval::init(); }
 void on_threads(const Option&) { Threads.read_uci_options(); }
 void on_hash_size(const Option& o) { TT.resize(o); }
 void on_clear_hash(const Option&) { TT.clear(); }
-#ifdef SYZYGY
-void on_tb_path(const Option& o) { Tablebases::init(o); }
-#endif
-
 
 /// Our case insensitive less() function as required by UCI protocol
 bool ci_less(char c1, char c2) { return tolower(c1) < tolower(c2); }
@@ -89,12 +81,6 @@ void init(OptionsMap& o) {
   o["Minimum Thinking Time"]    << Option(20, 0, 5000);
   o["Slow Mover"]               << Option(80, 10, 1000);
   o["UCI_Chess960"]             << Option(false);
-#ifdef SYZYGY
-  o["SyzygyPath"]            << Option("<empty>", on_tb_path);
-  o["SyzygyProbeDepth"]      << Option(1, 1, 100);
-  o["Syzygy50MoveRule"]      << Option(true);
-  o["SyzygyProbeLimit"]      << Option(6, 0, 6);
-#endif
 }
 
 
