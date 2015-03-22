@@ -69,12 +69,12 @@ void ThreadBase::notify_one() {
 }
 
 
-// wait_for() set the thread to sleep until condition 'b' turns true
+// wait_for() set the thread to sleep until 'condition' turns true
 
-void ThreadBase::wait_for(volatile const bool& b) {
+void ThreadBase::wait_for(volatile const bool& condition) {
 
   mutex.lock();
-  while (!b) sleepCondition.wait(mutex);
+  while (!condition) sleepCondition.wait(mutex);
   mutex.unlock();
 }
 
@@ -340,6 +340,7 @@ void Thread::split(Position& pos, Stack* ss, Value alpha, Value beta, Value* bes
 // wait_for_think_finished() waits for main thread to go to sleep then returns
 
 void ThreadPool::wait_for_think_finished() {
+/// Empty for Stockfish.js.
 }
 
 
