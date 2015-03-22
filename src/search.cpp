@@ -503,6 +503,7 @@ Skill *skill_p;
     assert(PvNode || (alpha == beta - 1));
     assert(depth > DEPTH_ZERO);
 
+    PVEntry pv;
     Move quietsSearched[64];
     StateInfo st;
     const TTEntry *tte;
@@ -578,12 +579,11 @@ Skill *skill_p;
     // a fail high/low. The biggest advantage to probing at PV nodes is to have a
     // smooth experience in analysis mode. We don't probe at Root nodes otherwise
     // we should also update RootMoveList to avoid bogus output.
-    if (   !RootNode
+    if (   !PvNode
         && tte
         && tte->depth() >= depth
         && ttValue != VALUE_NONE // Only in case of TT access race
-        && (           PvNode ?  tte->bound() == BOUND_EXACT
-            : ttValue >= beta ? (tte->bound() &  BOUND_LOWER)
+        && (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
                               : (tte->bound() &  BOUND_UPPER)))
     {
         ss->currentMove = ttMove; // Can be MOVE_NONE
@@ -808,6 +808,9 @@ moves_loop: // When in check and at SpNode search starts from here
                         << " currmovenumber " << moveCount + PVIdx << sync_endl;
       }
 
+      if (PvNode)
+          (ss+1)->pv = NULL;
+
       ext = DEPTH_ZERO;
       captureOrPromotion = pos.capture_or_promotion(move);
 
@@ -971,11 +974,14 @@ moves_loop: // When in check and at SpNode search starts from here
       // For PV nodes only, do a full PV search on the first move or after a fail
       // high (in the latter case search only if value < beta), otherwise let the
       // parent node fail low with value <= alpha and to try another move.
-      if (PvNode && (moveCount == 1 || (value > alpha && (RootNode || value < beta))))
+      if (PvNode && (moveCount == 1 || (value > alpha && (RootNode || value < beta)))) {
+          pv.pv[0] = MOVE_NONE;
+          (ss+1)->pv = &pv;
           value = newDepth < ONE_PLY ?
                           givesCheck ? -qsearch<PV,  true>(pos, ss+1, -beta, -alpha, DEPTH_ZERO)
                                      : -qsearch<PV, false>(pos, ss+1, -beta, -alpha, DEPTH_ZERO)
                                      : - search<PV, false>(pos, ss+1, -beta, -alpha, newDepth, false);
+      }
       // Step 17. Undo move
       pos.undo_move(move);
 
@@ -1003,7 +1009,9 @@ moves_loop: // When in check and at SpNode search starts from here
           if (moveCount == 1 || value > alpha)
           {
               rm.score = value;
-              rm.extract_pv_from_tt(pos);
+              rm.pv.resize(1);
+              for (int i = 0; (ss+1)->pv && i < MAX_PLY && (ss+1)->pv->pv[i] != MOVE_NONE; ++i)
+                  rm.pv.push_back((ss+1)->pv->pv[i]);
 
               // We record how often the best move has been changed in each
               // iteration. This information is used for time management: When
@@ -1025,6 +1033,12 @@ moves_loop: // When in check and at SpNode search starts from here
           if (value > alpha)
           {
               bestMove = SpNode ? splitPoint->bestMove = move : move;
+
+              if (NT == PV) {
+                  ss->pv->update(move, (ss+1)->pv);
+                  if (SpNode)
+                      splitPoint->ss->pv->update(move, (ss+1)->pv);
+              }
 
               if (PvNode && value < beta) // Update alpha! Always alpha < beta
                   alpha = SpNode ? splitPoint->alpha = value : value;
@@ -1110,6 +1124,7 @@ moves_loop: // When in check and at SpNode search starts from here
     assert(PvNode || (alpha == beta - 1));
     assert(depth <= DEPTH_ZERO);
 
+    PVEntry pv;
     StateInfo st;
     const TTEntry* tte;
     Key posKey;
@@ -1118,9 +1133,13 @@ moves_loop: // When in check and at SpNode search starts from here
     bool givesCheck, evasionPrunable;
     Depth ttDepth;
 
+    if (PvNode) {
     // To flag BOUND_EXACT a node with eval above alpha and no available moves
-    if (PvNode)
         oldAlpha = alpha;
+
+        (ss+1)->pv = &pv;
+        ss->pv->pv[0] = MOVE_NONE;
+    }
 
     ss->currentMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
@@ -1143,11 +1162,11 @@ moves_loop: // When in check and at SpNode search starts from here
     ttMove = tte ? tte->move() : MOVE_NONE;
     ttValue = tte ? value_from_tt(tte->value(),ss->ply) : VALUE_NONE;
 
-    if (   tte
+    if (  !PvNode 
+        && tte
         && tte->depth() >= ttDepth
         && ttValue != VALUE_NONE // Only in case of TT access race
-        && (           PvNode ?  tte->bound() == BOUND_EXACT
-            : ttValue >= beta ? (tte->bound() &  BOUND_LOWER)
+        && (ttValue >= beta ? (tte->bound() &  BOUND_LOWER)
                               : (tte->bound() &  BOUND_UPPER)))
     {
         ss->currentMove = ttMove; // Can be MOVE_NONE
@@ -1270,6 +1289,9 @@ moves_loop: // When in check and at SpNode search starts from here
 
           if (value > alpha)
           {
+              if (PvNode)
+                  ss->pv->update(move, &pv);
+
               if (PvNode && value < beta) // Update alpha here! Always alpha < beta
               {
                   alpha = value;
@@ -1440,7 +1462,7 @@ moves_loop: // When in check and at SpNode search starts from here
            << " time "      << elapsed
            << " pv";
 
-        for (size_t j = 0; RootMoves[i].pv[j] != MOVE_NONE; ++j)
+        for (size_t j = 0; j < RootMoves[i].pv.size(); ++j)
             ss << " " << UCI::format_move(RootMoves[i].pv[j], pos.is_chess960());
     }
 
@@ -1448,43 +1470,6 @@ moves_loop: // When in check and at SpNode search starts from here
   }
 
 } // namespace
-
-
-/// RootMove::extract_pv_from_tt() builds a PV by adding moves from the TT table.
-/// We also consider both failing high nodes and BOUND_EXACT nodes here to
-/// ensure that we have a ponder move even when we fail high at root. This
-/// results in a long PV to print that is important for position analysis.
-
-void RootMove::extract_pv_from_tt(Position& pos) {
-
-  StateInfo state[MAX_PLY], *st = state;
-  const TTEntry* tte;
-  int ply = 1;    // At root ply is 1...
-  Move m = pv[0]; // ...instead pv[] array starts from 0
-  Value expectedScore = score;
-
-  pv.clear();
-
-  do {
-      pv.push_back(m);
-
-      assert(MoveList<LEGAL>(pos).contains(pv[ply - 1]));
-
-      pos.do_move(pv[ply++ - 1], *st++);
-      tte = TT.probe(pos.key());
-      expectedScore = -expectedScore;
-
-  } while (   tte
-           && expectedScore == value_from_tt(tte->value(), ply)
-           && pos.pseudo_legal(m = tte->move()) // Local copy, TT could change
-           && pos.legal(m, pos.pinned_pieces(pos.side_to_move()))
-           && ply < MAX_PLY
-           && (!pos.is_draw() || ply <= 2));
-
-  pv.push_back(MOVE_NONE); // Must be zero-terminating
-
-  while (--ply) pos.undo_move(pv[ply - 1]);
-}
 
 
 /// RootMove::insert_pv_in_tt() is called at the end of a search iteration, and
@@ -1495,19 +1480,17 @@ void RootMove::insert_pv_in_tt(Position& pos) {
 
   StateInfo state[MAX_PLY], *st = state;
   const TTEntry* tte;
-  int idx = 0; // Ply starts from 1, we need to start from 0
+  int idx = 0;
 
-  do {
+  for (; idx < int(pv.size()); ++idx) {
       tte = TT.probe(pos.key());
 
       if (!tte || tte->move() != pv[idx]) // Don't overwrite correct entries
           TT.store(pos.key(), VALUE_NONE, BOUND_NONE, DEPTH_NONE, pv[idx], VALUE_NONE);
 
       assert(MoveList<LEGAL>(pos).contains(pv[idx]));
-
-      pos.do_move(pv[idx++], *st++);
-
-  } while (pv[idx] != MOVE_NONE);
+      pos.do_move(pv[idx], *st++);
+  }
 
   while (idx) pos.undo_move(pv[--idx]);
 }

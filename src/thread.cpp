@@ -256,7 +256,7 @@ Thread* ThreadPool::available_slave(const Thread* master) const {
 // search() then split() returns.
 
 template <bool Fake>
-void Thread::split(Position& pos, const Stack* ss, Value alpha, Value beta, Value* bestValue,
+void Thread::split(Position& pos, Stack* ss, Value alpha, Value beta, Value* bestValue,
                    Move* bestMove, Depth depth, int moveCount,
                    MovePicker* movePicker, int nodeType, bool cutNode) {
 
@@ -340,8 +340,8 @@ void Thread::split(Position& pos, const Stack* ss, Value alpha, Value beta, Valu
 }
 
 // Explicit template instantiations
-template void Thread::split<false>(Position&, const Stack*, Value, Value, Value*, Move*, Depth, int, MovePicker*, int, bool);
-template void Thread::split< true>(Position&, const Stack*, Value, Value, Value*, Move*, Depth, int, MovePicker*, int, bool);
+template void Thread::split<false>(Position&, Stack*, Value, Value, Value*, Move*, Depth, int, MovePicker*, int, bool);
+template void Thread::split< true>(Position&, Stack*, Value, Value, Value*, Move*, Depth, int, MovePicker*, int, bool);
 
 
 // wait_for_think_finished() waits for main thread to go to sleep then returns
