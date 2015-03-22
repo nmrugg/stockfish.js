@@ -29,19 +29,19 @@
 
 extern "C" void init() {
 
-	  std::cout << engine_info() << std::endl;
+  std::cout << engine_info() << std::endl;
 
-	  UCI::init(Options);
-	  Bitboards::init();
-	  Position::init();
-	  Bitbases::init_kpk();
-	  Search::init();
-	  Eval::init();
-      Pawns::init();
-	  Threads.init();
-	  TT.resize(Options["Hash"]);
+  UCI::init(Options);
+  Bitboards::init();
+  Position::init();
+  Bitbases::init();
+  Search::init();
+  Eval::init();
+  Pawns::init();
+  Threads.init();
+  TT.resize(Options["Hash"]);
 
-	  UCI::commandInit();
+  UCI::commandInit();
 }
 
 int main(int argc, char* argv[]) {
@@ -53,15 +53,15 @@ int main(int argc, char* argv[]) {
       args += std::string(argv[i]) + " ";
 
   if(!args.empty())
-	  UCI::command(args);
+    UCI::command(args);
 
 #ifndef EMSCRIPTEN
   std::string cmd;
   while(std::getline(std::cin, cmd))
-	  UCI::command(cmd);
+    UCI::command(cmd);
 #endif
 }
 
 extern "C" void uci_command(const char* cmd) {
-	UCI::command(cmd);
+    UCI::command(cmd);
 }
