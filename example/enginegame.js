@@ -36,7 +36,7 @@ setInterval(function ()
 }, 1000);
 
     function uciCmd(cmd, which) {
-        console.log("UCI: " + cmd)
+        console.log("UCI: " + cmd);
         
         (which || engine).postMessage(cmd);
     }
