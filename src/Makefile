@@ -214,7 +214,7 @@ ifeq ($(COMP),emscripten)
 	CXXFLAGS += -s TOTAL_MEMORY=67108864
 	#NOTE: --closure 1 breaks the code
 	#TODO: File bug report for --closure 1.
-	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --pre-js main.js
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']"
 endif
 
 # We don't want this in JS either. (Not indenting to make merging easier.)
@@ -280,7 +280,9 @@ ifeq ($(optimize),yes)
 			#CXXFLAGS += -g3
 			#LDFLAGS += -g3
 			# For Debugging purposes.
-			#CXXFLAGS += -s ASSERTIONS=1
+			#LDFLAGS += -s ASSERTIONS=1
+			#LDFLAGS += -s DISABLE_EXCEPTION_CATCHING=0
+			#LDFLAGS += -s EXCEPTION_DEBUG=1
 		else
 			CXXFLAGS += -O3
 		endif
@@ -529,7 +531,3 @@ icc-profile-clean:
 	-@$(CXX) $(DEPENDFLAGS) -MM $(OBJS:.o=.cpp) > $@ 2> /dev/null
 
 -include .depend
-
-ifeq ($(COMP),emscripten)
-$(EXE): main.js
-endif
