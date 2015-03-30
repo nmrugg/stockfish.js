@@ -2,8 +2,9 @@ function engineGame(options) {
     options = options || {}
     var game = new Chess();
     var board;
-    var engine = new Worker(options.stockfishjs || 'stockfish.js');
-    var evaler = new Worker(options.stockfishjs || 'stockfish.js');
+    /// We can load Stockfish via Web Workers or via STOCKFISH() if loaded from a <script> tag.
+    var engine = typeof STOCKFISH === "function" ? STOCKFISH() : new Worker(options.stockfishjs || 'stockfish.js');
+    var evaler = typeof STOCKFISH === "function" ? STOCKFISH() : new Worker(options.stockfishjs || 'stockfish.js');
     var engineStatus = {};
     var displayScore = false;
     var time = { wtime: 300000, btime: 300000, winc: 2000, binc: 2000 };
@@ -12,7 +13,6 @@ function engineGame(options) {
     var isEngineRunning = false;
     var evaluation_el = document.getElementById("evaluation");
     var announced_game_over;
-
     // do not pick up pieces if the game is over
     // only pick up pieces for White
     var onDragStart = function(source, piece, position, orientation) {
@@ -23,17 +23,17 @@ function engineGame(options) {
             }
     };
 
-setInterval(function ()
-{
-    if (announced_game_over) {
-        return;
-    }
-    
-    if (game.game_over()) {
-        announced_game_over = true;
-        alert("Game Over");
-    }
-}, 1000);
+    setInterval(function ()
+    {
+        if (announced_game_over) {
+            return;
+        }
+        
+        if (game.game_over()) {
+            announced_game_over = true;
+            alert("Game Over");
+        }
+    }, 1000);
 
     function uciCmd(cmd, which) {
         console.log("UCI: " + cmd);
@@ -42,8 +42,6 @@ setInterval(function ()
     }
     uciCmd('uci');
     
-    uciCmd("uci", evaler);
-    uciCmd('setoption name Skill Level value 20', evaler);
     ///TODO: Eval starting posistions. I suppose the starting positions could be different in different chess varients.
 
     function displayStatus() {
@@ -146,12 +144,15 @@ setInterval(function ()
         if(!game.game_over()) {
             if(turn != playerColor) {
                 uciCmd('position startpos moves' + get_moves());
-                //uciCmd('eval');
                 uciCmd('position startpos moves' + get_moves(), evaler);
                 evaluation_el.textContent = "";
                 uciCmd("eval", evaler);
                 
-                uciCmd("go " + (time.depth ? "depth " + time.depth : "") + " wtime " + time.wtime + " winc " + time.winc + " btime " + time.btime + " binc " + time.binc);
+                if (time && time.wtime) {
+                    uciCmd("go " + (time.depth ? "depth " + time.depth : "") + " wtime " + time.wtime + " winc " + time.winc + " btime " + time.btime + " binc " + time.binc);
+                } else {
+                    uciCmd("go " + (time.depth ? "depth " + time.depth : ""));
+                }
                 isEngineRunning = true;
             }
             if(game.history().length >= 2 && !time.depth && !time.nodes) {
@@ -159,10 +160,15 @@ setInterval(function ()
             }
         }
     }
-
-
+    
     evaler.onmessage = function(event) {
-        var line = event.data;
+        var line;
+        
+        if (event && typeof event === "object") {
+            line = event.data;
+        } else {
+            line = event;
+        }
         
         console.log("evaler: " + line);
         
@@ -178,7 +184,13 @@ setInterval(function ()
     }
 
     engine.onmessage = function(event) {
-        var line = event.data;
+        var line;
+        
+        if (event && typeof event === "object") {
+            line = event.data;
+        } else {
+            line = event;
+        }
         console.log("Reply: " + line)
         if(line == 'uciok') {
             engineStatus.engineLoaded = true;
@@ -191,9 +203,9 @@ setInterval(function ()
                 isEngineRunning = false;
                 game.move({from: match[1], to: match[2], promotion: match[3]});
                 prepareMove();
-                //uciCmd("eval")
+                uciCmd("eval", evaler)
                 evaluation_el.textContent = "";
-                uciCmd("eval", evaler);
+                //uciCmd("eval");
             /// Is it sending feedback?
             } else if(match = line.match(/^info .*\bdepth (\d+) .*\bnps (\d+)/)) {
                 engineStatus.search = 'Depth: ' + match[1] + ' Nps: ' + match[2];
