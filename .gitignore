@@ -4,7 +4,7 @@
 .settings/
 *.o
 stockfish
-/src/stockfish.js*
+/src/stockfish.js.map
 node_modules/
 *~
 etc/
