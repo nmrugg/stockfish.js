@@ -230,7 +230,7 @@ endif
 ifeq ($(COMP),emscripten)
 	#NOTE: --closure 1 breaks the code
 	#TODO: File bug report for --closure 1.
-	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --pre-js main.js
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_set_book']" --memory-init-file 0
 endif
 
 # We don't want this in JS either. (Not indenting to make merging easier.)

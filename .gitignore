@@ -8,3 +8,4 @@ stockfish
 node_modules/
 *~
 etc/
+merged_data.json
