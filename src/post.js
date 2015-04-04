@@ -26,18 +26,31 @@ return function ()
     };
     
     return_val = {
-        postMessage: function send_message(str)
+        postMessage: function send_message(line)
         {
             function ccall()
             {
+                var byteArray, buf;
                 if (Module) {
-                    Module.ccall("uci_command", "number", ["string"], [cmds.shift()]);
+                    if (typeof line === "object") {
+                        if (line.book) {
+                            byteArray = new Uint8Array(line.book);
+                            buf = Module._malloc(line.book.byteLength);
+                            Module.HEAPU8.set(byteArray, buf);
+                            Module.ccall("set_book", "number", ["number", "number"], [buf, line.book.byteLength]);
+                        } else {
+                            console.error("Do not understand this command.");
+                            console.error(line);
+                        }
+                    } else {
+                        Module.ccall("uci_command", "number", ["string"], [cmds.shift()]);
+                    }
                 } else {
                     setTimeout(ccall, 100);
                 }
             }
             
-            cmds.push(str);
+            cmds.push(line);
             
             wait(ccall, 1);
         }
