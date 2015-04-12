@@ -1,24 +1,23 @@
 {
-    "name": "stockfish",
-    "description": "The world's strongest chess engine in pure JavaScript.",
-    "version": "6.0.0",
-    "author": {
-        "name": "Nathan Rugg",
-        "email": "nmrugg@gmail.com"
-    },
-    "dependencies": {
-    },
-    "keywords": [
-        "chess"
-    ],
-    "repository": {
-        "type": "git",
-        "url": "git://github.com/nmrugg/stockfish.js"
-    },
-    "license": "GPL",
-    "main": "src/stockfish.js",
-    "bin" : {
-        "stockfishjs" : "./stockfishjs"
-    },
-    "readmeFilename": "readme.md"
+  "name": "stockfish",
+  "description": "The world's strongest chess engine in pure JavaScript.",
+  "version": "6.0.1",
+  "author": {
+    "name": "Nathan Rugg",
+    "email": "nmrugg@gmail.com"
+  },
+  "dependencies": {},
+  "keywords": [
+    "chess"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/nmrugg/stockfish.js"
+  },
+  "license": "GPL",
+  "main": "src/stockfish.js",
+  "bin": {
+    "stockfishjs": "./stockfishjs"
+  },
+  "readmeFilename": "readme.md"
 }
