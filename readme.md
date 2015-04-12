@@ -61,8 +61,9 @@ Alternatively, you can also run Stockfish.js from the command line via `./stockf
 
 ### Thanks
 
-<a href="https://github.com/mcostalba/Stockfish">The Stockfish team</a>
-<a href="https://github.com/exoticorn/stockfish-js">exoticorn</a>
+- <a href="https://github.com/mcostalba/Stockfish">The Stockfish team</a>
+- <a href="https://github.com/exoticorn/stockfish-js">exoticorn</a>
 
 ### License
-GPL (see Copying.txt)
+
+GPLv3 (see <a href="https://raw.githubusercontent.com/nmrugg/stockfish.js/master/license.txt">license.txt</a>)
