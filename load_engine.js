@@ -229,10 +229,28 @@ var load_engine = (function ()
                 done = true;
                 /// All "go" needs is the last line (use stream to get more)
                 my_que.message = line;
-            } else if (my_que.cmd === "d" && (line.substr(0, 15) === "Legal uci moves" || line.substr(0, 6) === "Key is")) {
-                done = true;
-            } else if (my_que.cmd === "eval" && eval_regex.test(my_que.message)) {
-                done = true;
+            } else if (my_que.cmd === "d") {
+                if (line.substr(0, 15) === "Legal uci moves" || line.substr(0, 6) === "Key is") {
+                    my_que.done = true;
+                    done = true;
+                    /// If this is the hack, delete it.
+                    if (line === "Key is") {
+                        my_que.message = my_que.message.slice(0, -7);
+                    }
+                } else if (line.substr(0, 8) === "Checkers") {
+                    /// Upstream Stockfish no longer replies with Legal uci moves, so we need to send something manually in order to indicate that d is done.
+                    setTimeout(function ()
+                    {
+                        if (!my_que.done) {
+                            /// A simple hack to end d.
+                            onmessage("Key is");
+                        }
+                    }, 50);
+                }
+            } else if (my_que.cmd === "eval") {
+                if (eval_regex.test(my_que.message)) {
+                    done = true;
+                }
             } else if (line.substr(0, 8) === "pawn key") { /// "key"
                 done = true;
             } else if (line.substr(0, 12) === "Nodes/second") { /// "bench" or "perft"

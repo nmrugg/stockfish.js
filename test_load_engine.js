@@ -3,10 +3,22 @@ var load_engine = require("./load_engine");
 var stockfish = load_engine("stockfish");
 
 stockfish.send("uci");
-    stockfish.send("eval", function ond(d)
+    stockfish.send("d", function (str)
     {
-        console.log(d);
-        stockfish.send("quit");
+        console.log(str);
+        stockfish.send("eval", function (str)
+        {
+            console.log(str);
+            
+            stockfish.send("go depth 7", function ongo(str)
+            {
+                console.log("found best move: " + str.match(/bestmove (\S+)/)[1]);
+                stockfish.send("quit");
+            }, function thinking(str)
+            {
+                console.log("thinking: " + str);
+            });
+        });
     });
 
 /*
