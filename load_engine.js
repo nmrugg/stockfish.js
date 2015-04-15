@@ -47,16 +47,12 @@ var load_engine = (function ()
             worker = {},
             options = [];
         
-        if (path.slice(-3).toLowerCase() === ".js") {
-            options.push(path);
-            path = process.execPath;
-        }
-        engine = require("child_process").spawn(path, options, {stdio: "pipe"}),
-        
-        engine.stdout.on("data", function onstdout(data)
+        function echo(data)
         {
             var str;
-            
+            if (debugging) {
+                console.log("echo: ",  data.toString())
+            }
             if (worker.onmessage) {
                 str = data.toString();
                 /// Trim off new lines.
@@ -70,13 +66,17 @@ var load_engine = (function ()
                     onstd(data);
                 }, 50);
             }
-        });
+        }
         
-        engine.stderr.on("data", function onstdout(data)
-        {
-            //console.log("stderr: ",  data.toString())
-            console.error(data.toString());
-        });
+        if (path.slice(-3).toLowerCase() === ".js") {
+            options.push(path);
+            path = process.execPath;
+        }
+        engine = require("child_process").spawn(path, options, {stdio: "pipe"}),
+        
+        engine.stdout.on("data", echo);
+        
+        engine.stderr.on("data", echo);
         
         engine.on("error", function (err)
         {
@@ -85,7 +85,9 @@ var load_engine = (function ()
         
         worker.postMessage = function onin(str)
         {
-            //console.log("stdin: " + str)
+            if (debugging) {
+                console.log("stdin: " + str)
+            }
             engine.stdin.write(str + "\n");
         };
         
@@ -121,7 +123,8 @@ var load_engine = (function ()
     {
         var worker = new_worker(path),
             engine = {started: Date.now()},
-            que = [];
+            que = [],
+            eval_regex = /Total Evaluation[\s\S]+\n$/;
         
         function determine_que_num(line, que)
         {
@@ -131,23 +134,27 @@ var load_engine = (function ()
                 i,
                 len;
             
-            if (first_word === "uciok" || first_word === "option") {
-                cmd_type = "uci";
-            } else if (first_word === "readyok") {
-                cmd_type = "isready";
-            } else if (first_word === "bestmove" || first_word === "info") {
-                cmd_type = "go";
-            } else {
-                /// eval and d are more difficult.
-                cmd_type = "other";
-            }
-            
-            len = que.length;
-            
-            for (i = 0; i < len; i += 1) {
-                cmd_first_word = get_first_word(que[i].cmd);
-                if (cmd_first_word === cmd_type || (cmd_type === "other" && (cmd_first_word === "d" || cmd_first_word === "eval"))) {
-                    return i;
+            /// bench and perft are blocking commands.
+            if (que[0].cmd !== "bench" && que[0].cmd !== "perft") {
+                if (first_word === "uciok" || first_word === "option") {
+                    cmd_type = "uci";
+                } else if (first_word === "readyok") {
+                    cmd_type = "isready";
+                } else if (first_word === "bestmove" || first_word === "info") {
+                    /// Could be "bench"
+                    cmd_type = "go";
+                } else {
+                    /// eval and d are more difficult.
+                    cmd_type = "other";
+                }
+                
+                len = que.length;
+                
+                for (i = 0; i < len; i += 1) {
+                    cmd_first_word = get_first_word(que[i].cmd);
+                    if (cmd_first_word === cmd_type || (cmd_type === "other" && (cmd_first_word === "d" || cmd_first_word === "eval"))) {
+                        return i;
+                    }
                 }
             }
             
@@ -173,6 +180,10 @@ var load_engine = (function ()
                 return;
             }
             
+            if (debugging) {
+                console.log("debug (onmessage): " + line)
+            }
+            
             /// Stream everything to this, even invalid lines.
             if (engine.stream) {
                 engine.stream(line);
@@ -180,7 +191,7 @@ var load_engine = (function ()
             
             /// Ignore invalid setoption commands since valid ones do not repond.
             /// Ignore the beginning output too.
-            if (line.substr(0, 14) === "No such option" || line.substr(0, 3) === "id " || line.substr(0, 9) === "Stockfish") {
+            if (!que.length || line.substr(0, 14) === "No such option" || line.substr(0, 3) === "id " || line.substr(0, 9) === "Stockfish") {
                 return;
             }
             
@@ -213,23 +224,24 @@ var load_engine = (function ()
                 /// isready
                 done = true;
                 engine.ready = true;
-            } else if (line.substr(0, 8) === "bestmove") {
+            } else if (line.substr(0, 8) === "bestmove" && my_que.cmd !== "bench" ) {
                 /// go [...]
                 done = true;
                 /// All "go" needs is the last line (use stream to get more)
                 my_que.message = line;
             } else if (my_que.cmd === "d" && (line.substr(0, 15) === "Legal uci moves" || line.substr(0, 6) === "Key is")) {
                 done = true;
-            } else if (my_que.cmd === "eval" && /Total Evaluation[\s\S]+\n$/.test(my_que.message)) {
+            } else if (my_que.cmd === "eval" && eval_regex.test(my_que.message)) {
+                done = true;
+            } else if (line.substr(0, 8) === "pawn key") { /// "key"
+                done = true;
+            } else if (line.substr(0, 12) === "Nodes/second") { /// "bench" or "perft"
+                /// You could just return the last three lines, but I don't want to add more code to this file than is necessary.
                 done = true;
             } else if (line.substr(0, 15) === "Unknown command") {
                 done = true;
             }
-            ///NOTE: Stockfish.js does not support the "debug" or "register" commands.
-            ///TODO: Add support for "perft", "bench", and "key" commands.
-            ///TODO: Get welcome message so that it does not get caught with other messages.
-            ///TODO: Prevent (or handle) multiple messages from different commands
-            ///      E.g., "go depth 20" followed later by "uci"
+            ///NOTE: Stockfish.js does not support the "debug" or "register" commands, so these are not yet supported.
             
             if (done) {
                 if (my_que.cb && !my_que.discard) {
@@ -245,19 +257,13 @@ var load_engine = (function ()
         {
             cmd = String(cmd).trim();
             
-            /// Can't quit. This is a browser.
-            ///TODO: Destroy the engine.
-            if (cmd === "quit") {
-                return;
-            }
-            
             if (debugging) {
-                console.log(cmd);
+                console.log("debug (send): " + cmd);
             }
             
             /// Only add a que for commands that always print.
             ///NOTE: setoption may or may not print a statement.
-            if (cmd !== "ucinewgame" && cmd !== "flip" && cmd !== "stop" && cmd !== "ponderhit" && cmd.substr(0, 8) !== "position"  && cmd.substr(0, 9) !== "setoption") {
+            if (cmd !== "ucinewgame" && cmd !== "flip" && cmd !== "stop" && cmd !== "ponderhit" && cmd.substr(0, 8) !== "position"  && cmd.substr(0, 9) !== "setoption" && cmd !== "stop") {
                 que[que.length] = {
                     cmd: cmd,
                     cb: cb,
@@ -274,7 +280,7 @@ var load_engine = (function ()
             
             for (i = 0; i < len; i += 1) {
                 if (debugging) {
-                    console.log(i, get_first_word(que[i].cmd))
+                    console.log("debug (stop_moves): " + i, get_first_word(que[i].cmd))
                 }
                 /// We found a move that has not been stopped yet.
                 if (get_first_word(que[i].cmd) === "go" && !que[i].discard) {
