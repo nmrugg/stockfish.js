@@ -72,10 +72,11 @@ var load_engine = (function ()
             options.push(path);
             path = process.execPath;
         }
-        engine = require("child_process").spawn(path, options, {stdio: "pipe"}),
+        engine = require("child_process").spawn(path, options, {stdio: "pipe"});
         
         engine.stdout.on("data", echo);
         
+        ///NOTE: The "bench" command sends the final result in stderr.
         engine.stderr.on("data", echo);
         
         engine.on("error", function (err)
@@ -141,7 +142,6 @@ var load_engine = (function ()
                 } else if (first_word === "readyok") {
                     cmd_type = "isready";
                 } else if (first_word === "bestmove" || first_word === "info") {
-                    /// Could be "bench"
                     cmd_type = "go";
                 } else {
                     /// eval and d are more difficult.
@@ -262,17 +262,19 @@ var load_engine = (function ()
             ///NOTE: Stockfish.js does not support the "debug" or "register" commands, so these are not yet supported.
             
             if (done) {
+                /// Remove this from the que.
+                array_remove(que, que_num);
+                
                 if (my_que.cb && !my_que.discard) {
                     my_que.cb(my_que.message);
                 }
-                
-                /// Remove this from the que.
-                array_remove(que, que_num);
             }
         };
         
         engine.send = function send(cmd, cb, stream)
         {
+            var no_reply;
+            
             cmd = String(cmd).trim();
             
             if (debugging) {
@@ -287,8 +289,15 @@ var load_engine = (function ()
                     cb: cb,
                     stream: stream
                 };
+            } else {
+                no_reply = true;
             }
+            
             worker.postMessage(cmd);
+            
+            if (no_reply && cb) {
+                setTimeout(cb, 0);
+            }
         };
         
         engine.stop_moves = function stop_moves()
@@ -306,15 +315,15 @@ var load_engine = (function ()
                     que[i].discard = true;
                 }
             }
-        }
+        };
         
         engine.get_cue_len = function get_cue_len()
         {
             return que.length;
-        }
+        };
         
         return engine;
-    }
+    };
 }());
 
 if (module && module.exports) {
