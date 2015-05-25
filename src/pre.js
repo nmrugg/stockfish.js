@@ -22,7 +22,9 @@
  * The source code for this emscripten port of stockfish can be found
  * at http://github.com/nmrugg/stockfish.js.
  */
+//console.log('entire');console.time('entire')
 var STOCKFISH = (function ()
 {
 function load_stockfish(console)
 {
+//console.log('load_stockfish');console.time('load_stockfish')

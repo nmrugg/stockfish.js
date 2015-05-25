@@ -1,4 +1,5 @@
 
+//console.timeEnd('load_stockfish')
 ///NOTE: Without the new line above, it may be joined to a line comment above.
 return Module;
 } /// End of load_stockfish()
@@ -22,6 +23,14 @@ return function ()
                 console.error("You must set onmessage");
                 console.info(line);
             }
+        },
+        time: function time(s)
+        {
+            if (typeof console !== "undefined" && console.time) console.time(s);
+        },
+        timeEnd: function timeEnd(s)
+        {
+            if (typeof console !== "undefined" && console.timeEnd) console.timeEnd(s);
         }
     };
     
@@ -56,7 +65,9 @@ return function ()
         }
         
         /// Initialize.
+        //console.log('ccall_init');console.time('ccall_init')
         Module.ccall("init", "number", [], []);
+        //console.timeEnd('ccall_init')
     }, 1);
     
     return return_val;
@@ -123,3 +134,4 @@ return function ()
     }
     ///NOTE: If it's a normal browser, we don't need to do anything. The client can use the STOCKFISH() function directly.
 }());
+//console.timeEnd('entire');
