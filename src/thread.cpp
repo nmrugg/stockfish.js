@@ -17,6 +17,15 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*
+#ifdef EMSCRIPTEN
+#include <emscripten.h>
+#include <cstring>   // For std::memset
+#include <iostream>
+#include <sstream>
+#endif
+*/
+
 #include <algorithm> // For std::count
 #include <cassert>
 
@@ -283,10 +292,15 @@ void MainThread::idle_loop() {
 // allocation of Endgames in Thread c'tor.
 
 void ThreadPool::init() {
-
+///emscripten_run_script("console.log('thread0');console.time('thread0')");
   timer = new_thread<TimerThread>();
+///emscripten_run_script("console.timeEnd('thread0')");
+///emscripten_run_script("console.log('thread1');console.time('thread1')");
   push_back(new_thread<MainThread>());
+///emscripten_run_script("console.timeEnd('thread1')");
+///emscripten_run_script("console.log('thread2');console.time('thread2')");
   read_uci_options();
+///emscripten_run_script("console.timeEnd('thread2')");
 }
 
 

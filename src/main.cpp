@@ -17,6 +17,12 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*
+#ifdef EMSCRIPTEN
+#include <emscripten.h>
+#endif
+*/
+
 #include <iostream>
 
 #include "bitboard.h"
@@ -30,18 +36,37 @@
 extern "C" void init() {
 
   std::cout << engine_info() << std::endl;
-
+///emscripten_run_script("console.log('uci');console.time('uci')");
   UCI::init(Options);
+///emscripten_run_script("console.timeEnd('uci')");
+///emscripten_run_script("console.log('bitboards');console.time('bitboards')");
   Bitboards::init();
+///emscripten_run_script("console.timeEnd('bitboards')"); 
+///emscripten_run_script("console.log('position');console.time('position')");
   Position::init();
+///emscripten_run_script("console.timeEnd('position')");
+///emscripten_run_script("console.log('bitbases');console.time('bitbases')");
   Bitbases::init();
+///emscripten_run_script("console.timeEnd('bitbases')");
+///emscripten_run_script("console.log('search');console.time('search')");
   Search::init();
+///emscripten_run_script("console.timeEnd('search')");
+///emscripten_run_script("console.log('eval');console.time('eval')");
   Eval::init();
+///emscripten_run_script("console.timeEnd('eval')");
+///emscripten_run_script("console.log('pawns');console.time('pawns')");
   Pawns::init();
+///emscripten_run_script("console.timeEnd('pawns')");
+///emscripten_run_script("console.log('Threads');console.time('Threads')");
   Threads.init();
+///emscripten_run_script("console.timeEnd('Threads')");
+///emscripten_run_script("console.log('TT');console.time('TT')");
   TT.resize(Options["Hash"]);
 
+///emscripten_run_script("console.timeEnd('TT')");
+///emscripten_run_script("console.log('commandInit');console.time('commandInit')");
   UCI::commandInit();
+///emscripten_run_script("console.timeEnd('commandInit')");
 }
 
 int main(int argc, char* argv[]) {
