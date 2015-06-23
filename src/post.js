@@ -106,7 +106,7 @@ return function ()
                     if (line == "quit") {
                         process.exit();
                     }
-                    stockfish.postMessage(line);
+                    stockfish.postMessage(line, true);
                 }
             });
             
