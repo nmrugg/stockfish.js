@@ -34,7 +34,7 @@ return function ()
     };
     
     return_val = {
-        postMessage: function send_message(str)
+        postMessage: function send_message(str, sync)
         {
             function ccall()
             {
@@ -47,7 +47,11 @@ return function ()
             
             cmds.push(str);
             
-            wait(ccall, 1);
+            if (sync) {
+                ccall();
+            } else {
+                wait(ccall, 1);
+            }
         }
     };
     
@@ -120,7 +124,7 @@ return function ()
         stockfish = STOCKFISH();
         
         onmessage = function(event) {
-            stockfish.postMessage(event.data);
+            stockfish.postMessage(event.data, true);
         };
         
         stockfish.onmessage = function onlog(line)
