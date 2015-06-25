@@ -84,24 +84,18 @@ return function ()
     };
     
     return_val = {
-        postMessage: function send_message(str, sync)
+        postMessage: function send_message(str)
         {
-            function ccall()
+            cmds.push(str);
+            
+            (function ccall()
             {
                 if (Module) {
                     Module.ccall("uci_command", "number", ["string"], [cmds.shift()]);
                 } else {
-                    setTimeout(ccall, 100);
+                    setTimeout(ccall, 50);
                 }
-            }
-            
-            cmds.push(str);
-            
-            if (sync) {
-                ccall();
-            } else {
-                wait(ccall, 1);
-            }
+            }());
         }
     };
     
@@ -156,7 +150,7 @@ return function ()
                     if (line == "quit") {
                         process.exit();
                     }
-                    stockfish.postMessage(line, true);
+                    stockfish.postMessage(line);
                 }
             });
             
@@ -174,7 +168,7 @@ return function ()
         stockfish = STOCKFISH();
         
         onmessage = function(event) {
-            stockfish.postMessage(event.data, true);
+            stockfish.postMessage(event.data);
         };
         
         stockfish.onmessage = function onlog(line)
