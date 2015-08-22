@@ -99,7 +99,7 @@ var load_engine = (function ()
     {
         /// Is this Node.js?
         if (Object.prototype.toString.call(global.process) === "[object process]") {
-            return spawn_worker(path || "./src/stockfish.js");
+            return spawn_worker(path || require("path").join(__dirname, "src", "stockfish.js"));
         }
         
         path = path || "stockfish.js";
