@@ -237,15 +237,6 @@ var load_engine = (function ()
                     if (line === "Key is") {
                         my_que.message = my_que.message.slice(0, -7);
                     }
-                } else if (line.substr(0, 8) === "Checkers") {
-                    /// Upstream Stockfish no longer replies with Legal uci moves, so we need to send something manually in order to indicate that d is done.
-                    setTimeout(function ()
-                    {
-                        if (!my_que.done) {
-                            /// A simple hack to end d.
-                            onmessage("Key is");
-                        }
-                    }, 50);
                 }
             } else if (my_que.cmd === "eval") {
                 if (eval_regex.test(my_que.message)) {
