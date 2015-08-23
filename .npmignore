@@ -17,3 +17,12 @@ src/post.js
 src/pre.js
 src/Makefile
 .gitignore
+build.sh
+clean.sh
+create_branch_at.js
+engine-interface.txt
+merged_data.json
+rolling_merge.js
+startup_tester.js
+tester.js
+test_load_engine.js
