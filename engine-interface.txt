@@ -292,6 +292,7 @@ Engine to GUI:
 	* seldepth <x>
 		selective search depth in plies,
 		if the engine sends seldepth there must also be a "depth" present in the same string.
+		This is the deepest that the engine has calculated. (http://chess.stackexchange.com/questions/1095/how-do-i-use-the-analysis-output-of-a-uci-engine)
 	* time <x>
 		the time searched in ms, this should be sent together with the pv.
 	* nodes <x>
