@@ -98,7 +98,7 @@ var load_engine = (function ()
     function new_worker(path)
     {
         /// Is this Node.js?
-        if (Object.prototype.toString.call(global.process) === "[object process]") {
+        if (typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]") {
             return spawn_worker(path || require("path").join(__dirname, "src", "stockfish.js"));
         }
         
