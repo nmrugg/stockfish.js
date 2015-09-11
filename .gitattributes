@@ -1,0 +1,67 @@
+# Set default behaviour, in case users don't have core.autocrlf set.
+* text=auto
+
+# Explicitly declare text files we want to always be normalized and converted
+# to native line endings on checkout.
+.gitignore text
+.htaccess text
+*.cache text
+*.cgi text
+*.ci text
+*.css text
+*.csv text
+*.dist text
+*.htm text
+*.html text
+*.inc text
+*.ini text
+*.java text
+*.js text
+*.json text
+*.less text
+*.lock text
+*.log text
+*.markdown text
+*.md text
+*.meta text
+*.phar text
+*.php text
+*.pl text
+*.rb text
+*.sh text
+*.tpl text
+*.twig text
+*.txt text
+*.xml text
+*.yml text
+# app/console text
+behat text
+Capfile text
+console text
+deps text
+Vagrantfile text
+vendors text
+
+# Explicitly declare text files should maintain CRLF in all environments.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Explicitly declare text files should maintain LF in all environments.
+bin/* text eol=lf
+*.sh text eol=lf
+.profile text eol=lf
+
+# Denote all files that are truly binary and should not be modified.
+*.db binary
+*.fla binary
+*.gif binary
+*.ico binary
+*.jar binary
+*.jpeg binary
+*.jpg binary
+*.png binary
+*.psd binary
+*.swf binary
+*.swz binary
+.gitkeep binary
+composer.phar binary
