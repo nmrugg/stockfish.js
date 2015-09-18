@@ -40,7 +40,7 @@ Description of the universal chess interface (UCI)    April  2006
 
 * if the engine receives a command which is not supposed to come, for example "stop" when the engine is
   not calculating, it should also just ignore it.
-  
+
 
 Move format:
 ------------
@@ -179,7 +179,7 @@ These are all the command the engine gets from the interface.
 		HOWEVER, wtime and btime will be ignored because it assumes that it has AT LEAST this much time to make this move.
 	* infinite
 		search until the "stop" command. Do not exit the search without being told so in this mode!
-    
+
 * stop
 	stop calculating as soon as possible,
 	don't forget the "bestmove" and possibly the "ponder" token when finishing the search
@@ -258,7 +258,7 @@ Engine to GUI:
 	      TellGUI("copyprotection ok\n");
       else
          TellGUI("copyprotection error\n");
-         
+
 * registration
 	this is needed for engines that need a username and/or a code to function with all features.
 	Analog to the "copyprotection" command the engine can send "registration checking"
@@ -276,7 +276,7 @@ Engine to GUI:
 	and tell the user somehow that the engine is not registered.
 	This way the engine knows that the GUI can deal with the registration procedure and the user
 	will be informed that the engine is not properly registered.
-	      
+
 * info
 	the engine wants to send information to the GUI. This should be done whenever one of the info has changed.
 	The engine can send only selected infos or multiple infos with one info command,
@@ -344,7 +344,7 @@ Engine to GUI:
 	   if the engine is just using one cpu, <cpunr> can be omitted.
 	   If <cpunr> is greater than 1, always send all k lines in k strings together.
 		The engine should only send this if the option "UCI_ShowCurrLine" is set to true.
-	
+
 
 * option
 	This command tells the GUI which parameters can be changed in the engine.
@@ -426,10 +426,10 @@ Engine to GUI:
 			the path and filename of one Shredder endgame datbase.
 	   * <id> = UCI_SetPositionValue, type string
 	      the GUI can send this to the engine to tell the engine to use a certain value in centipawns from white's
-	      point of view if evaluating this specifix position. 
+	      point of view if evaluating this specifix position.
 	      The string can have the formats:
 	      <value> + <fen> | clear + <fen> | clearall
-	   		
+
 	* type <t>
 		The option has type t.
 		There are 5 different types of options the engine can send
@@ -472,7 +472,7 @@ GUI     engine
 // tell the engine to switch to UCI mode
 uci
 
-// engine identify  
+// engine identify
       id name Shredder
 		id author Stefan MK
 
@@ -529,14 +529,14 @@ go infinite
 
 
 		info depth 1 seldepth 0
-		info score cp 13  depth 1 nodes 13 time 15 pv f1b5 
+		info score cp 13  depth 1 nodes 13 time 15 pv f1b5
 		info depth 2 seldepth 2
 		info nps 15937
-		info score cp 14  depth 2 nodes 255 time 15 pv f1c4 f8c5 
+		info score cp 14  depth 2 nodes 255 time 15 pv f1c4 f8c5
 		info depth 2 seldepth 7 nodes 255
 		info depth 3 seldepth 7
 		info nps 26437
-		info score cp 20  depth 3 nodes 423 time 15 pv f1c4 g8f6 b1c3 
+		info score cp 20  depth 3 nodes 423 time 15 pv f1c4 g8f6 b1c3
 		info nps 41562
 		....
 
