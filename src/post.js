@@ -342,6 +342,7 @@ return function ()
                 input: process.stdin,
                 output: process.stdout,
                 completer: completer,
+                historySize: 100,
             }).on("line", function online(line)
             {
                 if (line) {
@@ -350,7 +351,7 @@ return function ()
                     }
                     stockfish.postMessage(line, true);
                 }
-            });
+            }).setPrompt("");
             
             process.stdin.on("end", function onend()
             {
