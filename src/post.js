@@ -263,6 +263,67 @@ return function ()
     var is_node,
         stockfish;
     
+    function completer(line)
+    {
+        var completions = [ "eval", "uci", "isready", "ucinewgame", "position fen ", "position startpos", "position startpos moves", "stop", "quit", "ponderhit", "flip", "bench", "d", "perft", "go",
+            "setoption name Write Debug Log value ",
+            "setoption name Contempt value ",
+            "setoption name Mobility (Midgame) value ",
+            "setoption name Mobility (Endgame) value ",
+            "setoption name Pawn Structure (Midgame) value ",
+            "setoption name Pawn Structure (Endgame) value ",
+            "setoption name Passed Pawns (Midgame) value ",
+            "setoption name Passed Pawns (Endgame) value ",
+            "setoption name Space value ",
+            "setoption name King Safety value ",
+            "setoption name Min Split Depth value ",
+            "setoption name Threads value ",
+            "setoption name Hash value ",
+            "setoption name Clear Hash value ",
+            "setoption name Ponder value ",
+            "setoption name MultiPV value ",
+            "setoption name Skill Level value ",
+            "setoption name Skill Level Maximum Error value ",
+            "setoption name Skill Level Probability value ",
+            "setoption name Move Overhead value ",
+            "setoption name Minimum Thinking Time value ",
+            "setoption name Slow Mover value ",
+            "setoption name UCI_Chess960 value ",
+        ];
+        var completions_mid = [
+            " mate ",
+            " depth ",
+            " wtime ",
+            " btime ",
+            " winc ",
+            " binc ",
+            " movestogo ",
+            " movetime ",
+            " searchmoves ",
+            " ponder ", /// ponder and infinte could be used after searchmoves
+            " infinite ",
+            " moves ", /// for position fen ... moves
+        ];
+        var last_word;
+        
+        var hits = completions.filter(function(c) { return c.indexOf(line) == 0 })
+        
+        if (!hits.length) {
+            //last_word = line.replace(/^.*\s/, "");
+            line = line.replace(/^.*\s/, "");
+            if (line) {
+                line = " " + line;
+                hits = completions_mid.filter(function(c) {return c.indexOf(line) > -1 })
+                //console.log(hits);
+            } else {
+                hits = completions_mid;
+                line = " ";
+            }
+        }
+        
+        return [hits, line];
+    }   
+    
     try {
         is_node = Object.prototype.toString.call(global.process) === "[object process]";
     } catch(e) {}
@@ -280,10 +341,11 @@ return function ()
             require("readline").createInterface({
                 input: process.stdin,
                 output: process.stdout,
+                completer: completer,
             }).on("line", function online(line)
             {
                 if (line) {
-                    if (line == "quit") {
+                    if (line === "quit") {
                         process.exit();
                     }
                     stockfish.postMessage(line, true);
