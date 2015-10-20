@@ -280,7 +280,6 @@ return function ()
             require("readline").createInterface({
                 input: process.stdin,
                 output: process.stdout,
-                terminal: false
             }).on("line", function online(line)
             {
                 if (line) {
