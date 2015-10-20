@@ -265,57 +265,82 @@ return function ()
     
     function completer(line)
     {
-        var completions = [ "eval", "uci", "isready", "ucinewgame", "position fen ", "position startpos", "position startpos moves", "stop", "quit", "ponderhit", "flip", "bench", "d", "perft", "go",
-            "setoption name Write Debug Log value ",
+        var completions = [
+            "bench",
+            "d",
+            "eval",
+            "flip",
+            "go",
+            "isready",
+            "perft",
+            "ponderhit",
+            "position fen ",
+            "position startpos",
+            "position startpos moves",
+            "quit",
+            "setoption name Clear Hash value ",
             "setoption name Contempt value ",
-            "setoption name Mobility (Midgame) value ",
-            "setoption name Mobility (Endgame) value ",
-            "setoption name Pawn Structure (Midgame) value ",
-            "setoption name Pawn Structure (Endgame) value ",
-            "setoption name Passed Pawns (Midgame) value ",
-            "setoption name Passed Pawns (Endgame) value ",
-            "setoption name Space value ",
+            "setoption name Hash value ",
             "setoption name King Safety value ",
             "setoption name Min Split Depth value ",
-            "setoption name Threads value ",
-            "setoption name Hash value ",
-            "setoption name Clear Hash value ",
-            "setoption name Ponder value ",
+            "setoption name Minimum Thinking Time value ",
+            "setoption name Mobility (Endgame) value ",
+            "setoption name Mobility (Midgame) value ",
+            "setoption name Move Overhead value ",
             "setoption name MultiPV value ",
-            "setoption name Skill Level value ",
+            "setoption name Passed Pawns (Endgame) value ",
+            "setoption name Passed Pawns (Midgame) value ",
+            "setoption name Pawn Structure (Endgame) value ",
+            "setoption name Pawn Structure (Midgame) value ",
+            "setoption name Ponder value ",
             "setoption name Skill Level Maximum Error value ",
             "setoption name Skill Level Probability value ",
-            "setoption name Move Overhead value ",
-            "setoption name Minimum Thinking Time value ",
+            "setoption name Skill Level value ",
             "setoption name Slow Mover value ",
+            "setoption name Space value ",
+            "setoption name Threads value ",
             "setoption name UCI_Chess960 value ",
+            "setoption name Write Debug Log value ",
+            "stop",
+            "uci",
+            "ucinewgame"
         ];
         var completions_mid = [
-            " mate ",
-            " depth ",
-            " wtime ",
-            " btime ",
-            " winc ",
             " binc ",
+            " btime ",
+            " depth ",
+            " infinite ",
+            " mate ",
+            " moves ", /// for position fen ... moves
             " movestogo ",
             " movetime ",
+            " ponder ",
             " searchmoves ",
-            " ponder ", /// ponder and infinte could be used after searchmoves
-            " infinite ",
-            " moves ", /// for position fen ... moves
+            " winc ",
+            " wtime "
         ];
         var last_word;
         
-        var hits = completions.filter(function(c) { return c.indexOf(line) == 0 })
+        /// This looks for completions starting at the very beginning of the line.
+        /// If the user has typed nothing, it will match everything.
+        var hits = completions.filter(function filter(c)
+        {
+            return c.indexOf(line) === 0;
+        });
         
         if (!hits.length) {
-            //last_word = line.replace(/^.*\s/, "");
+            /// Just get the last word.
             line = line.replace(/^.*\s/, "");
             if (line) {
+                /// We need the extra space so that we can overlay the completion properly.
                 line = " " + line;
-                hits = completions_mid.filter(function(c) {return c.indexOf(line) > -1 })
-                //console.log(hits);
+                /// Find completion mid line too.
+                hits = completions_mid.filter(function filter(c)
+                {
+                    return c.indexOf(line) > -1;
+                });
             } else {
+                /// If no word has been typed, show all options.
                 hits = completions_mid;
                 line = " ";
             }
