@@ -349,9 +349,7 @@ return function ()
         return [hits, line];
     }   
     
-    try {
-        is_node = Object.prototype.toString.call(global.process) === "[object process]";
-    } catch(e) {}
+    is_node = typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]";
     
     if (is_node) {
         /// Was it called directly?
