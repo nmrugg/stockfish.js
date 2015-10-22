@@ -306,43 +306,40 @@ return function ()
             "ucinewgame"
         ];
         var completions_mid = [
-            " binc ",
-            " btime ",
-            " depth ",
-            " infinite ",
-            " mate ",
-            " moves ", /// for position fen ... moves
-            " movestogo ",
-            " movetime ",
-            " ponder ",
-            " searchmoves ",
-            " winc ",
-            " wtime "
+            "binc ",
+            "btime ",
+            "depth ",
+            "infinite ",
+            "mate ",
+            "moves ", /// for position fen ... moves
+            "movestogo ",
+            "movetime ",
+            "ponder ",
+            "searchmoves ",
+            "winc ",
+            "wtime "
         ];
-        var last_word;
+        
+        function filter(c)
+        {
+            return c.indexOf(line) === 0;
+        }
         
         /// This looks for completions starting at the very beginning of the line.
         /// If the user has typed nothing, it will match everything.
-        var hits = completions.filter(function filter(c)
-        {
-            return c.indexOf(line) === 0;
-        });
+        var hits = completions.filter(filter);
         
         if (!hits.length) {
             /// Just get the last word.
             line = line.replace(/^.*\s/, "");
             if (line) {
                 /// We need the extra space so that we can overlay the completion properly.
-                line = " " + line;
+                line = line;
                 /// Find completion mid line too.
-                hits = completions_mid.filter(function filter(c)
-                {
-                    return c.indexOf(line) > -1;
-                });
+                hits = completions_mid.filter(filter);
             } else {
                 /// If no word has been typed, show all options.
                 hits = completions_mid;
-                line = " ";
             }
         }
         
