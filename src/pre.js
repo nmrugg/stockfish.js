@@ -1,7 +1,3 @@
-/*!
- * Stockfish.js (http://github.com/nmrugg/stockfish.js)
- * License: GPL
- */
 /**
  * Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
  * Copyright (C) 2008-2014 Marco Costalba, Joona Kiiski, Tord Romstad (Stockfish authors)
