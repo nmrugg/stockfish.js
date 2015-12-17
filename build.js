@@ -38,7 +38,7 @@ if (params.force) {
 
 spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: __dirname});
 
-data = fs.readFileSync(stockfish_path);
+data = fs.readFileSync(stockfish_path, "utf8");
 
 /// Add the license if it's not there (emscripten removes all comments).
 if (data.indexOf(license) !== 0) {
