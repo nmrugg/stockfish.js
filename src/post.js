@@ -11,7 +11,11 @@ var ourSetImmediate = (function (global, undefined)
     "use strict";
 
     if (global.setImmediate) {
-        return global.setImmediate;
+        try {
+            return global.setImmediate.bind(global);
+        } catch (e) {
+            return global.setImmediate;
+        }
     }
 
     var nextHandle = 1; // Spec says greater than zero
