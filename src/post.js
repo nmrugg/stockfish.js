@@ -337,8 +337,6 @@ return function ()
             /// Just get the last word.
             line = line.replace(/^.*\s/, "");
             if (line) {
-                /// We need the extra space so that we can overlay the completion properly.
-                line = line;
                 /// Find completion mid line too.
                 hits = completions_mid.filter(filter);
             } else {
