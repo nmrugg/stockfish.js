@@ -32,8 +32,27 @@ function get_params(argv)
     return params;
 }
 
-if (params.force) {
+if (params.help) {
+    console.log("");
+    console.log("Build Stockfish with Emscripten");
+    console.log("Usage: ./build.js [--force || --force-js]");
+    console.log("");
+    console.log("  --force     Always rebuild the entire project");
+    console.log("  --force-js  Always recompile the JS code");
+    console.log("");
+    process.exit();
+} else if (params.force) {
     args.push("--always-make");
+} else if (params["force-js"]) {
+    ///NOTE: --force will also recompile the js, so there's no need to have both --force and --force-js.
+    try {
+        fs.unlinkSync(stockfish_path);
+    } catch (e) {
+        /// Don't throw if there is no file to delete.
+        if (e.code !== "ENOENT") {
+            throw e;
+        }
+    }
 }
 
 spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: __dirname});
