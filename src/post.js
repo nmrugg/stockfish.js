@@ -315,6 +315,7 @@ return function ()
             "depth ",
             "infinite ",
             "mate ",
+            "mindepth",
             "moves ", /// for position fen ... moves
             "movestogo ",
             "movetime ",
