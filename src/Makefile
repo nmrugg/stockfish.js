@@ -94,6 +94,18 @@ ifeq ($(ARCH),general-64)
 	bits = 64
 endif
 
+ifeq ($(ARCH),js)
+	arch = any
+	os = any
+	bits = 32
+	prefetch = no
+	bsfq = no
+	popcnt = no
+	sse = no
+	COMP = emscripten
+	EXE = stockfish.js
+endif
+
 ifeq ($(ARCH),x86-64)
 	arch = x86_64
 	bits = 64
@@ -196,6 +208,11 @@ ifeq ($(COMP),icc)
 	CXXFLAGS += -diag-disable 1476,10120 -Wcheck -Wabi -Wdeprecated -strict-ansi
 endif
 
+ifeq ($(COMP),emscripten)
+	comp=clang
+	CXX=em++
+endif
+
 ifeq ($(COMP),clang)
 	comp=clang
 	CXX=clang++
@@ -239,11 +256,18 @@ ifdef COMPILER
 	COMPCXX=$(COMPILER)
 endif
 
+ifeq ($(COMP),emscripten)
+	CXXFLAGS += -s TOTAL_MEMORY=67108864
+	#NOTE: --closure 1 breaks the code
+	#TODO: File bug report for --closure 1.
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --memory-init-file 0 -s NO_EXIT_RUNTIME=1 --pre-js pre.js --post-js post.js
 ### Allow overwriting CXX from command line
 ifdef COMPCXX
 	CXX=$(COMPCXX)
 endif
 
+# We don't want this in JS either. (Not indenting to make merging easier.)
+ifneq ($(COMP),emscripten)
 ### On mingw use Windows threads, otherwise POSIX
 ifneq ($(comp),mingw)
 	# On Android Bionic's C library comes with its own pthread implementation bundled in
@@ -254,6 +278,7 @@ ifneq ($(comp),mingw)
 		endif
 	endif
 endif
+endif # end if for JS.
 
 ### 3.2.1 Debugging
 CXXFLAGS += -DANTI -DATOMIC -DCRAZYHOUSE -DHORDE -DKOTH -DRACE -DRELAY -DTHREECHECK
@@ -405,6 +430,7 @@ help:
 	@echo "armv7                   > ARMv7 32-bit"
 	@echo "general-64              > unspecified 64-bit"
 	@echo "general-32              > unspecified 32-bit"
+	@echo "js                      > emscripten javascript"
 	@echo ""
 	@echo "Supported compilers:"
 	@echo ""
