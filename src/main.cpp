@@ -33,7 +33,6 @@ namespace PSQT {
 }
 
 int main(int argc, char* argv[]) {
-
   std::cout << engine_info() << std::endl;
 
   UCI::init(Options);
@@ -44,11 +43,26 @@ int main(int argc, char* argv[]) {
   Search::init();
   Pawns::init();
   Threads.init();
+#ifndef EMSCRIPTEN
   Tablebases::init(Options["SyzygyPath"]);
+#endif
   TT.resize(Options["Hash"]);
 
+#ifndef EMSCRIPTEN
   UCI::loop(argc, argv);
 
   Threads.exit();
   return 0;
+#endif
 }
+
+#ifdef EMSCRIPTEN
+extern "C" void uci_command(const char* cmd) {
+    UCI::command(cmd);
+}
+extern "C" void init(int argc, char* argv[]) {
+    main(argc, argv);
+    std::cout << "starting commandInit" << std::endl;
+    UCI::commandInit();
+}
+#endif

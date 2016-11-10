@@ -181,7 +181,16 @@ namespace {
 /// GUI dies unexpectedly. When called with some command line arguments, e.g. to
 /// run 'bench', once the command is executed the function returns immediately.
 /// In addition to the UCI ones, also some additional debug commands are supported.
-
+#ifdef EMSCRIPTEN
+Position pos;
+  void UCI::commandInit() {
+    Variant variant = variant_from_name(Options["UCI_Variant"]);
+    sync_cout << variant << sync_endl;
+    pos.set(StartFENs[variant], false, variant, &States->back(), Threads.main());
+  }
+  void UCI::command(const string& cmd) {
+    string token;
+#else
 void UCI::loop(int argc, char* argv[]) {
 
   Position pos;
@@ -195,7 +204,7 @@ void UCI::loop(int argc, char* argv[]) {
   do {
       if (argc == 1 && !getline(cin, cmd)) // Block here waiting for input or EOF
           cmd = "quit";
-
+#endif
       istringstream is(cmd);
 
       token.clear(); // getline() could return empty or blank line
@@ -250,10 +259,11 @@ void UCI::loop(int argc, char* argv[]) {
       }
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
-
+#ifndef EMSCRIPTEN
   } while (token != "quit" && argc == 1); // Passed args have one-shot behaviour
 
   Threads.main()->wait_for_search_finished();
+#endif
 }
 
 
