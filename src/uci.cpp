@@ -29,7 +29,10 @@
 #include "thread.h"
 #include "timeman.h"
 #include "uci.h"
+
+#ifndef EMSCRIPTEN
 #include "syzygy/tbprobe.h"
+#endif
 
 using namespace std;
 

@@ -26,7 +26,10 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
+
+#ifndef EMSCRIPTEN
 #include "syzygy/tbprobe.h"
+#endif
 
 namespace PSQT {
   void init();

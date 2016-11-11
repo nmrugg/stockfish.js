@@ -25,7 +25,10 @@
 #include "search.h"
 #include "thread.h"
 #include "uci.h"
+
+#ifndef EMSCRIPTEN
 #include "syzygy/tbprobe.h"
+#endif
 
 ThreadPool Threads; // Global object
 
@@ -36,7 +39,9 @@ Thread::Thread() {
 
   resetCalls = exit = false;
   maxPly = callsCnt = 0;
+#ifndef EMSCRIPTEN
   tbHits = 0;
+#endif
   history.clear();
   counterMoves.clear();
   idx = Threads.size(); // Start from 0
@@ -171,6 +176,7 @@ uint64_t ThreadPool::nodes_searched() const {
   return nodes;
 }
 
+#ifndef EMSCRIPTEN
 /// ThreadPool::tb_hits() returns the number of TB hits
 
 uint64_t ThreadPool::tb_hits() const {
@@ -180,6 +186,7 @@ uint64_t ThreadPool::tb_hits() const {
       hits += th->tbHits;
   return hits;
 }
+#endif
 
 
 /// ThreadPool::start_thinking() wakes up the main thread sleeping in idle_loop()
@@ -218,7 +225,9 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
   for (Thread* th : Threads)
   {
       th->maxPly = 0;
+      #ifndef EMSCRIPTEN
       th->tbHits = 0;
+      #endif
       th->rootDepth = DEPTH_ZERO;
       th->rootMoves = rootMoves;
       th->rootPos.set(pos.fen(), pos.is_chess960(), pos.variant(), &setupStates->back(), th);

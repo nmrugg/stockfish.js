@@ -35,7 +35,10 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
+
+#ifndef EMSCRIPTEN
 #include "syzygy/tbprobe.h"
+#endif
 
 namespace Search {
 
@@ -43,6 +46,7 @@ namespace Search {
   LimitsType Limits;
 }
 
+#ifndef EMSCRIPTEN
 namespace Tablebases {
 
   int Cardinality;
@@ -53,6 +57,7 @@ namespace Tablebases {
 }
 
 namespace TB = Tablebases;
+#endif
 
 using std::string;
 using Eval::evaluate;
@@ -802,6 +807,7 @@ namespace {
 #ifdef CRAZYHOUSE
     if (pos.is_house()) {} else
 #endif
+#ifndef EMSCRIPTEN
     if (!rootNode && TB::Cardinality)
     {
         int piecesCnt = pos.count<ALL_PIECES>(WHITE) + pos.count<ALL_PIECES>(BLACK);
@@ -832,6 +838,7 @@ namespace {
             }
         }
     }
+#endif
 
     // Step 5. Evaluate the position statically
     if (inCheck)
@@ -1809,7 +1816,9 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
   size_t PVIdx = pos.this_thread()->PVIdx;
   size_t multiPV = std::min((size_t)Options["MultiPV"], rootMoves.size());
   uint64_t nodesSearched = Threads.nodes_searched();
+#ifndef EMSCRIPTEN
   uint64_t tbHits = Threads.tb_hits() + (TB::RootInTB ? rootMoves.size() : 0);
+#endif
 
   for (size_t i = 0; i < multiPV; ++i)
   {
@@ -1821,8 +1830,10 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
       Depth d = updated ? depth : depth - ONE_PLY;
       Value v = updated ? rootMoves[i].score : rootMoves[i].previousScore;
 
+#ifndef EMSCRIPTEN
       bool tb = TB::RootInTB && abs(v) < VALUE_MATE - MAX_PLY;
       v = tb ? TB::Score : v;
+#endif
 
       if (ss.rdbuf()->in_avail()) // Not at first line
           ss << "\n";
@@ -1833,7 +1844,11 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
          << " multipv "  << i + 1
          << " score "    << UCI::value(v);
 
+#ifndef EMSCRIPTEN
       if (!tb && i == PVIdx)
+#else
+      if (i == PVIdx)
+#endif
           ss << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
 
       ss << " nodes "    << nodesSearched
@@ -1842,7 +1857,11 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
       if (elapsed > 1000) // Earlier makes little sense
           ss << " hashfull " << TT.hashfull();
 
+#ifndef EMSCRIPTEN
       ss << " tbhits "   << tbHits
+#else
+      ss
+#endif
          << " time "     << elapsed
          << " pv";
 
@@ -1885,6 +1904,7 @@ bool RootMove::extract_ponder_from_tt(Position& pos) {
     return pv.size() > 1;
 }
 
+#ifndef EMSCRIPTEN
 void Tablebases::filter_root_moves(Position& pos, Search::RootMoves& rootMoves) {
 
     RootInTB = false;
@@ -1924,3 +1944,4 @@ void Tablebases::filter_root_moves(Position& pos, Search::RootMoves& rootMoves) 
                    : TB::Score < VALUE_DRAW ? -VALUE_MATE + MAX_PLY + 1
                                             :  VALUE_DRAW;
 }
+#endif
