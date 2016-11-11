@@ -305,6 +305,10 @@ ifeq ($(optimize),yes)
 
 	CXXFLAGS += -O3
 
+	ifeq ($(COMP),emscripten)
+		LDFLAGS += -O3
+	endif
+
 	ifeq ($(comp),gcc)
 
 		ifeq ($(KERNEL),Darwin)
