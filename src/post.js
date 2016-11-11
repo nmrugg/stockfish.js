@@ -270,13 +270,11 @@ return function ()
     function completer(line)
     {
         var completions = [
-            "bench",
             "d",
             "eval",
             "flip",
             "go",
             "isready",
-            "perft",
             "ponderhit",
             "position fen ",
             "position startpos",

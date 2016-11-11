@@ -36,7 +36,9 @@
 
 using namespace std;
 
+#ifdef EMSCRIPTEN
 extern void benchmark(const Position& pos, istream& is);
+#endif
 
 namespace {
 
@@ -253,6 +255,7 @@ void UCI::loop(int argc, char* argv[]) {
 #endif
       else if (token == "d")          sync_cout << pos << sync_endl;
       else if (token == "eval")       sync_cout << Eval::trace(pos) << sync_endl;
+#ifndef EMSCRIPTEN
       else if (token == "perft")
       {
           int depth;
@@ -264,6 +267,7 @@ void UCI::loop(int argc, char* argv[]) {
 
           benchmark(pos, ss);
       }
+#endif
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
 #ifndef EMSCRIPTEN
