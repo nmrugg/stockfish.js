@@ -40,7 +40,9 @@ void on_clear_hash(const Option&) { Search::clear(); }
 void on_hash_size(const Option& o) { TT.resize(o); }
 void on_logger(const Option& o) { start_logger(o); }
 void on_threads(const Option&) { Threads.read_uci_options(); }
+#ifndef EMSCRIPTEN
 void on_tb_path(const Option& o) { Tablebases::init(o); }
+#endif
 
 
 /// Our case insensitive less() function as required by UCI protocol
@@ -57,9 +59,15 @@ void init(OptionsMap& o) {
 
   const int MaxHashMB = Is64Bit ? 1024 * 1024 : 2048;
 
+#ifndef EMSCRIPTEN
   o["Debug Log File"]        << Option("", on_logger);
+#endif
   o["Contempt"]              << Option(0, -100, 100);
+#ifdef EMSCRIPTEN
+  o["Threads"]               << Option(1, 1, 1, on_threads);
+#else
   o["Threads"]               << Option(1, 1, 128, on_threads);
+#endif
   o["Hash"]                  << Option(16, 1, MaxHashMB, on_hash_size);
   o["Clear Hash"]            << Option(on_clear_hash);
   o["Ponder"]                << Option(false);
@@ -71,10 +79,12 @@ void init(OptionsMap& o) {
   o["nodestime"]             << Option(0, 0, 10000);
   o["UCI_Chess960"]          << Option(false);
   o["UCI_Variant"]           << Option(variants.front().c_str(), variants);
+#ifndef EMSCRIPTEN
   o["SyzygyPath"]            << Option("<empty>", on_tb_path);
   o["SyzygyProbeDepth"]      << Option(1, 1, 100);
   o["Syzygy50MoveRule"]      << Option(true);
   o["SyzygyProbeLimit"]      << Option(6, 0, 6);
+#endif
 }
 
 

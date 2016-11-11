@@ -233,7 +233,9 @@ void UCI::loop(int argc, char* argv[]) {
       else if (token == "ucinewgame")
       {
           Search::clear();
+#ifndef EMSCRIPTEN
           Tablebases::init(Options["SyzygyPath"]);
+#endif
           Time.availableNodes = 0;
       }
       else if (token == "isready")    sync_cout << "readyok" << sync_endl;
