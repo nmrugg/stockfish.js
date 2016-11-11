@@ -3,7 +3,7 @@
 "use strict";
 
 var spawnSync = require("child_process").spawnSync;
-var params = get_params();
+var params = get_params({booleans: ["disableChessCom"]});
 var args = ["-C", "src", "build", "ARCH=js", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
@@ -80,6 +80,7 @@ if (params.help) {
     console.log("              \"none\" (no variants, except for Chess960),");
     console.log("              \"anti\", \"atomic\", \"crazyhouse\", \"horde\",");
     console.log("              \"kingofthehill\", \"race\", \"relay\", \"3check\"");
+    console.log("  --disableChessCom  Disable changes made specifically for chess.com.");
     console.log("");
     process.exit();
 } else if (params.force) {
@@ -98,6 +99,10 @@ if (params.help) {
 
 if (params.variants && params.variants.toLowerCase() !== "all") {
     args.push("VARIANTS=" + params.variants.toUpperCase());
+}
+
+if (!params.disableChessCom) {
+    args.push("CHESSCOM=1");
 }
 
 spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: __dirname});

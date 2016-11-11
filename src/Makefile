@@ -266,6 +266,9 @@ ifeq ($(COMP),emscripten)
 	#TODO: File bug report for --closure 1.
 	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --memory-init-file 0 -s NO_EXIT_RUNTIME=1 --pre-js pre.js --post-js post.js
 endif
+ifeq ($(CHESSCOM),1)
+	CXXFLAGS += -DCHESSCOM
+endif
 
 ### Allow overwriting CXX from command line
 ifdef COMPCXX
