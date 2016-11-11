@@ -36,7 +36,7 @@
 
 using namespace std;
 
-#ifdef EMSCRIPTEN
+#ifndef EMSCRIPTEN
 extern void benchmark(const Position& pos, istream& is);
 #endif
 
