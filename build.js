@@ -11,21 +11,58 @@ var stockfish_path = p.join(__dirname, "src", "stockfish.js");
 var data;
 var license = fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
 
-function get_params(argv)
+function get_params(options, argv)
 {
     var i,
-        params = {};
+        params = {_: []},
+        last,
+        len,
+        match;
+    
+    if (Array.isArray(options)) {
+        args = options;
+        options = {};
+    }
+    
+    options = options || {};
+    
+    if (!options.booleans) {
+        options.booleans = [];
+    }
     
     argv = argv || process.argv;
     
-    for (i = process.argv.length - 1; i >= 2; i -= 1) {
-        if (process.argv[i][0] === "-") {
-            params[process.argv[i].replace(/^-+/, "")] = 1;
-        } else {
-            if (!params.tests) {
-                params.tests = [];
+    len = argv.length;
+    
+    for (i = 2; i < len; i += 1) {
+        if (argv[i][0] === "-") {
+            if (argv[i][1] === "-") {
+                last = argv[i].substr(2);
+                match = last.match(/([^=]*)=(.*)/);
+                if (match) {
+                    last = match[1];
+                    params[last] = match[2];
+                } else {
+                    params[last] = true;
+                }
+            } else {
+                /// E.g., -hav should indicate h, a, and v as TRUE.
+                argv[i].split("").slice(1).forEach(function oneach(letter)
+                {
+                    params[letter] = true;
+                    last = letter;
+                });
             }
-            params.tests.push(process.argv[i]);
+        } else if (last) {
+            params[last] = argv[i];
+            last = "";
+        } else {
+            params._.push(argv[i]);
+            last = "";
+        }
+        /// Handle booleans.
+        if (last && options.booleans.indexOf(last) > -1) {
+            last = "";
         }
     }
     
@@ -35,10 +72,14 @@ function get_params(argv)
 if (params.help) {
     console.log("");
     console.log("Build Stockfish with Emscripten");
-    console.log("Usage: ./build.js [--force || --force-js]");
+    console.log("Usage: ./build.js [options]");
     console.log("");
     console.log("  --force     Always rebuild the entire project");
     console.log("  --force-js  Always recompile the JS code");
+    console.log("  --variants  Comma seperated list of variants to include (default \"all\")");
+    console.log("              \"none\" (no variants, except for Chess960),");
+    console.log("              \"anti\", \"atomic\", \"crazyhouse\", \"horde\",");
+    console.log("              \"kingofthehill\", \"race\", \"relay\", \"3check\"");
     console.log("");
     process.exit();
 } else if (params.force) {
@@ -53,6 +94,10 @@ if (params.help) {
             throw e;
         }
     }
+}
+
+if (params.variants && params.variants.toLowerCase() !== "all") {
+    args.push("VARIANTS=" + params.variants.toUpperCase());
 }
 
 spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: __dirname});

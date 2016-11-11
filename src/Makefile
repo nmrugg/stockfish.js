@@ -287,7 +287,45 @@ endif
 endif # end if for JS.
 
 ### 3.2.1 Debugging
-CXXFLAGS += -DANTI -DATOMIC -DCRAZYHOUSE -DHORDE -DKOTH -DRACE -DRELAY -DTHREECHECK
+ifneq ($(VARIANTS),NONE)
+	ifeq ($(VARIANTS),)
+		CXXFLAGS += -DANTI -DATOMIC -DCRAZYHOUSE -DHORDE -DKOTH -DRACE -DRELAY -DTHREECHECK
+	else
+		ifeq ($(findstring ANTI,$(VARIANTS)), ANTI)
+			CXXFLAGS += -DANTI
+		endif
+		ifeq ($(findstring ATOMIC,$(VARIANTS)), ATOMIC)
+			CXXFLAGS += -DATOMIC
+		endif
+		ifeq ($(findstring CRAZYHOUSE,$(VARIANTS)), CRAZYHOUSE)
+			CXXFLAGS += -DCRAZYHOUSE
+		endif
+		ifeq ($(findstring HORDE,$(VARIANTS)), HORDE)
+			CXXFLAGS += -DHORDE
+		endif
+		ifeq ($(findstring KOTH,$(VARIANTS)), KOTH)
+			CXXFLAGS += -DKOTH
+		endif
+		# alternate name for king of the hill
+		ifeq ($(findstring KINGOFTHEHILL,$(VARIANTS)), KINGOFTHEHILL)
+			CXXFLAGS += -DKOTH
+		endif
+		ifeq ($(findstring RACE,$(VARIANTS)), RACE)
+			CXXFLAGS += -DRACE
+		endif
+		ifeq ($(findstring RELAY,$(VARIANTS)), RELAY)
+			CXXFLAGS += -DRELAY
+		endif
+		ifeq ($(findstring THREECHECK,$(VARIANTS)), THREECHECK)
+			CXXFLAGS += -DTHREECHECK
+		endif
+		# alternate name for 3check
+		ifeq ($(findstring 3CHECK,$(VARIANTS)), 3CHECK)
+			CXXFLAGS += -DTHREECHECK
+		endif
+	endif
+endif
+
 ifeq ($(debug),no)
 	CXXFLAGS += -DNDEBUG
 else
