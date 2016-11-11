@@ -243,7 +243,9 @@ void UCI::loop(int argc, char* argv[]) {
 
       // Additional custom non-UCI commands, useful for debugging
       else if (token == "flip")       pos.flip();
+#ifndef EMSCRIPTEN
       else if (token == "bench")      benchmark(pos, is);
+#endif
       else if (token == "d")          sync_cout << pos << sync_endl;
       else if (token == "eval")       sync_cout << Eval::trace(pos) << sync_endl;
       else if (token == "perft")

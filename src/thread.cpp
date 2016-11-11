@@ -41,10 +41,14 @@ Thread::Thread() {
   counterMoves.clear();
   idx = Threads.size(); // Start from 0
 
+#ifndef EMSCRIPTEN
   std::unique_lock<Mutex> lk(mutex);
   searching = true;
   nativeThread = std::thread(&Thread::idle_loop, this);
   sleepCondition.wait(lk, [&]{ return !searching; });
+#else
+  searching = false;
+#endif  // EMSCRIPTEN
 }
 
 
@@ -167,7 +171,6 @@ uint64_t ThreadPool::nodes_searched() const {
   return nodes;
 }
 
-
 /// ThreadPool::tb_hits() returns the number of TB hits
 
 uint64_t ThreadPool::tb_hits() const {
@@ -185,7 +188,9 @@ uint64_t ThreadPool::tb_hits() const {
 void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
                                 const Search::LimitsType& limits) {
 
+#ifndef EMSCRIPTEN
   main()->wait_for_search_finished();
+#endif
 
   Search::Signals.stopOnPonderhit = Search::Signals.stop = false;
   Search::Limits = limits;
@@ -196,8 +201,10 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
           || std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
           rootMoves.push_back(Search::RootMove(m));
 
+#ifndef EMSCRIPTEN
   if (!rootMoves.empty())
       Tablebases::filter_root_moves(pos, rootMoves);
+#endif
 
   // After ownership transfer 'states' becomes empty, so if we stop the search
   // and call 'go' again without setting a new position states.get() == NULL.
@@ -219,5 +226,9 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
 
   setupStates->back() = tmp; // Restore st->previous, cleared by Position::set()
 
+#ifndef EMSCRIPTEN
   main()->start_searching();
+#else
+  main()->search();
+#endif
 }
