@@ -3,7 +3,7 @@
 "use strict";
 
 var spawnSync = require("child_process").spawnSync;
-var params = get_params({booleans: ["disableChessCom"]});
+var params = get_params({booleans: ["disableChessCom", "debugjs"]});
 var args = ["-C", "src", "build", "ARCH=js", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
@@ -74,13 +74,14 @@ if (params.help) {
     console.log("Build Stockfish with Emscripten");
     console.log("Usage: ./build.js [options]");
     console.log("");
-    console.log("  --force     Always rebuild the entire project");
-    console.log("  --force-js  Always recompile the JS code");
-    console.log("  --variants  Comma seperated list of variants to include (default \"all\")");
-    console.log("              \"none\" (no variants, except for Chess960),");
-    console.log("              \"anti\", \"atomic\", \"crazyhouse\", \"horde\",");
-    console.log("              \"kingofthehill\", \"race\", \"relay\", \"3check\"");
-    console.log("  --disableChessCom  Disable changes made specifically for chess.com.");
+    console.log("  --force            Always rebuild the entire project");
+    console.log("  --force-js         Always recompile the JS code");
+    console.log("  --variants         Comma seperated list of variants to include (default \"all\")");
+    console.log("                     \"none\" (no variants, except for Chess960),");
+    console.log("                     \"anti\", \"atomic\", \"crazyhouse\", \"horde\",");
+    console.log("                     \"kingofthehill\", \"race\", \"relay\", \"3check\"");
+    console.log("  --disableChessCom  Disable changes made specifically for chess.com");
+    console.log("  --debugjs          Compile in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
     console.log("");
     process.exit();
 } else if (params.force) {
@@ -103,6 +104,9 @@ if (params.variants && params.variants.toLowerCase() !== "all") {
 
 if (!params.disableChessCom) {
     args.push("CHESSCOM=1");
+}
+if (params.debugjs) {
+    args.push("DEBUGJS=1");
 }
 
 spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: __dirname});

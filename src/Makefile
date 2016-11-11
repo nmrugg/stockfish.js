@@ -342,6 +342,10 @@ ifeq ($(sanitize),yes)
 endif
 
 ### 3.3 Optimization
+ifeq ($(DEBUGJS),1)
+	CXXFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1
+	LDFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1
+else
 ifeq ($(optimize),yes)
 
 	CXXFLAGS += -O3
@@ -387,6 +391,7 @@ ifeq ($(optimize),yes)
 		endif
 	endif
 endif
+endif # debugjs
 
 ### 3.4 Bits
 ifeq ($(bits),64)
