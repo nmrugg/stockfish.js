@@ -190,6 +190,8 @@ namespace {
   // the search depths across the threads.
   typedef std::vector<int> Row;
 
+/// emscripten does not use multiple threads.
+#ifndef EMSCRIPTEN
   const Row HalfDensity[] = {
     {0, 1},
     {1, 0},
@@ -214,6 +216,7 @@ namespace {
   };
 
   const size_t HalfDensitySize = std::extent<decltype(HalfDensity)>::value;
+#endif
 
   EasyMoveManager EasyMove;
   Value DrawValue[COLOR_NB];
@@ -523,7 +526,6 @@ void Thread::search_iteration() {
          && !Signals.stop
          && (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
   {
-#endif
       // Set up the new depths for the helper threads skipping on average every
       // 2nd ply (using a half-density matrix).
       if (!mainThread)
@@ -532,6 +534,7 @@ void Thread::search_iteration() {
           if (row[(rootDepth / ONE_PLY + rootPos.game_ply()) % row.size()])
              continue;
       }
+#endif
 
       // Age out PV variability metric
       if (mainThread)
@@ -621,8 +624,10 @@ void Thread::search_iteration() {
       if (!Signals.stop)
           completedDepth = rootDepth;
 
+#ifndef EMSCRIPTEN
       if (!mainThread)
              continue;
+#endif
 
       // If skill level is enabled and time is up, pick a sub-optimal best move
       if (skill.enabled() && skill.time_to_pick(rootDepth))
@@ -686,8 +691,10 @@ void Thread::search_iteration() {
 #endif
   }
 
+#ifndef EMSCRIPTEN
   if (!mainThread)
       return;
+#endif
 
   // Clear any candidate easy move that wasn't stable for the last search
   // iterations; the second condition prevents consecutive fast moves.
@@ -700,7 +707,8 @@ void Thread::search_iteration() {
                 rootMoves.end(), skill.best_move(multiPV)));
 
 #ifdef EMSCRIPTEN
-  after_search_call(mainThread);
+  if (mainThread)
+      after_search_call(mainThread);
 #endif
 }
 
