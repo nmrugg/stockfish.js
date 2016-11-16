@@ -161,6 +161,12 @@ std::ostream& operator<<(std::ostream& os, Position& pos) {
   }
 #endif
 
+#ifdef CHESSCOM
+  os << "\nLegal uci moves: ";
+  for (const auto& m : MoveList<LEGAL>(pos))
+      os << UCI::move(m, pos.is_chess960()) << " ";
+#endif
+
   return os;
 }
 
