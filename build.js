@@ -3,7 +3,8 @@
 "use strict";
 
 var spawnSync = require("child_process").spawnSync;
-var params = get_params({booleans: ["disableChessCom", "debugjs", "help", "help-all"]});
+var execFileSync = require("child_process").execFileSync;
+var params = get_params({booleans: ["disable-chesscom", "debug-js", "help", "help-all", "force", "force-linking"]});
 var args = ["-C", "src", "build", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
@@ -106,18 +107,22 @@ if (params.help || params["help-all"]) {
     console.log("Build Stockfish with Emscripten");
     console.log("Usage: ./build.js [options]");
     console.log("");
-    console.log("  --force            Always rebuild the entire project");
-    console.log("  --force-linking    Always preforming the final linking step");
-    console.log("  --variants         Comma seperated list of variants to include (default \"all\")");
-    console.log("                     \"none\" (no variants, except for Chess960),");
-    console.log("                     \"anti\", \"atomic\", \"crazyhouse\", \"horde\",");
-    console.log("                     \"kingofthehill\", \"race\", \"relay\", \"3check\"");
-    console.log("  --disableChessCom  Disable changes made specifically for chess.com");
-    console.log("  --debugjs          Compile in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
-    console.log("  --arch             Architecture to build to (default \"js\")");
-    console.log("                     See --help-all for more options");
-    console.log("  --help             build.js's help");
-    console.log("  --help-all         Show Stockfish's Makefile help as well");
+    console.log("  --force             Always rebuild the entire project");
+    console.log("  --force-linking     Always preforming the final linking step");
+    console.log("  --variants          Comma seperated list of variants to include (default \"all\")");
+    console.log("                      \"none\" (no variants, except for Chess960),");
+    console.log("                      \"anti\", \"atomic\", \"crazyhouse\", \"horde\",");
+    console.log("                      \"kingofthehill\", \"race\", \"relay\", \"3check\"");
+    console.log("  --disable-chesscom  Disable changes made specifically for chess.com");
+    console.log("  --debug-js          Compile in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
+    console.log("  --arch              Architecture to build to (default \"js\")");
+    console.log("                      See --help-all for more options");
+    console.log("  --version           Specify Stockfish version number (default: " + stockfishVersion + ")");
+    console.log("                      Use \"date\" to use current date instead");
+    console.log("                      Use \"timestamp\" to use current Unix timestamp");
+    console.log("                      Use \"hash\" to use current git commit hash");
+    console.log("  --help              build.js's help");
+    console.log("  --help-all          Show Stockfish's Makefile help as well");
     console.log("");
     if (params["help-all"]) {
         console.log("");
@@ -145,20 +150,29 @@ if (params.variants && params.variants.toLowerCase() !== "all") {
     args.push("VARIANTS=" + params.variants.toUpperCase());
 }
 
-if (!params.disableChessCom) {
+if (!params["disable-chesscom"]) {
     args.push("CHESSCOM=1");
 }
-if (params.debugjs && buildToJs) {
+if (params["debug-js"] && buildToJs) {
     args.push("DEBUGJS=1");
 }
 
-if (!params.noVerion) {
-    changeVersion(params.verion || stockfishVersion);
+if (String(params.version).toLowerCase() === "timestamp") {
+    params.version = Date.now();
+}
+
+if (String(params.version).toLowerCase() === "hash") {
+    params.version = execFileSync("git", ["rev-parse", "--short=0", "HEAD"], {encoding: "utf8", env: process.env, cwd: __dirname}).trim();
+}
+
+///NOTE: Stockfish will insert the date automatically if no version number is given.
+if (String(params.version).toLowerCase() !== "date") {
+    changeVersion(params.version === true || !params.version ? stockfishVersion : params.version);
 }
 
 child = spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: __dirname});
 
-if (!params.noVerion) {
+if (String(params.version).toLowerCase() !== "date") {
     changeVersion("");
 }
 
