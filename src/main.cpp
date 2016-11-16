@@ -65,7 +65,6 @@ extern "C" void uci_command(const char* cmd) {
 }
 extern "C" void init(int argc, char* argv[]) {
     main(argc, argv);
-    std::cout << "starting commandInit" << std::endl;
     UCI::commandInit();
 }
 #endif

@@ -190,7 +190,6 @@ namespace {
 Position pos;
   void UCI::commandInit() {
     Variant variant = variant_from_name(Options["UCI_Variant"]);
-    sync_cout << variant << sync_endl;
     pos.set(StartFENs[variant], false, variant, &States->back(), Threads.main());
   }
   void UCI::command(const string& cmd) {
