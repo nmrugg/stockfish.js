@@ -195,9 +195,16 @@ Position pos;
   void UCI::command(const string& cmd) {
     string token;
 #else
+#ifdef CHESSCOM
+/// For move_to_san()
+Position pos;
+#endif
 void UCI::loop(int argc, char* argv[]) {
 
+/// See "#ifdef CHESSCOM" above
+#ifndef CHESSCOM
   Position pos;
+#endif
   string token, cmd;
 
   pos.set(StartFENs[CHESS_VARIANT], false, CHESS_VARIANT, &States->back(), Threads.main());
