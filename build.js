@@ -118,18 +118,17 @@ if (params.help || params["help-all"]) {
     console.log("  --arch              Architecture to build to (default \"js\")");
     console.log("                      See --help-all for more options");
     console.log("  --version           Specify Stockfish version number (default: " + stockfishVersion + ")");
-    console.log("                      Use \"date\" to use current date instead");
-    console.log("                      Use \"timestamp\" to use current Unix timestamp");
-    console.log("                      Use \"hash\" to use current git commit hash");
-    console.log("  --help              build.js's help");
+    console.log("                      Use \"date\" to use the current date");
+    console.log("                      Use \"timestamp\" to use the current Unix timestamp");
+    console.log("                      Use \"hash\" to use the current git commit hash");
+    console.log("  --help              Show build.js's help");
     console.log("  --help-all          Show Stockfish's Makefile help as well");
     console.log("");
     if (params["help-all"]) {
         console.log("");
         console.log("******** Makefile Help ********");
         console.log("");
-        console.log("");
-        spawnSync("make", ["-C", "src"], {stdio: [0,1,2], env: process.env, cwd: __dirname});
+        spawnSync("make", {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
     }
     process.exit();
 } else if (params.force) {
