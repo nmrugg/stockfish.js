@@ -76,6 +76,9 @@ void command(const std::string&);
 #else
 void loop(int argc, char* argv[]);
 #endif
+#ifdef CHESSCOM
+const std::string move_to_san(Position& pos, Move m);
+#endif
 std::string value(Value v);
 std::string square(Square s);
 std::string move(Move m, bool chess960);
