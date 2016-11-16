@@ -346,8 +346,6 @@ const string UCI::move_to_san(Position& thisPos, Move m) {
 
   if (thisPos.gives_check(m))
   {
-      //NOTE: Use could use "Position& pos2 = const_cast<Position&>(thisPos);" and then use pos2 instead of thisPos, but that is much slower.
-      //      If we did to that, we could remove "void do_move(Move m, StateInfo& st) const;" and "void undo_move(Move m) const;" from uci.h.
       StateInfo st;
       thisPos.do_move(m, st, pos.gives_check(m));
       san += MoveList<LEGAL>(thisPos).size() ? "+" : "#";
