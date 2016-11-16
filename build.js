@@ -5,7 +5,7 @@
 var spawnSync = require("child_process").spawnSync;
 var execFileSync = require("child_process").execFileSync;
 var params = get_params({booleans: ["disable-chesscom", "debug-js", "help", "help-all", "force", "force-linking"]});
-var args = ["-C", "src", "build", "-j", require("os").cpus().length];
+var args = ["build", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
 var stockfish_path;
@@ -169,7 +169,7 @@ if (String(params.version).toLowerCase() !== "date") {
     changeVersion(params.version === true || !params.version ? stockfishVersion : params.version);
 }
 
-child = spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: __dirname});
+child = spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
 
 if (String(params.version).toLowerCase() !== "date") {
     changeVersion("");
