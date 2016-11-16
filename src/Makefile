@@ -269,6 +269,9 @@ endif
 ifeq ($(CHESSCOM),1)
 	CXXFLAGS += -DCHESSCOM
 endif
+ifeq ($(SYNC),1)
+	CXXFLAGS += -DSYNC
+endif
 
 ### Allow overwriting CXX from command line
 ifdef COMPCXX

@@ -191,7 +191,7 @@ namespace {
   typedef std::vector<int> Row;
 
 /// emscripten does not use multiple threads.
-#ifndef EMSCRIPTEN
+#if !defined(EMSCRIPTEN) || defined(SYNC)
   const Row HalfDensity[] = {
     {0, 1},
     {1, 0},
@@ -236,7 +236,7 @@ namespace {
 
 } // namespace
 
-#ifdef EMSCRIPTEN
+#if defined(EMSCRIPTEN) && !defined(SYNC)
 void search_iteration_call(void *thread) {
     ((Thread *)thread)->search_iteration();
 }
@@ -322,14 +322,14 @@ template uint64_t Search::perft<true>(Position&, Depth);
 
 /// MainThread::search() is called by the main thread when the program receives
 /// the UCI 'go' command. It searches from the root position and outputs the "bestmove".
-#ifdef EMSCRIPTEN
+#if defined(EMSCRIPTEN) && !defined(SYNC)
 Color us_;
 #endif
 
 void MainThread::search() {
 
   Color us = rootPos.side_to_move();
-#ifdef EMSCRIPTEN
+#if defined(EMSCRIPTEN) && !defined(SYNC)
   us_ = us;
 #endif
   Time.init(Limits, us, rootPos.game_ply());
@@ -374,7 +374,7 @@ void MainThread::search() {
       Thread::search(); // Let's start searching!
   }
 
-#ifdef EMSCRIPTEN
+#if defined(EMSCRIPTEN) && !defined(SYNC)
 }
 
 void MainThread::after_search() {
@@ -394,7 +394,7 @@ void MainThread::after_search() {
   if (!Signals.stop && (Limits.ponder || Limits.infinite))
   {
       Signals.stopOnPonderhit = true;
-      #ifdef EMSCRIPTEN
+      #if defined(EMSCRIPTEN) && !defined(SYNC)
         emscripten_async_call(after_search_call, this, 30); /// Loop while waiting for "stop" signal.
         return;
       #else
@@ -444,7 +444,7 @@ void MainThread::after_search() {
 // repeatedly with increasing depth until the allocated thinking time has been
 // consumed, the user stops the search, or the maximum search depth is reached.
 
-#ifdef EMSCRIPTEN
+#if defined(EMSCRIPTEN) && !defined(SYNC)
 Stack stack[MAX_PLY+7];
 Stack *ss_; // To allow referencing (ss-5) and (ss+2)
 Value bestValue_, alpha_, beta_, delta_;
@@ -455,8 +455,7 @@ Skill *skill_;
 #endif
 
 void Thread::search() {
-
-  #ifdef EMSCRIPTEN
+  #if defined(EMSCRIPTEN) && !defined(SYNC)
   Stack *ss = stack+5; // To allow referencing (ss-5) and (ss+2)
   #else
   Stack stack[MAX_PLY+7], *ss = stack+5; // To allow referencing (ss-5) and (ss+2)
@@ -491,7 +490,7 @@ void Thread::search() {
   multiPV = std::min(multiPV, rootMoves.size());
 
 
-#ifdef EMSCRIPTEN
+#if defined(EMSCRIPTEN) && !defined(SYNC)
   bestValue_ = bestValue;
   alpha_ = alpha;
   beta_ = beta;
@@ -676,7 +675,7 @@ void Thread::search_iteration() {
               EasyMove.clear();
       }
 
-#ifdef EMSCRIPTEN
+#if defined(EMSCRIPTEN) && !defined(SYNC)
         bestValue_ = bestValue;
         alpha_ = alpha;
         beta_ = beta;
@@ -706,7 +705,7 @@ void Thread::search_iteration() {
       std::swap(rootMoves[0], *std::find(rootMoves.begin(),
                 rootMoves.end(), skill.best_move(multiPV)));
 
-#ifdef EMSCRIPTEN
+#if defined(EMSCRIPTEN) && !defined(SYNC)
   if (mainThread)
       after_search_call(mainThread);
 #endif

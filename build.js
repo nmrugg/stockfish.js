@@ -117,6 +117,7 @@ if (params.help || params["help-all"]) {
     console.log("  --debug-js          Compile in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
     console.log("  --arch              Architecture to build to (default \"js\")");
     console.log("                      See --help-all for more options");
+    console.log("  --sync              Compile Stockfish to run searches synchronously (js only)");
     console.log("  --version           Specify Stockfish version number (default: " + stockfishVersion + ")");
     console.log("                      Use \"date\" to use the current date");
     console.log("                      Use \"timestamp\" to use the current Unix timestamp");
@@ -152,12 +153,17 @@ if (params.variants && params.variants !== true && params.variants.toLowerCase()
 if (!params["disable-chesscom"]) {
     args.push("CHESSCOM=1");
 }
+
 if (params["debug-js"]) {
     if (buildToJs) {
         args.push("DEBUGJS=1");
     } else {
         console.warn("WARN: Ignoring --debug-js");
     }
+}
+
+if (params["sync"]) {
+    args.push("SYNC=1");
 }
 
 if (String(params.version).toLowerCase() === "timestamp") {
