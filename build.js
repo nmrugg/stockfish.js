@@ -12,6 +12,7 @@ var data;
 var license = fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
 var buildToJs;
 var child;
+var stockfishVersion = "8";
 
 function get_params(options, argv)
 {
@@ -69,6 +70,20 @@ function get_params(options, argv)
     }
     
     return params;
+}
+
+function changeVersion(version)
+{
+    var filePath = p.join(__dirname, "src", "misc.cpp");
+    var data = fs.readFileSync(filePath, "utf8");
+    
+    data = data.replace(/(const string Version = ")[^\"]*(";)/, "$1" + version + "$2");
+    
+    try {
+        fs.writeFileSync(filePath, data);
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 
@@ -137,7 +152,15 @@ if (params.debugjs && buildToJs) {
     args.push("DEBUGJS=1");
 }
 
+if (!params.noVerion) {
+    changeVersion(params.verion || stockfishVersion);
+}
+
 child = spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: __dirname});
+
+if (!params.noVerion) {
+    changeVersion("");
+}
 
 /// `make` does not throw an error when encountering errors, so we need to do that manually.
 if (!Number(child.status) !== 0) {
