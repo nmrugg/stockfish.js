@@ -530,24 +530,7 @@ void Thread::search_iteration() {
       {
           const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
           if (row[(rootDepth / ONE_PLY + rootPos.game_ply()) % row.size()])
-#ifdef EMSCRIPTEN
-          {
-            // all of these are unnecessary
-             bestValue_ = bestValue;
-             alpha_ = alpha;
-             beta_ = beta;
-             delta_ = delta;
-             easyMove_ = easyMove;
-             mainThread_ = mainThread;
-             ss_ = ss;
-             multiPV_ = multiPV;
-             skill_ = &skill;
-             emscripten_async_call(search_iteration_call, this, -1);
-             return;
-          }
-#else
              continue;
-#endif
       }
 
       // Age out PV variability metric
@@ -639,23 +622,7 @@ void Thread::search_iteration() {
           completedDepth = rootDepth;
 
       if (!mainThread)
-#ifdef EMSCRIPTEN
-      {
-             bestValue_ = bestValue;
-             alpha_ = alpha;
-             beta_ = beta;
-             delta_ = delta;
-             easyMove_ = easyMove;
-             mainThread_ = mainThread;
-             ss_ = ss;
-             multiPV_ = multiPV;
-             skill_ = &skill;
-             emscripten_async_call(search_iteration_call, this, -1);
-             return;
-      }
-#else
              continue;
-#endif
 
       // If skill level is enabled and time is up, pick a sub-optimal best move
       if (skill.enabled() && skill.time_to_pick(rootDepth))
@@ -720,23 +687,7 @@ void Thread::search_iteration() {
   }
 
   if (!mainThread)
-#ifdef EMSCRIPTEN
-  {
-      bestValue_ = bestValue;
-      alpha_ = alpha;
-      beta_ = beta;
-      delta_ = delta;
-      easyMove_ = easyMove;
-      mainThread_ = mainThread;
-      ss_ = ss;
-      multiPV_ = multiPV;
-      skill_ = &skill;
-      emscripten_async_call(search_iteration_call, this, -1);
       return;
-  }
-#else
-      return;
-#endif
 
   // Clear any candidate easy move that wasn't stable for the last search
   // iterations; the second condition prevents consecutive fast moves.
@@ -749,8 +700,7 @@ void Thread::search_iteration() {
                 rootMoves.end(), skill.best_move(multiPV)));
 
 #ifdef EMSCRIPTEN
-  if (mainThread)
-      after_search_call(mainThread);
+  after_search_call(mainThread);
 #endif
 }
 
