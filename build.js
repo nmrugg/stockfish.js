@@ -7,7 +7,7 @@ var params = get_params({booleans: ["disableChessCom", "debugjs", "help", "help-
 var args = ["-C", "src", "build", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
-var stockfish_path = p.join(__dirname, "src", "stockfish.js");
+var stockfish_path;
 var data;
 var license = fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
 var buildToJs;
@@ -80,13 +80,19 @@ if (params.arch) {
     buildToJs = true;
 }
 
+if (buildToJs) {
+    stockfish_path = p.join(__dirname, "src", "stockfish.js");
+} else {
+    stockfish_path = p.join(__dirname, "src", "stockfish");
+}
+
 if (params.help || params["help-all"]) {
     console.log("");
     console.log("Build Stockfish with Emscripten");
     console.log("Usage: ./build.js [options]");
     console.log("");
     console.log("  --force            Always rebuild the entire project");
-    console.log("  --force-js         Always recompile the JS code");
+    console.log("  --force-linking    Always preforming the final linking step");
     console.log("  --variants         Comma seperated list of variants to include (default \"all\")");
     console.log("                     \"none\" (no variants, except for Chess960),");
     console.log("                     \"anti\", \"atomic\", \"crazyhouse\", \"horde\",");
@@ -108,8 +114,8 @@ if (params.help || params["help-all"]) {
     process.exit();
 } else if (params.force) {
     args.push("--always-make");
-} else if (params["force-js"]) {
-    ///NOTE: --force will also recompile the js, so there's no need to have both --force and --force-js.
+} else if (params["force-linking"]) {
+    ///NOTE: --force will also link as well, so both are not needed.
     try {
         fs.unlinkSync(stockfish_path);
     } catch (e) {
