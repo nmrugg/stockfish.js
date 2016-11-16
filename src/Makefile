@@ -268,6 +268,8 @@ ifeq ($(COMP),emscripten)
 endif
 ifeq ($(CHESSCOM),1)
 	CXXFLAGS += -DCHESSCOM
+	#NOTE: uci.cpp uses shadowing for simplicity.
+	CXXFLAGS:=$(filter-out -Wshadow,$(CXXFLAGS))
 endif
 ifeq ($(SYNC),1)
 	CXXFLAGS += -DSYNC
