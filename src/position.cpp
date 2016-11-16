@@ -1874,12 +1874,26 @@ bool Position::see_ge(Move m, Value v) const {
 /// Position::is_draw() tests whether the position is drawn by 50-move rule
 /// or by repetition. It does not detect stalemates.
 
+
 bool Position::is_draw() const {
 
   if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
       return true;
 
   StateInfo* stp = st;
+#ifdef CHESSCOM
+  int stopAt = std::min(st->rule50, st->pliesFromNull);
+  int repCount = 0;
+
+  while (stopAt > 1 && (stp = stp->previous->previous)) {
+      if (stp->key == st->key) {
+          if (++repCount == 2) {
+              return true;
+          }
+      }
+      stopAt -= 2;
+  }
+#else
   for (int i = 2, rep = 1, e = std::min(st->rule50, st->pliesFromNull); i <= e; i += 2)
   {
       stp = stp->previous->previous;
@@ -1887,7 +1901,7 @@ bool Position::is_draw() const {
       if (stp->key == st->key && (++rep >= 2 + (gamePly - i < thisThread->rootPos.game_ply())))
           return true; // Draw at first repetition in search, and second repetition in game tree.
   }
-
+#endif
   return false;
 }
 
