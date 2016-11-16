@@ -73,6 +73,21 @@ function get_params(options, argv)
     return params;
 }
 
+
+function color(color_code, str)
+{
+    if (process.stdout.isTTY) {
+        str = "\u001B[" + color_code + "m" + str + "\u001B[0m";
+    }
+    
+    return str;
+}
+
+function warn(mixed)
+{
+    console.warn(color(33, mixed));
+}
+
 function changeVersion(version)
 {
     var filePath = p.join(__dirname, "src", "misc.cpp");
@@ -158,12 +173,16 @@ if (params["debug-js"]) {
     if (buildToJs) {
         args.push("DEBUGJS=1");
     } else {
-        console.warn("WARN: Ignoring --debug-js");
+        warn("WARN: Ignoring --debug-js");
     }
 }
 
 if (params["sync"]) {
-    args.push("SYNC=1");
+    if (buildToJs) {
+        args.push("SYNC=1");
+    } else {
+        warn("WARN: Ignoring --sync");
+    }
 }
 
 if (String(params.version).toLowerCase() === "timestamp") {
