@@ -36,7 +36,9 @@
 #include "tt.h"
 #include "uci.h"
 
-#ifndef EMSCRIPTEN
+#ifdef EMSCRIPTEN
+#include <emscripten.h>
+#else
 #include "syzygy/tbprobe.h"
 #endif
 
@@ -231,6 +233,15 @@ namespace {
 
 } // namespace
 
+#ifdef EMSCRIPTEN
+void search_iteration_call(void *thread) {
+    ((Thread *)thread)->search_iteration();
+}
+
+void after_search_call(void *mainThread) {
+    ((MainThread *)mainThread)->after_search();
+}
+#endif
 
 /// Search::init() is called during startup to initialize various lookup tables
 
@@ -308,10 +319,16 @@ template uint64_t Search::perft<true>(Position&, Depth);
 
 /// MainThread::search() is called by the main thread when the program receives
 /// the UCI 'go' command. It searches from the root position and outputs the "bestmove".
+#ifdef EMSCRIPTEN
+Color us_;
+#endif
 
 void MainThread::search() {
 
   Color us = rootPos.side_to_move();
+#ifdef EMSCRIPTEN
+  us_ = us;
+#endif
   Time.init(Limits, us, rootPos.game_ply());
 
   int contempt = Options["Contempt"] * PawnValueEg / 100; // From centipawns
@@ -354,6 +371,13 @@ void MainThread::search() {
       Thread::search(); // Let's start searching!
   }
 
+#ifdef EMSCRIPTEN
+}
+
+void MainThread::after_search() {
+    Color us = us_;
+#endif
+
   // When playing in 'nodes as time' mode, subtract the searched nodes from
   // the available ones before exiting.
   if (Limits.npmsec)
@@ -367,7 +391,12 @@ void MainThread::search() {
   if (!Signals.stop && (Limits.ponder || Limits.infinite))
   {
       Signals.stopOnPonderhit = true;
-      wait(Signals.stop);
+      #ifdef EMSCRIPTEN
+        emscripten_async_call(after_search_call, this, 30); /// Loop while waiting for "stop" signal.
+        return;
+      #else
+          wait(Signals.stop);
+      #endif
   }
 
   // Stop the threads if not already stopped
@@ -412,9 +441,23 @@ void MainThread::search() {
 // repeatedly with increasing depth until the allocated thinking time has been
 // consumed, the user stops the search, or the maximum search depth is reached.
 
+#ifdef EMSCRIPTEN
+Stack stack[MAX_PLY+7];
+Stack *ss_; // To allow referencing (ss-5) and (ss+2)
+Value bestValue_, alpha_, beta_, delta_;
+Move easyMove_ = MOVE_NONE;
+MainThread* mainThread_;
+size_t multiPV_;
+Skill *skill_;
+#endif
+
 void Thread::search() {
 
+  #ifdef EMSCRIPTEN
+  Stack *ss = stack+5; // To allow referencing (ss-5) and (ss+2)
+  #else
   Stack stack[MAX_PLY+7], *ss = stack+5; // To allow referencing (ss-5) and (ss+2)
+  #endif
   Value bestValue, alpha, beta, delta;
   Move easyMove = MOVE_NONE;
   MainThread* mainThread = (this == Threads.main() ? Threads.main() : nullptr);
@@ -444,18 +487,67 @@ void Thread::search() {
 
   multiPV = std::min(multiPV, rootMoves.size());
 
+
+#ifdef EMSCRIPTEN
+  bestValue_ = bestValue;
+  alpha_ = alpha;
+  beta_ = beta;
+  delta_ = delta;
+  easyMove_ = easyMove;
+  mainThread_ = mainThread;
+  ss_ = ss;
+  multiPV_ = multiPV;
+  skill_ = &skill;
+
+  search_iteration();
+}
+void Thread::search_iteration() {
+
+    Value bestValue = bestValue_;
+    Value alpha = alpha_;
+    Value beta = beta_;
+    Value delta = delta_;
+    Move easyMove = easyMove_;
+    MainThread* mainThread = mainThread_;
+    Stack *ss = ss_;
+    Skill skill = *skill_;
+    size_t multiPV = multiPV_;
+
+  if (   (rootDepth += ONE_PLY) < DEPTH_MAX
+         && !Signals.stop
+         && (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
+  {
+#else
   // Iterative deepening loop until requested to stop or the target depth is reached
   while (   (rootDepth += ONE_PLY) < DEPTH_MAX
          && !Signals.stop
          && (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
   {
+#endif
       // Set up the new depths for the helper threads skipping on average every
       // 2nd ply (using a half-density matrix).
       if (!mainThread)
       {
           const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
           if (row[(rootDepth / ONE_PLY + rootPos.game_ply()) % row.size()])
+#ifdef EMSCRIPTEN
+          {
+            // all of these are unnecessary
+             bestValue_ = bestValue;
+             alpha_ = alpha;
+             beta_ = beta;
+             delta_ = delta;
+             easyMove_ = easyMove;
+             mainThread_ = mainThread;
+             ss_ = ss;
+             multiPV_ = multiPV;
+             skill_ = &skill;
+             emscripten_async_call(search_iteration_call, this, -1);
+             return;
+          }
+#else
              continue;
+#endif
       }
 
       // Age out PV variability metric
@@ -547,7 +639,23 @@ void Thread::search() {
           completedDepth = rootDepth;
 
       if (!mainThread)
-          continue;
+#ifdef EMSCRIPTEN
+      {
+             bestValue_ = bestValue;
+             alpha_ = alpha;
+             beta_ = beta;
+             delta_ = delta;
+             easyMove_ = easyMove;
+             mainThread_ = mainThread;
+             ss_ = ss;
+             multiPV_ = multiPV;
+             skill_ = &skill;
+             emscripten_async_call(search_iteration_call, this, -1);
+             return;
+      }
+#else
+             continue;
+#endif
 
       // If skill level is enabled and time is up, pick a sub-optimal best move
       if (skill.enabled() && skill.time_to_pick(rootDepth))
@@ -595,10 +703,40 @@ void Thread::search() {
           else
               EasyMove.clear();
       }
+
+#ifdef EMSCRIPTEN
+        bestValue_ = bestValue;
+        alpha_ = alpha;
+        beta_ = beta;
+        delta_ = delta;
+        easyMove_ = easyMove;
+        mainThread_ = mainThread;
+        ss_ = ss;
+        multiPV_ = multiPV;
+        skill_ = &skill;
+        emscripten_async_call(search_iteration_call, this, -1);
+        return;
+#endif
   }
 
   if (!mainThread)
+#ifdef EMSCRIPTEN
+  {
+      bestValue_ = bestValue;
+      alpha_ = alpha;
+      beta_ = beta;
+      delta_ = delta;
+      easyMove_ = easyMove;
+      mainThread_ = mainThread;
+      ss_ = ss;
+      multiPV_ = multiPV;
+      skill_ = &skill;
+      emscripten_async_call(search_iteration_call, this, -1);
       return;
+  }
+#else
+      return;
+#endif
 
   // Clear any candidate easy move that wasn't stable for the last search
   // iterations; the second condition prevents consecutive fast moves.
@@ -609,6 +747,11 @@ void Thread::search() {
   if (skill.enabled())
       std::swap(rootMoves[0], *std::find(rootMoves.begin(),
                 rootMoves.end(), skill.best_move(multiPV)));
+
+#ifdef EMSCRIPTEN
+  if (mainThread)
+      after_search_call(mainThread);
+#endif
 }
 
 
