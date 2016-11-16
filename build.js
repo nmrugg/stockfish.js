@@ -145,7 +145,7 @@ if (params.help || params["help-all"]) {
     }
 }
 
-if (params.variants && params.variants.toLowerCase() !== "all") {
+if (params.variants && params.variants !== true && params.variants.toLowerCase() !== "all") {
     args.push("VARIANTS=" + params.variants.toUpperCase());
 }
 
@@ -175,6 +175,7 @@ if (String(params.version).toLowerCase() !== "date") {
 
 child = spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
 
+/// Reset version string.
 if (String(params.version).toLowerCase() !== "date") {
     changeVersion("");
 }
