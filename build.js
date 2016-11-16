@@ -11,6 +11,7 @@ var stockfish_path = p.join(__dirname, "src", "stockfish.js");
 var data;
 var license = fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
 var buildToJs;
+var child;
 
 function get_params(options, argv)
 {
@@ -130,7 +131,12 @@ if (params.debugjs && buildToJs) {
     args.push("DEBUGJS=1");
 }
 
-spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: __dirname});
+child = spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: __dirname});
+
+/// `make` does not throw an error when encountering errors, so we need to do that manually.
+if (!Number(child.status) !== 0) {
+    process.exit(Number(child.status));
+}
 
 if (buildToJs) {
     data = fs.readFileSync(stockfish_path, "utf8");
