@@ -152,8 +152,12 @@ if (params.variants && params.variants.toLowerCase() !== "all") {
 if (!params["disable-chesscom"]) {
     args.push("CHESSCOM=1");
 }
-if (params["debug-js"] && buildToJs) {
-    args.push("DEBUGJS=1");
+if (params["debug-js"]) {
+    if (buildToJs) {
+        args.push("DEBUGJS=1");
+    } else {
+        console.warn("WARN: Ignoring --debug-js");
+    }
 }
 
 if (String(params.version).toLowerCase() === "timestamp") {
