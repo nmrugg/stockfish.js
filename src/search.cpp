@@ -660,12 +660,18 @@ void Thread::search_iteration() {
                   || Time.elapsed() > Time.optimum() * unstablePvFactor * improvingFactor / 628
                   || (mainThread->easyMovePlayed = doEasyMove, doEasyMove))
               {
+#ifdef CHESSCOM
+                if (rootDepth >= Limits.mindepth) {
+#endif
                   // If we are allowed to ponder do not stop the search now but
                   // keep pondering until the GUI sends "ponderhit" or "stop".
                   if (Limits.ponder)
                       Signals.stopOnPonderhit = true;
                   else
                       Signals.stop = true;
+#ifdef CHESSCOM
+                }
+#endif
               }
           }
 
@@ -1899,6 +1905,9 @@ moves_loop: // When in check search starts from here
     if (   (Limits.use_time_management() && elapsed > Time.maximum() - 10)
         || (Limits.movetime && elapsed >= Limits.movetime)
         || (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
+#ifdef CHESSCOM
+        if (Threads.main()->rootDepth >= Limits.mindepth)
+#endif
             Signals.stop = true;
   }
 

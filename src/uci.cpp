@@ -163,6 +163,9 @@ namespace {
             while (is >> token)
                 limits.searchmoves.push_back(UCI::to_move(pos, token));
 
+#ifdef CHESSCOM
+        else if (token == "mindepth")  is >> limits.mindepth;
+#endif
         else if (token == "wtime")     is >> limits.time[WHITE];
         else if (token == "btime")     is >> limits.time[BLACK];
         else if (token == "winc")      is >> limits.inc[WHITE];
@@ -174,7 +177,6 @@ namespace {
         else if (token == "mate")      is >> limits.mate;
         else if (token == "infinite")  limits.infinite = 1;
         else if (token == "ponder")    limits.ponder = 1;
-
     Threads.start_thinking(pos, States, limits);
   }
 
