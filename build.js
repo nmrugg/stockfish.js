@@ -83,9 +83,9 @@ function color(color_code, str)
     return str;
 }
 
-function warn(mixed)
+function warn(str)
 {
-    console.warn(color(33, mixed));
+    console.warn(color(33, "WARN: " + str));
 }
 
 function changeVersion(version)
@@ -129,11 +129,15 @@ if (params.help || params["help-all"]) {
     console.log("                      \"anti\", \"atomic\", \"crazyhouse\", \"horde\",");
     console.log("                      \"kingofthehill\", \"race\", \"relay\", \"3check\"");
     console.log("  --disable-chesscom  Disable changes made specifically for chess.com");
-    console.log("  --debug-js          Compile in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
+    console.log("                      This includes showing SAN moves, fixing three-fold repetition, and");
+    console.log("                      addition of \"mindepth\" option to the \"go\" command");
+    console.log("  --sync              Compile Stockfish to run searches synchronously (JS only)");
+    console.log("  --debug-js          Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
     console.log("  --arch              Architecture to build to (default \"js\")");
     console.log("                      \"x86-64-bmi2\" is likely the fastest");
     console.log("                      See --help-all for more options");
-    console.log("  --sync              Compile Stockfish to run searches synchronously (js only)");
+    console.log("  --comp              Compiler to build C code with");
+    console.log("  --compcxx           Compiler to build C++ code with");
     console.log("  --version           Specify Stockfish version number (default: " + stockfishVersion + ")");
     console.log("                      Use \"date\" to use the current date");
     console.log("                      Use \"timestamp\" to use the current Unix timestamp");
@@ -174,16 +178,23 @@ if (params["debug-js"]) {
     if (buildToJs) {
         args.push("DEBUGJS=1");
     } else {
-        warn("WARN: Ignoring --debug-js");
+        warn("Ignoring --debug-js");
     }
 }
 
-if (params["sync"]) {
+if (params.sync) {
     if (buildToJs) {
         args.push("SYNC=1");
     } else {
-        warn("WARN: Ignoring --sync");
+        warn("Ignoring --sync");
     }
+}
+
+if (params.comp) {
+    args.push("COMP=" + params.comp);
+}
+if (params.compcxx) {
+    args.push("COMPCXX=" + params.compcxx);
 }
 
 if (String(params.version).toLowerCase() === "timestamp") {
