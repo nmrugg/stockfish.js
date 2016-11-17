@@ -234,7 +234,7 @@ if (String(params.version).toLowerCase() !== "date") {
 }
 
 /// `make` does not throw an error when encountering errors, so we need to do that manually.
-if (!Number(child.status) !== 0) {
+if (Number(child.status) !== 0) {
     process.exit(Number(child.status));
 }
 
