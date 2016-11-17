@@ -364,6 +364,10 @@ void MainThread::search() {
           score = rootPos.is_anti_loss() ? -VALUE_MATE : VALUE_MATE;
 #endif
       sync_cout << "info depth 0 score " << UCI::value(score) << sync_endl;
+#if defined(EMSCRIPTEN) && !defined(SYNC)
+    /// It's already checkmate, so we need to finish.
+    after_search_call(this);
+#endif
   }
   else
   {
