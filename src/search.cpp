@@ -43,7 +43,6 @@
 #endif
 
 namespace Search {
-
   SignalsType Signals;
   LimitsType Limits;
 }
@@ -363,7 +362,11 @@ void MainThread::search() {
       if (rootPos.is_anti())
           score = rootPos.is_anti_loss() ? -VALUE_MATE : VALUE_MATE;
 #endif
+#ifdef CHESSCOM
+      sync_cout << "info depth 0 score " << UCI::value(score) << " baseTurn " << ((rootPos.side_to_move() == 0) ? "w" : "b") << sync_endl;
+#else
       sync_cout << "info depth 0 score " << UCI::value(score) << sync_endl;
+#endif
 #if defined(EMSCRIPTEN) && !defined(SYNC)
     /// It's already checkmate, so we need to finish.
     after_search_call(this);
@@ -435,11 +438,31 @@ void MainThread::after_search() {
       sync_cout << UCI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
 
   // Best move could be MOVE_NONE when searching on a terminal position
+
   sync_cout << "bestmove " << UCI::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
+#ifdef CHESSCOM
+  sync_cout << " bestmoveSan " << UCI::move_to_san(rootPos, rootMoves[0].pv[0]);
+#endif
 
   if (bestThread->rootMoves[0].pv.size() > 1 || bestThread->rootMoves[0].extract_ponder_from_tt(rootPos))
+#ifdef CHESSCOM
+    {
+#endif
       std::cout << " ponder " << UCI::move(bestThread->rootMoves[0].pv[1], rootPos.is_chess960());
-
+#ifdef CHESSCOM
+      StateInfo st;
+      Position moveTrackingPos = rootPos;
+      Move m = rootMoves[0].pv[0];
+      moveTrackingPos.do_move(m, st, moveTrackingPos.gives_check(m));
+      sync_cout << " ponderSan " << UCI::move_to_san(moveTrackingPos, rootMoves[0].pv[1]);
+    }
+  sync_cout << " baseTurn " << ((rootPos.side_to_move() == 0) ? "w" : "b");
+  if (rootMoves[0] == MOVE_NONE) {
+    sync_cout << " score " << UCI::value(rootPos.checkers() ? rootMoves[0].score : VALUE_DRAW);
+  } else {
+    sync_cout << " score " << UCI::value(rootMoves[0].score);
+  }
+#endif
   std::cout << sync_endl;
 }
 
@@ -1981,6 +2004,9 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
          << " depth "    << d / ONE_PLY
          << " seldepth " << pos.this_thread()->maxPly
          << " multipv "  << i + 1
+#ifdef CHESSCOM
+         << " baseTurn "  << ((pos.side_to_move() == 0) ? "w" : "b")
+#endif
          << " score "    << UCI::value(v);
 
 #ifndef EMSCRIPTEN
@@ -2006,6 +2032,19 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
 
       for (Move m : rootMoves[i].pv)
           ss << " " << UCI::move(m, pos.is_chess960());
+
+#ifdef CHESSCOM
+        StateInfo st;
+        Position moveTrackingPos = pos.this_thread()->rootPos;
+        Move m;
+
+        ss << " pvSan "     << UCI::move_to_san(moveTrackingPos, rootMoves[i].pv[0]);
+        for (size_t j = 1; j < rootMoves[i].pv.size(); ++j) {
+            m = rootMoves[i].pv[j - 1];
+            moveTrackingPos.do_move(m, st, moveTrackingPos.gives_check(m));
+            ss << " " << UCI::move_to_san(moveTrackingPos, rootMoves[i].pv[j]);
+        }
+#endif
   }
 
   return ss.str();

@@ -83,8 +83,10 @@ public:
   static void init();
 
   Position() = default;
+#ifndef CHESSCOM
   Position(const Position&) = delete;
   Position& operator=(const Position&) = delete;
+#endif
 
   // FEN string input/output
   Position& set(const std::string& fenStr, bool isChess960, Variant v, StateInfo* si, Thread* th);
