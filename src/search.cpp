@@ -485,7 +485,12 @@ void Thread::search() {
   // When playing with strength handicap enable MultiPV search that we will
   // use behind the scenes to retrieve a set of possible moves.
   if (skill.enabled())
+#ifdef CHESSCOM
+/// The bigger multiPV is, the more bad moves will be avaiable to choose from.
+      multiPV = std::max(multiPV, (size_t)5);
+#else
       multiPV = std::max(multiPV, (size_t)4);
+#endif
 
   multiPV = std::min(multiPV, rootMoves.size());
 
@@ -1861,11 +1866,32 @@ moves_loop: // When in check search starts from here
     int weakness = 125 - level * 9/4;
     int maxScore = -VALUE_INFINITE;
 
+#ifdef CHESSCOM
+    weakness = 120 - 2 * level;
+#endif
+
     // Choose best move. For each move score we add two terms, both dependent on
     // weakness. One is deterministic and bigger for weaker levels, and one is
     // random. Then we choose the move with the resulting highest score.
     for (size_t i = 0; i < multiPV; ++i)
     {
+#ifdef CHESSCOM
+        int score = rootMoves[i].score;
+
+        // Don't allow crazy blunders even at very low skills
+        if (i > 0 && rootMoves[i - 1].score > score + (Options["Skill Level Maximum Error"] * PawnValueMg) / 100)
+            break;
+
+        // This is our magic formula
+        score += (  weakness * int(topScore - score)
+                  + delta * (rng.rand<unsigned>() % weakness)) / Options["Skill Level Probability"];
+
+        if (score > maxScore)
+        {
+            maxScore = score;
+            best = rootMoves[i].pv[0];
+        }
+#else
         // This is our magic formula
         int push = (  weakness * int(topScore - rootMoves[i].score)
                     + delta * (rng.rand<unsigned>() % weakness)) / 128;
@@ -1875,6 +1901,7 @@ moves_loop: // When in check search starts from here
             maxScore = rootMoves[i].score + push;
             best = rootMoves[i].pv[0];
         }
+#endif
     }
 
     return best;
