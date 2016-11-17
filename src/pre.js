@@ -1,6 +1,6 @@
 /**
- * Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
- * Copyright (C) 2008-2014 Marco Costalba, Joona Kiiski, Tord Romstad (Stockfish authors)
+ * Copyright (C) Tord Romstad (Glaurung author)
+ * Copyright (C) Marco Costalba, Joona Kiiski, Tord Romstad (Stockfish authors)
  * Copyright (C) Nathan Rugg (Stockfish.js)
  * Copyright (C) Phillip Albanese - https://github.com/philososaur
  *
