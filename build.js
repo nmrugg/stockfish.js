@@ -131,6 +131,7 @@ if (params.help || params["help-all"]) {
     console.log("  --disable-chesscom  Disable changes made specifically for chess.com");
     console.log("  --debug-js          Compile in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
     console.log("  --arch              Architecture to build to (default \"js\")");
+    console.log("                      \"x86-64-bmi2\" is likely the fastest");
     console.log("                      See --help-all for more options");
     console.log("  --sync              Compile Stockfish to run searches synchronously (js only)");
     console.log("  --version           Specify Stockfish version number (default: " + stockfishVersion + ")");
