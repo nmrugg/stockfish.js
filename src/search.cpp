@@ -455,11 +455,11 @@ Skill *skill_;
 #endif
 
 void Thread::search() {
-  #if defined(EMSCRIPTEN) && !defined(SYNC)
+#if defined(EMSCRIPTEN) && !defined(SYNC)
   Stack *ss = stack+5; // To allow referencing (ss-5) and (ss+2)
-  #else
+#else
   Stack stack[MAX_PLY+7], *ss = stack+5; // To allow referencing (ss-5) and (ss+2)
-  #endif
+#endif
   Value bestValue, alpha, beta, delta;
   Move easyMove = MOVE_NONE;
   MainThread* mainThread = (this == Threads.main() ? Threads.main() : nullptr);
@@ -712,8 +712,7 @@ void Thread::search_iteration() {
                 rootMoves.end(), skill.best_move(multiPV)));
 
 #if defined(EMSCRIPTEN) && !defined(SYNC)
-  if (mainThread)
-      after_search_call(mainThread);
+  after_search_call(mainThread);
 #endif
 }
 
