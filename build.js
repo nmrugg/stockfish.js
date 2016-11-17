@@ -4,7 +4,7 @@
 
 var spawnSync = require("child_process").spawnSync;
 var execFileSync = require("child_process").execFileSync;
-var params = get_params({booleans: ["disable-chesscom", "debug-js", "help", "help-all", "force", "force-linking"]});
+var params = get_params({booleans: ["disable-chesscom", "debug-js", "help", "help-all", "force", "force-linking", "sync"]});
 var args = ["build", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
