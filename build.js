@@ -88,6 +88,21 @@ function warn(str)
     console.warn(color(33, "WARN: " + str));
 }
 
+function hightlight(str)
+{
+    return color(33, str);
+}
+
+function note(str)
+{
+    return color(36, str);
+}
+
+function bold(str)
+{
+    return color(1, str);
+}
+
 function changeVersion(version)
 {
     var filePath = p.join(__dirname, "src", "misc.cpp");
@@ -119,35 +134,35 @@ if (buildToJs) {
 
 if (params.help || params["help-all"]) {
     console.log("");
-    console.log("Build Stockfish with Emscripten");
-    console.log("Usage: ./build.js [options]");
+    console.log(bold("Build the Stockfish Chess Engine"));
+    console.log("Usage: ./build.js [" + hightlight("options") + "]");
     console.log("");
-    console.log("  --force             Always rebuild the entire project");
-    console.log("  --force-linking     Always preforming the final linking step");
-    console.log("  --variants          Comma seperated list of variants to include (default \"all\")");
-    console.log("                      \"none\" (no variants, except for Chess960),");
-    console.log("                      \"anti\", \"atomic\", \"crazyhouse\", \"horde\",");
-    console.log("                      \"kingofthehill\", \"race\", \"relay\", \"3check\"");
-    console.log("  --disable-chesscom  Disable changes made specifically for chess.com");
-    console.log("                      This includes showing SAN moves, fixing three-fold repetition, and");
-    console.log("                      addition of \"mindepth\" option to the \"go\" command");
-    console.log("  --sync              Compile Stockfish to run searches synchronously (JS only)");
-    console.log("  --debug-js          Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
-    console.log("  --arch              Architecture to build to (default \"js\")");
-    console.log("                      \"x86-64-bmi2\" is likely the fastest");
-    console.log("                      See --help-all for more options");
-    console.log("  --comp              Compiler to build C code with");
-    console.log("  --compcxx           Compiler to build C++ code with");
-    console.log("  --version           Specify Stockfish version number (default: " + stockfishVersion + ")");
-    console.log("                      Use \"date\" to use the current date");
-    console.log("                      Use \"timestamp\" to use the current Unix timestamp");
-    console.log("                      Use \"hash\" to use the current git commit hash");
-    console.log("  --help              Show build.js's help");
-    console.log("  --help-all          Show Stockfish's Makefile help as well");
+    console.log("  " + hightlight("--force") + "             Always rebuild the entire project");
+    console.log("  " + hightlight("--force-linking") + "     Always preforming the final linking step");
+    console.log("  " + hightlight("--variants") + "          Comma separated list of variants to include (default \"" + note("all") + "\")");
+    console.log(                      "                      \"" + note("none") + "\" (no variants, except for Chess960),");
+    console.log(                      "                      \"" + note("anti") + "\", \"" + note("atomic") + "\", \"" + note("crazyhouse") + "\", \"" + note("horde") + "\",");
+    console.log(                      "                      \"" + note("kingofthehill") + "\", \"" + note("race") + "\", \"" + note("relay") + "\", \"" + note("3check") + "\"");
+    console.log("  " + hightlight("--disable-chesscom") + "  Disable changes made specifically for chess.com");
+    console.log(                      "                      This includes showing SAN moves, fixing three-fold repetition, and");
+    console.log(                      "                      addition of \"mindepth\" option to the \"go\" command");
+    console.log("  " + hightlight("--sync") + "              Compile Stockfish to run searches synchronously (JS only)");
+    console.log("  " + hightlight("--debug-js") + "          Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
+    console.log("  " + hightlight("--arch") + "              Architecture to build to (default \"" + note("js") + "\")");
+    console.log(                      "                      \"" + note("x86-64-bmi2") + "\" is likely the fastest");
+    console.log(                      "                      See --help-all for more options");
+    console.log("  " + hightlight("--comp") + "              Compiler to build C code with");
+    console.log("  " + hightlight("--compcxx") + "           Compiler to build C++ code with");
+    console.log("  " + hightlight("--version") + "           Specify Stockfish version number (default: " + note(stockfishVersion) + ")");
+    console.log(                      "                      Use \"" + note("date") + "\" to use the current date");
+    console.log(                      "                      Use \"" + note("timestamp") + "\" to use the current Unix timestamp");
+    console.log(                      "                      Use \"" + note("hash") + "\" to use the current git commit hash");
+    console.log("  " + hightlight("--help") + "              Show build.js's help");
+    console.log("  " + hightlight("--help-all") + "          Show Stockfish's Makefile help as well");
     console.log("");
     if (params["help-all"]) {
         console.log("");
-        console.log("******** Makefile Help ********");
+        console.log(bold("******** Makefile Help ********"));
         console.log("");
         spawnSync("make", {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
     }
