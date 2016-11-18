@@ -43,6 +43,7 @@
 #endif
 
 namespace Search {
+
   SignalsType Signals;
   LimitsType Limits;
 }
@@ -441,7 +442,7 @@ void MainThread::after_search() {
 
   sync_cout << "bestmove " << UCI::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
 #ifdef CHESSCOM
-  sync_cout << " bestmoveSan " << UCI::move_to_san(rootPos, rootMoves[0].pv[0]);
+  std::cout << " bestmoveSan " << UCI::move_to_san(rootPos, bestThread->rootMoves[0].pv[0]);
 #endif
 
   if (bestThread->rootMoves[0].pv.size() > 1 || bestThread->rootMoves[0].extract_ponder_from_tt(rootPos))
@@ -452,15 +453,15 @@ void MainThread::after_search() {
 #ifdef CHESSCOM
       StateInfo st;
       Position moveTrackingPos = rootPos;
-      Move m = rootMoves[0].pv[0];
+      Move m = bestThread->rootMoves[0].pv[0];
       moveTrackingPos.do_move(m, st, moveTrackingPos.gives_check(m));
-      sync_cout << " ponderSan " << UCI::move_to_san(moveTrackingPos, rootMoves[0].pv[1]);
+      std::cout << " ponderSan " << UCI::move_to_san(moveTrackingPos, bestThread->rootMoves[0].pv[1]);
     }
-  sync_cout << " baseTurn " << ((rootPos.side_to_move() == 0) ? "w" : "b");
-  if (rootMoves[0] == MOVE_NONE) {
-    sync_cout << " score " << UCI::value(rootPos.checkers() ? rootMoves[0].score : VALUE_DRAW);
+  std::cout << " baseTurn " << ((rootPos.side_to_move() == 0) ? "w" : "b");
+  if (bestThread->rootMoves[0] == MOVE_NONE) {
+    std::cout << " score " << UCI::value(rootPos.checkers() ? bestThread->rootMoves[0].score : VALUE_DRAW);
   } else {
-    sync_cout << " score " << UCI::value(rootMoves[0].score);
+    std::cout << " score " << UCI::value(bestThread->rootMoves[0].score);
   }
 #endif
   std::cout << sync_endl;
