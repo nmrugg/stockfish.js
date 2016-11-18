@@ -93,7 +93,7 @@ struct LimitsType {
   int64_t nodes;
   TimePoint startTime;
 #ifdef CHESSCOM
-  uint32_t mindepth;
+  int mindepth;
 #endif
 };
 
