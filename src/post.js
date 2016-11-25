@@ -272,6 +272,7 @@ return function ()
         var completions = [
             "d",
             "eval",
+            "exit",
             "flip",
             "go",
             "isready",
@@ -314,7 +315,8 @@ return function ()
             "depth ",
             "infinite ",
             "mate ",
-            "mindepth",
+            "maxdepth ",
+            "mindepth ",
             "moves ", /// for position fen ... moves
             "movestogo ",
             "movetime ",
@@ -368,7 +370,7 @@ return function ()
             }).on("line", function online(line)
             {
                 if (line) {
-                    if (line === "quit") {
+                    if (line === "quit" || line === "exit") {
                         process.exit();
                     }
                     stockfish.postMessage(line, true);

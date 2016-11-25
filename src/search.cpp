@@ -549,12 +549,18 @@ void Thread::search_iteration() {
     size_t multiPV = multiPV_;
 
   if (   (rootDepth += ONE_PLY) < DEPTH_MAX
+#ifdef CHESSCOM
+         && (rootDepth) <= Limits.maxdepth
+#endif
          && !Signals.stop
          && (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
   {
 #else
   // Iterative deepening loop until requested to stop or the target depth is reached
   while (   (rootDepth += ONE_PLY) < DEPTH_MAX
+#ifdef CHESSCOM
+         && (rootDepth) <= Limits.maxdepth
+#endif
          && !Signals.stop
          && (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
   {
@@ -859,10 +865,17 @@ namespace {
             return mated_in(ss->ply);
 #endif
 
+#ifdef CHESSCOM
+        // Step 2. Check for aborted search and immediate draw
+        if (Signals.stop.load(std::memory_order_relaxed) || pos.is_draw() || ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth)
+            return (ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth) && !inCheck ? evaluate(pos)
+                                                  : DrawValue[pos.side_to_move()];
+#else
         // Step 2. Check for aborted search and immediate draw
         if (Signals.stop.load(std::memory_order_relaxed) || pos.is_draw() || ss->ply >= MAX_PLY)
             return ss->ply >= MAX_PLY && !inCheck ? evaluate(pos)
                                                   : DrawValue[pos.side_to_move()];
+#endif
 
         // Step 3. Mate distance pruning. Even if we mate at the next move our score
         // would be at best mate_in(ss->ply+1), but if alpha is already bigger because
@@ -1607,9 +1620,15 @@ moves_loop: // When in check search starts from here
 #endif
 
     // Check for an instant draw or if the maximum ply has been reached
+#ifdef CHESSCOM
+    if (pos.is_draw() || ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth)
+        return (ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth) && !InCheck ? evaluate(pos)
+                                              : DrawValue[pos.side_to_move()];
+#else
     if (pos.is_draw() || ss->ply >= MAX_PLY)
         return ss->ply >= MAX_PLY && !InCheck ? evaluate(pos)
                                               : DrawValue[pos.side_to_move()];
+#endif
 
     assert(0 <= ss->ply && ss->ply < MAX_PLY);
 
