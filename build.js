@@ -161,6 +161,14 @@ if (params.help || params["help-all"]) {
     console.log("  " + hightlight("--help") + "              Show build.js's help");
     console.log("  " + hightlight("--help-all") + "          Show Stockfish's Makefile help as well");
     console.log("");
+    console.log("Examples:");
+    console.log("");
+    console.log("  Default: include all modifications and variants, compile to JS");
+    console.log("    ./build.js");
+    console.log("");
+    console.log("  Vanilla Stockfish: no modifications, no variants, 64-bit native binary");
+    console.log("    ./build.js --disable-chesscom --variants=none --arch=x86-64-bmi2");
+    console.log("");
     if (params["help-all"]) {
         console.log("");
         console.log(bold("******** Makefile Help ********"));
