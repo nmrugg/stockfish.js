@@ -322,6 +322,7 @@ return function ()
             "movetime ",
             "ponder ",
             "searchmoves ",
+            "shallow ",
             "winc ",
             "wtime "
         ];

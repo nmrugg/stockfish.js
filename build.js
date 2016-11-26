@@ -145,8 +145,8 @@ if (params.help || params["help-all"]) {
     console.log(                      "                      \"" + note("kingofthehill") + "\", \"" + note("race") + "\", \"" + note("relay") + "\", \"" + note("3check") + "\"");
     console.log("  " + hightlight("--disable-chesscom") + "  Disable changes made specifically for chess.com;");
     console.log(                      "                      this includes showing SAN moves, fixing three-fold repetition,");
-    console.log(                      "                      addition of \"mindepth\" and \"maxdepth\" option to the \"go\" command, and");
-    console.log(                      "                      \"Skill Level Maximum Error\" and \"Skill Level Probability\" uci options");
+    console.log(                      "                      addition of \"mindepth\", \"maxdepth\", and \"shallow\" options to the \"go\" command,");
+    console.log(                      "                      and \"Skill Level Maximum Error\" and \"Skill Level Probability\" uci options");
     console.log("  " + hightlight("--sync") + "              Compile Stockfish to run searches synchronously (JS only)");
     console.log("  " + hightlight("--debug-js") + "          Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
     console.log("  " + hightlight("--arch") + "              Architecture to build to (default \"" + note("js") + "\")");
