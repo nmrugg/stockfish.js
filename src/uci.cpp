@@ -358,7 +358,7 @@ const string UCI::move_to_san(Position& thisPos, Move m) {
   if (thisPos.gives_check(m))
   {
       StateInfo st;
-      thisPos.do_move(m, st, pos.gives_check(m));
+      thisPos.do_move(m, st, thisPos.gives_check(m));
       san += MoveList<LEGAL>(thisPos).size() ? "+" : "#";
       thisPos.undo_move(m);
   }
