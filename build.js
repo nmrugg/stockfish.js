@@ -4,7 +4,7 @@
 
 var spawnSync = require("child_process").spawnSync;
 var execFileSync = require("child_process").execFileSync;
-var params = get_params({booleans: ["disable-chesscom", "debug-js", "help", "help-all", "force", "force-linking", "sync"]});
+var params = get_params({booleans: ["no-chesscom", "debug-js", "help", "help-all", "force", "force-linking", "sync"]});
 var args = ["build", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
@@ -118,6 +118,10 @@ function changeVersion(version)
 }
 
 
+if (!params.make) {
+    params.make = "make";
+}
+
 if (params.arch) {
     args.push("ARCH=" + params.arch);
     buildToJs = params.arch === "js";
@@ -137,29 +141,30 @@ if (params.help || params["help-all"]) {
     console.log(bold("Build the Stockfish Chess Engine"));
     console.log("Usage: ./build.js [" + hightlight("options") + "]");
     console.log("");
-    console.log("  " + hightlight("--force") + "             Always rebuild the entire project");
-    console.log("  " + hightlight("--force-linking") + "     Always preforming the final linking step");
-    console.log("  " + hightlight("--variants") + "          Comma separated list of variants to include (default \"" + note("all") + "\")");
-    console.log(                      "                      \"" + note("none") + "\" (no variants, except for Chess960),");
-    console.log(                      "                      \"" + note("anti") + "\", \"" + note("atomic") + "\", \"" + note("crazyhouse") + "\", \"" + note("horde") + "\",");
-    console.log(                      "                      \"" + note("kingofthehill") + "\", \"" + note("race") + "\", \"" + note("relay") + "\", \"" + note("3check") + "\"");
-    console.log("  " + hightlight("--disable-chesscom") + "  Disable changes made specifically for chess.com;");
-    console.log(                      "                      this includes showing SAN moves, fixing three-fold repetition,");
-    console.log(                      "                      addition of \"mindepth\", \"maxdepth\", and \"shallow\" options to the \"go\" command,");
-    console.log(                      "                      and \"Skill Level Maximum Error\" and \"Skill Level Probability\" uci options");
-    console.log("  " + hightlight("--sync") + "              Compile Stockfish to run searches synchronously (JS only)");
-    console.log("  " + hightlight("--debug-js") + "          Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
-    console.log("  " + hightlight("--arch") + "              Architecture to build to (default \"" + note("js") + "\")");
-    console.log(                      "                      \"" + note("x86-64-bmi2") + "\" is likely the fastest");
-    console.log(                      "                      See --help-all for more options");
-    console.log("  " + hightlight("--comp") + "              Compiler to build C code with");
-    console.log("  " + hightlight("--compcxx") + "           Compiler to build C++ code with");
-    console.log("  " + hightlight("--version") + "           Specify Stockfish version number (default: " + note(stockfishVersion) + ")");
-    console.log(                      "                      Use \"" + note("date") + "\" to use the current date");
-    console.log(                      "                      Use \"" + note("timestamp") + "\" to use the current Unix timestamp");
-    console.log(                      "                      Use \"" + note("hash") + "\" to use the current git commit hash");
-    console.log("  " + hightlight("--help") + "              Show build.js's help");
-    console.log("  " + hightlight("--help-all") + "          Show Stockfish's Makefile help as well");
+    console.log("  " + hightlight("--force") + "         Always rebuild the entire project");
+    console.log("  " + hightlight("--force-linking") + " Always preforming the final linking step");
+    console.log("  " + hightlight("--variants") + "      Comma separated list of variants to include (default \"" + note("all") + "\")");
+    console.log(                      "                  \"" + note("none") + "\" (no variants, except for Chess960),");
+    console.log(                      "                  \"" + note("anti") + "\", \"" + note("atomic") + "\", \"" + note("crazyhouse") + "\", \"" + note("horde") + "\",");
+    console.log(                      "                  \"" + note("kingofthehill") + "\", \"" + note("race") + "\", \"" + note("relay") + "\", \"" + note("3check") + "\"");
+    console.log("  " + hightlight("--no-chesscom") + "   Disable changes made specifically for chess.com;");
+    console.log(                      "                  this includes showing SAN moves, fixing three-fold repetition,");
+    console.log(                      "                  addition of \"mindepth\", \"maxdepth\", and \"shallow\" options to the \"go\" command,");
+    console.log(                      "                  and \"Skill Level Maximum Error\" and \"Skill Level Probability\" uci options");
+    console.log("  " + hightlight("--sync") + "          Compile Stockfish to run searches synchronously (JS only)");
+    console.log("  " + hightlight("--debug-js") + "      Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
+    console.log("  " + hightlight("--arch") + "          Architecture to build to (default \"" + note("js") + "\")");
+    console.log(                      "                  \"" + note("x86-64-bmi2") + "\" is likely the fastest");
+    console.log(                      "                  See --help-all for more options");
+    console.log("  " + hightlight("--make") + "          Path to program used to make Stockfish (default \"" + note("make") + "\")");
+    console.log("  " + hightlight("--comp") + "          Compiler to build C code with");
+    console.log("  " + hightlight("--compcxx") + "       Compiler to build C++ code with");
+    console.log("  " + hightlight("--version") + "       Specify Stockfish version number (default: " + note(stockfishVersion) + ")");
+    console.log(                      "                  Use \"" + note("date") + "\" to use the current date");
+    console.log(                      "                  Use \"" + note("timestamp") + "\" to use the current Unix timestamp");
+    console.log(                      "                  Use \"" + note("hash") + "\" to use the current git commit hash");
+    console.log("  " + hightlight("--help") + "          Show build.js's help");
+    console.log("  " + hightlight("--help-all") + "      Show Stockfish's Makefile help as well");
     console.log("");
     console.log("Examples:");
     console.log("");
@@ -167,13 +172,13 @@ if (params.help || params["help-all"]) {
     console.log("    ./build.js");
     console.log("");
     console.log("  Vanilla Stockfish: no modifications, no variants, 64-bit native binary");
-    console.log("    ./build.js --disable-chesscom --variants=none --arch=x86-64-bmi2");
+    console.log("    ./build.js --no-chesscom --variants=none --arch=x86-64-bmi2");
     console.log("");
     if (params["help-all"]) {
         console.log("");
         console.log(bold("******** Makefile Help ********"));
         console.log("");
-        spawnSync("make", {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
+        spawnSync(params.make, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
     }
     process.exit();
 } else if (params.force) {
@@ -194,7 +199,7 @@ if (params.variants && params.variants !== true && params.variants.toLowerCase()
     args.push("VARIANTS=" + params.variants.toUpperCase());
 }
 
-if (!params["disable-chesscom"]) {
+if (!params["no-chesscom"]) {
     args.push("CHESSCOM=1");
 }
 
@@ -234,7 +239,7 @@ if (String(params.version).toLowerCase() !== "date") {
     changeVersion(params.version === true || !params.version ? stockfishVersion : params.version);
 }
 
-child = spawnSync("make", args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
+child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
 
 /// Reset version string.
 if (String(params.version).toLowerCase() !== "date") {
