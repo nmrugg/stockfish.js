@@ -867,8 +867,8 @@ namespace {
 
 #ifdef CHESSCOM
         // Step 2. Check for aborted search and immediate draw
-        if (Signals.stop.load(std::memory_order_relaxed) || pos.is_draw() || ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (Limits.shallow && ss->ply >= Threads.main()->rootDepth))
-            return (ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (Limits.shallow && ss->ply >= Threads.main()->rootDepth)) && !inCheck ? evaluate(pos)
+        if (Signals.stop.load(std::memory_order_relaxed) || pos.is_draw() || ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (ss->ply >= Threads.main()->rootDepth + Limits.shallow))
+            return (ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (ss->ply >= Threads.main()->rootDepth + Limits.shallow)) && !inCheck ? evaluate(pos)
                                                   : DrawValue[pos.side_to_move()];
 #else
         // Step 2. Check for aborted search and immediate draw
@@ -1621,8 +1621,8 @@ moves_loop: // When in check search starts from here
 
     // Check for an instant draw or if the maximum ply has been reached
 #ifdef CHESSCOM
-    if (pos.is_draw() || ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (Limits.shallow && ss->ply >= Threads.main()->rootDepth))
-        return (ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (Limits.shallow && ss->ply >= Threads.main()->rootDepth)) && !InCheck ? evaluate(pos)
+    if (pos.is_draw() || ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (ss->ply >= Threads.main()->rootDepth + Limits.shallow))
+        return (ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (ss->ply >= Threads.main()->rootDepth + Limits.shallow)) && !InCheck ? evaluate(pos)
                                               : DrawValue[pos.side_to_move()];
 #else
     if (pos.is_draw() || ss->ply >= MAX_PLY)

@@ -166,7 +166,7 @@ namespace {
 #ifdef CHESSCOM
         else if (token == "mindepth")  is >> limits.mindepth;
         else if (token == "maxdepth")  is >> limits.maxdepth;
-        else if (token == "shallow")   limits.shallow = 1;
+        else if (token == "shallow")   is >> limits.shallow;
 #endif
         else if (token == "wtime")     is >> limits.time[WHITE];
         else if (token == "btime")     is >> limits.time[BLACK];
