@@ -140,7 +140,12 @@ namespace {
     Skill(int l) : level(l) {}
     bool enabled() const { return level < 20; }
     bool time_to_pick(Depth depth) const { return depth / ONE_PLY == 1 + level; }
+#ifdef CHESSCOM
+    /// Without this change, the score with best move output can be wrong.
+    Move best_move(size_t multiPV) { return pick_best(multiPV); }
+#else
     Move best_move(size_t multiPV) { return best ? best : pick_best(multiPV); }
+#endif
     Move pick_best(size_t multiPV);
 
     int level;
