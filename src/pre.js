@@ -21,5 +21,9 @@
  */
 var STOCKFISH = (function ()
 {
-function load_stockfish(console)
-{
+    function load_stockfish(console)
+    {
+        if (typeof navigator !== "undefined" && /Safari/i.test(navigator.userAgent) && !/Chrome|CriOS/i.test(navigator.userAgent)) {
+            /// Fake timer for Safari.
+            var dateNow = Date.now;
+        }
