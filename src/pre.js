@@ -23,7 +23,8 @@ var STOCKFISH = (function ()
 {
     function load_stockfish(console)
     {
-        if (typeof navigator !== "undefined" && /Safari/i.test(navigator.userAgent) && !/Chrome|CriOS/i.test(navigator.userAgent)) {
-            /// Fake timer for Safari.
+        /// Fake timer for Safari and IE/Edge.
+        ///NOTE: Both Chrome and Edge have "Safari" in it.
+        if (typeof navigator !== "undefined" && (/MSIE|Trident|Edge/i.test(navigator.userAgent) || (/Safari/i.test(navigator.userAgent) && !/Chrome|CriOS/i.test(navigator.userAgent)))) {
             var dateNow = Date.now;
         }
