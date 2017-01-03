@@ -316,6 +316,7 @@ return function ()
             "infinite ",
             "mate ",
             "maxdepth ",
+            "maxtime ",
             "mindepth ",
             "moves ", /// for position fen ... moves
             "movestogo ",
