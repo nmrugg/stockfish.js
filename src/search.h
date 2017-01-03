@@ -82,7 +82,6 @@ struct LimitsType {
 #ifdef CHESSCOM
     mindepth = 0;
     maxdepth = shallow = MAX_PLY;
-    maxtime = 0;
 #endif
   }
 
@@ -96,7 +95,6 @@ struct LimitsType {
   TimePoint startTime;
 #ifdef CHESSCOM
   int mindepth, maxdepth, shallow;
-  double maxtime;
 #endif
 };
 

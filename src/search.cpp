@@ -725,15 +725,6 @@ void Thread::search_iteration() {
               EasyMove.clear();
       }
 
-#ifdef CHESSCOM
-      if (Limits.maxtime > 0 && Limits.maxtime < Time.elapsed()) {
-        if (Limits.ponder)
-            Signals.stopOnPonderhit = true;
-        else
-            Signals.stop = true;
-      }
-#endif
-
 #if defined(EMSCRIPTEN) && !defined(SYNC)
         bestValue_ = bestValue;
         alpha_ = alpha;
@@ -1996,12 +1987,6 @@ moves_loop: // When in check search starts from here
         if (Threads.main()->rootDepth >= Limits.mindepth)
 #endif
             Signals.stop = true;
-
-#ifdef CHESSCOM
-      if (Limits.maxtime > 0 && Limits.maxtime < elapsed) {
-            Signals.stop = true;
-      }
-#endif
   }
 
 } // namespace
