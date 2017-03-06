@@ -14,6 +14,8 @@ var license = fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
 var buildToJs;
 var child;
 var stockfishVersion = "8";
+var postFilePath;
+var postFile;
 
 function get_params(options, argv)
 {
@@ -214,6 +216,10 @@ if (params["debug-js"]) {
 if (params.sync) {
     if (buildToJs) {
         args.push("SYNC=1");
+        /// Remove code that breaks sync mode
+        postFilePath = p.join(__dirname, "src", "post.js");
+        postFile = fs.readFileSync(postFilePath, "utf8");
+        fs.writeFileSync(postFilePath, postFile.replace(/\/\*\* Async Only START \*\*\/[\s\S]*?\/\*\* Async Only END \*\*\//, ""));
     } else {
         warn("Ignoring --sync");
     }
@@ -257,5 +263,8 @@ if (buildToJs) {
     /// Add the license if it's not there (emscripten removes all comments).
     if (data.indexOf(license) !== 0) {
         fs.writeFileSync(stockfish_path, license + data);
+    }
+    if (params.sync) {
+        fs.writeFileSync(postFilePath, postFile);
     }
 }
