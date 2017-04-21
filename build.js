@@ -90,7 +90,7 @@ function warn(str)
     console.warn(color(33, "WARN: " + str));
 }
 
-function hightlight(str)
+function highlight(str)
 {
     return color(33, str);
 }
@@ -141,32 +141,32 @@ if (buildToJs) {
 if (params.help || params["help-all"]) {
     console.log("");
     console.log(bold("Build the Stockfish Chess Engine"));
-    console.log("Usage: ./build.js [" + hightlight("options") + "]");
+    console.log("Usage: ./build.js [" + highlight("options") + "]");
     console.log("");
-    console.log("  " + hightlight("--force") + "         Always rebuild the entire project");
-    console.log("  " + hightlight("--force-linking") + " Always preforming the final linking step");
-    console.log("  " + hightlight("--variants") + "      Comma separated list of variants to include (default \"" + note("all") + "\")");
+    console.log("  " + highlight("--force") + "         Always rebuild the entire project");
+    console.log("  " + highlight("--force-linking") + " Always preforming the final linking step");
+    console.log("  " + highlight("--variants") + "      Comma separated list of variants to include (default \"" + note("all") + "\")");
     console.log(                      "                  \"" + note("none") + "\" (no variants, except for Chess960),");
     console.log(                      "                  \"" + note("anti") + "\", \"" + note("atomic") + "\", \"" + note("crazyhouse") + "\", \"" + note("horde") + "\",");
     console.log(                      "                  \"" + note("kingofthehill") + "\", \"" + note("race") + "\", \"" + note("relay") + "\", \"" + note("3check") + "\"");
-    console.log("  " + hightlight("--no-chesscom") + "   Disable changes made specifically for chess.com;");
+    console.log("  " + highlight("--no-chesscom") + "   Disable changes made specifically for chess.com;");
     console.log(                      "                  this includes showing SAN moves, fixing three-fold repetition,");
     console.log(                      "                  addition of \"mindepth\", \"maxdepth\", and \"shallow\" options to the \"go\" command,");
     console.log(                      "                  and \"Skill Level Maximum Error\" and \"Skill Level Probability\" uci options");
-    console.log("  " + hightlight("--sync") + "          Compile Stockfish to run searches synchronously (JS only)");
-    console.log("  " + hightlight("--debug-js") + "      Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
-    console.log("  " + hightlight("--arch") + "          Architecture to build to (default \"" + note("js") + "\")");
+    console.log("  " + highlight("--sync") + "          Compile Stockfish to run searches synchronously (JS only)");
+    console.log("  " + highlight("--debug-js") + "      Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
+    console.log("  " + highlight("--arch") + "          Architecture to build to (default \"" + note("js") + "\")");
     console.log(                      "                  \"" + note("x86-64-bmi2") + "\" is likely the fastest");
     console.log(                      "                  See --help-all for more options");
-    console.log("  " + hightlight("--make") + "          Path to program used to make Stockfish (default \"" + note("make") + "\")");
-    console.log("  " + hightlight("--comp") + "          Compiler to build C code with");
-    console.log("  " + hightlight("--compcxx") + "       Compiler to build C++ code with");
-    console.log("  " + hightlight("--version") + "       Specify Stockfish version number (default: " + note(stockfishVersion) + ")");
+    console.log("  " + highlight("--make") + "          Path to program used to make Stockfish (default \"" + note("make") + "\")");
+    console.log("  " + highlight("--comp") + "          Compiler to build C code with");
+    console.log("  " + highlight("--compcxx") + "       Compiler to build C++ code with");
+    console.log("  " + highlight("--version") + "       Specify Stockfish version number (default: " + note(stockfishVersion) + ")");
     console.log(                      "                  Use \"" + note("date") + "\" to use the current date");
     console.log(                      "                  Use \"" + note("timestamp") + "\" to use the current Unix timestamp");
     console.log(                      "                  Use \"" + note("hash") + "\" to use the current git commit hash");
-    console.log("  " + hightlight("--help") + "          Show build.js's help");
-    console.log("  " + hightlight("--help-all") + "      Show Stockfish's Makefile help as well");
+    console.log("  " + highlight("--help") + "          Show build.js's help");
+    console.log("  " + highlight("--help-all") + "      Show Stockfish's Makefile help as well");
     console.log("");
     console.log("Examples:");
     console.log("");
