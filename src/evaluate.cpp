@@ -29,6 +29,12 @@
 #include "material.h"
 #include "pawns.h"
 
+#ifdef CHESSCOM
+bool isContemptOn = false;
+void setContempt(bool isOn) {
+  isContemptOn = isOn;
+}
+#endif
 namespace {
 
   namespace Trace {
@@ -1261,8 +1267,16 @@ Value Eval::evaluate(const Position& pos) {
                       , evaluate_space<BLACK>(pos, ei));
       Trace::add(TOTAL, score);
   }
-
+#ifdef CHESSCOM
+  v = (pos.side_to_move() == WHITE ? v : -v);
+  /// Don't give initiative bonus if the position looks drawn and contempt is off.
+  if (v != 0 && isContemptOn) {
+      v += Eval::Tempo;
+  }
+  return v;
+#else
   return (pos.side_to_move() == WHITE ? v : -v) + Eval::Tempo; // Side to move point of view
+#endif
 }
 
 // Explicit template instantiations

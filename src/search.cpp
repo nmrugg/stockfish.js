@@ -343,6 +343,10 @@ void MainThread::search() {
   DrawValue[ us] = VALUE_DRAW - Value(contempt);
   DrawValue[~us] = VALUE_DRAW + Value(contempt);
 
+#ifdef CHESSCOM
+  setContempt(contempt > 0);
+#endif
+
   if (rootMoves.empty())
   {
       rootMoves.push_back(RootMove(MOVE_NONE));
