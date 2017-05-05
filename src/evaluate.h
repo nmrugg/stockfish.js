@@ -25,10 +25,6 @@
 
 #include "types.h"
 
-#ifdef CHESSCOM
-void setContempt(bool isOn); // Must be visible to search
-#endif
-
 class Position;
 
 namespace Eval {
