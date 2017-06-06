@@ -1417,11 +1417,13 @@ moves_loop: // When in check search starts from here
               if (moveCount > 1 && thisThread == Threads.main())
                   ++static_cast<MainThread*>(thisThread)->bestMoveChanges;
           }
+#ifdef CHESSCOM
           else
               // All other moves but the PV are set to the lowest value: this is
               // not a problem when sorting because the sort is stable and the
               // move position in the list is preserved - just the PV is pushed up.
               rm.score = -VALUE_INFINITE;
+#endif
       }
 
       if (value > bestValue)
@@ -1938,6 +1940,11 @@ moves_loop: // When in check search starts from here
     {
 #ifdef CHESSCOM
         int score = rootMoves[i].score;
+
+        // Extra protection in case the score was cleared.
+        if (score == -32001 || score == 32001) {
+            continue;
+        }
 
         // Don't allow crazy blunders even at very low skills
         if (i > 0 && rootMoves[i - 1].score > score + (Options["Skill Level Maximum Error"] * PawnValueMg) / 100)
