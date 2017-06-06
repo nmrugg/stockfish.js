@@ -671,11 +671,11 @@ void Thread::search_iteration() {
       if (!mainThread)
              continue;
 #endif
-
+#ifndef CHESSCOM
       // If skill level is enabled and time is up, pick a sub-optimal best move
       if (skill.enabled() && skill.time_to_pick(rootDepth))
           skill.pick_best(multiPV);
-
+#endif
       // Have we found a "mate in x"?
       if (   Limits.mate
           && bestValue >= VALUE_MATE_IN_MAX_PLY
