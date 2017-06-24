@@ -2091,6 +2091,9 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
             moveTrackingPos.do_move(m, st, moveTrackingPos.gives_check(m));
             ss << " " << UCI::move_to_san(moveTrackingPos, rootMoves[i].pv[j]);
         }
+        
+        ///NOTE: There are other values, such as "failedLow" and "previousScore" that could be of use tool
+        ss << " bmc " << Threads.main()->bestMoveChanges;
 #endif
   }
 
