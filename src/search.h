@@ -80,9 +80,8 @@ struct LimitsType {
     nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] =
     npmsec = movestogo = depth = movetime = mate = infinite = ponder = 0;
 #ifdef CHESSCOM
-    mindepth = 0;
+    mindepth = maxtime = smartdepth = 0;
     maxdepth = shallow = MAX_PLY;
-    maxtime = 0;
 #endif
   }
 
@@ -95,7 +94,7 @@ struct LimitsType {
   int64_t nodes;
   TimePoint startTime;
 #ifdef CHESSCOM
-  int mindepth, maxdepth, shallow;
+  int mindepth, maxdepth, shallow, smartdepth;
   double maxtime;
 #endif
 };

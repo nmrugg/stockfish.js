@@ -46,6 +46,9 @@ namespace Search {
 
   SignalsType Signals;
   LimitsType Limits;
+#ifdef CHESSCOM
+  int minSmartDepth;
+#endif
 }
 
 #ifndef EMSCRIPTEN
@@ -497,6 +500,12 @@ void Thread::search() {
   Move easyMove = MOVE_NONE;
   MainThread* mainThread = (this == Threads.main() ? Threads.main() : nullptr);
 
+#ifdef CHESSCOM
+ if (Limits.smartdepth) {
+      minSmartDepth = std::max(Limits.mindepth, 6);
+ }
+#endif
+
   std::memset(ss-5, 0, 8 * sizeof(Stack));
 
   bestValue = delta = alpha = -VALUE_INFINITE;
@@ -681,6 +690,12 @@ void Thread::search_iteration() {
           && bestValue >= VALUE_MATE_IN_MAX_PLY
           && VALUE_MATE - bestValue <= 2 * Limits.mate)
           Signals.stop = true;
+
+#ifdef CHESSCOM
+      if (Limits.smartdepth && rootDepth >= minSmartDepth && mainThread->bestMoveChanges < std::min(0.1, 0.01 * (std::max(1, rootDepth - minSmartDepth)))) {
+          Signals.stop = true;
+      }
+#endif
 
       // Do we have time for the next iteration? Can we stop searching now?
       if (Limits.use_time_management())

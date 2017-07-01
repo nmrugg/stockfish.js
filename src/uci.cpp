@@ -168,6 +168,7 @@ namespace {
         else if (token == "maxdepth")  is >> limits.maxdepth;
         else if (token == "shallow")   is >> limits.shallow;
         else if (token == "maxtime")   is >> limits.maxtime;
+        else if (token == "smartdepth")limits.smartdepth = 1;
 #endif
         else if (token == "wtime")     is >> limits.time[WHITE];
         else if (token == "btime")     is >> limits.time[BLACK];
