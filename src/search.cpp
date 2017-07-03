@@ -692,7 +692,7 @@ void Thread::search_iteration() {
           Signals.stop = true;
 
 #ifdef CHESSCOM
-      if (Limits.smartdepth && rootDepth >= minSmartDepth && mainThread->bestMoveChanges < std::min(0.1, 0.01 * (std::max(1, rootDepth - minSmartDepth)))) {
+      if (Limits.smartdepth && rootDepth >= minSmartDepth && Time.elapsed() >= Limits.mintime && mainThread->bestMoveChanges < std::min(Limits.confidence * 10, Limits.confidence * (std::max(1, rootDepth - minSmartDepth)))) {
           Signals.stop = true;
       }
 #endif
@@ -720,7 +720,7 @@ void Thread::search_iteration() {
                   || (mainThread->easyMovePlayed = doEasyMove, doEasyMove))
               {
 #ifdef CHESSCOM
-                if (rootDepth >= Limits.mindepth) {
+                if (rootDepth >= Limits.mindepth && Time.elapsed() >= Limits.mintime) {
 #endif
                   // If we are allowed to ponder do not stop the search now but
                   // keep pondering until the GUI sends "ponderhit" or "stop".
@@ -2015,7 +2015,7 @@ moves_loop: // When in check search starts from here
         || (Limits.movetime && elapsed >= Limits.movetime)
         || (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
 #ifdef CHESSCOM
-        if (Threads.main()->rootDepth >= Limits.mindepth)
+        if (Threads.main()->rootDepth >= Limits.mindepth && Time.elapsed() >= Limits.mintime)
 #endif
             Signals.stop = true;
 
