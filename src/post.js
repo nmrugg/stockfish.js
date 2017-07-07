@@ -315,12 +315,14 @@ return function ()
         var completions_mid = [
             "binc ",
             "btime ",
+            "confidence ",
             "depth ",
             "infinite ",
             "mate ",
             "maxdepth ",
             "maxtime ",
             "mindepth ",
+            "mintime ",
             "moves ", /// for position fen ... moves
             "movestogo ",
             "movetime ",
