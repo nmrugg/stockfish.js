@@ -261,10 +261,10 @@ ifdef COMPILER
 endif
 
 ifeq ($(COMP),emscripten)
-	CXXFLAGS += -s TOTAL_MEMORY=67108864
+	CXXFLAGS += -s WASM=1 -s TOTAL_MEMORY=67108864 -s BINARYEN_ASYNC_COMPILATION=0
 	#NOTE: --closure 1 breaks the code
 	#TODO: File bug report for --closure 1.
-	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s NO_FILESYSTEM=1 --pre-js pre.js --post-js post.js
+	LDFLAGS += -s WASM=1 -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s NO_FILESYSTEM=1 --pre-js pre.js --post-js post.js -s BINARYEN_ASYNC_COMPILATION=0
 endif
 ifeq ($(CHESSCOM),1)
 	CXXFLAGS += -DCHESSCOM
