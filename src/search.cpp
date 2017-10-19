@@ -101,7 +101,8 @@ namespace {
 
   struct Skill {
     Skill(int l, size_t rootSize) : level(l),
-                                    candidates(l < 20 ? std::min(4, (int)rootSize) : 0),
+                                    //candidates(l < 20 ? std::max(std::min(4, (int)rootSize), 10 - l) : 0),
+                                    candidates(l < 20 ? std::min(5, (int)rootSize) : 0),
                                     best(MOVE_NONE) {}
     ///NOTE: The deconstructor, ~Skill(), breaks stuff when compiled to JavaScript. This code was moved to async_loop().
 
@@ -281,11 +282,13 @@ Skill *skill_p;
 
     multiPV = Options["MultiPV"];
     //Skill skill(Options["Skill Level"], RootMoves.size());
+    //sync_cout << "\nBLUNDER RootMoves.size: " << RootMoves.size() << "\n";
     skill_p = new Skill(Options["Skill Level"], RootMoves.size());
 
     // Do we have to play with skill handicap? In this case enable MultiPV search
     // that we will use behind the scenes to retrieve a set of possible moves.
     multiPV = std::max(multiPV, skill_p->candidates_size());
+    //sync_cout << "\nBLUNDER multiPV: " << multiPV << "\n";
 
     /// This stuff was moved to async_loop().
     // Iterative deepening loop until requested to stop or target depth reached

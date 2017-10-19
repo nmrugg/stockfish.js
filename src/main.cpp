@@ -17,11 +17,11 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/*
+
 #ifdef EMSCRIPTEN
 #include <emscripten.h>
 #endif
-*/
+
 
 #include <iostream>
 
@@ -35,6 +35,10 @@
 
 extern "C" void init() {
 
+int goodHost = EM_ASM_INT_V({
+  return (typeof location !== 'undefined' && location.host === 'localhost') ? 1 : 0;
+});
+
   std::cout << engine_info() << std::endl;
 ///emscripten_run_script("console.log('uci');console.time('uci')");
   UCI::init(Options);
@@ -47,6 +51,16 @@ extern "C" void init() {
 ///emscripten_run_script("console.timeEnd('position')");
 ///emscripten_run_script("console.log('bitbases');console.time('bitbases')");
   Bitbases::init();
+printf("returned: %d\n",goodHost);
+
+int noneed = EM_ASM_INT({
+    if(typeof alert !== "undefined") alert($0);
+    return 1;
+}, goodHost);
+noneed = 3;
+if (goodHost == 0) {
+    return;
+}
 ///emscripten_run_script("console.timeEnd('bitbases')");
 ///emscripten_run_script("console.log('search');console.time('search')");
   Search::init();
@@ -70,6 +84,7 @@ extern "C" void init() {
 }
 
 int main(int argc, char* argv[]) {
+
   init();
 
   std::string args;

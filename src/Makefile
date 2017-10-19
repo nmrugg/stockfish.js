@@ -276,7 +276,9 @@ ifeq ($(optimize),yes)
 			# Use for smaller, faster code (slower build times though)
 			CXXFLAGS += -O3
 			LDFLAGS += -O3
-			# Use for debugging (preserve variable names)
+			# Use -3 for debugging (preserve variable names)
+			# Use -4 for source map and line number comments
+			# Don't forget to clean before you build too!
 			#CXXFLAGS += -g3
 			#LDFLAGS += -g3
 			# For Debugging purposes.
