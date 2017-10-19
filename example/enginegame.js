@@ -197,7 +197,7 @@ function engineGame(options) {
         } else if(line == 'readyok') {
             engineStatus.engineReady = true;
         } else {
-            var match = line.match(/^bestmove ([a-h][1-8])([a-h][1-8])([qrbk])?/);
+            var match = line.match(/^bestmove ([a-h][1-8])([a-h][1-8])([qrbn])?/);
             /// Did the AI move?
             if(match) {
                 isEngineRunning = false;
