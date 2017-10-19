@@ -2,6 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,7 +21,11 @@
 #ifndef THREAD_H_INCLUDED
 #define THREAD_H_INCLUDED
 
+#include <atomic>
 #include <bitset>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 #include "material.h"
@@ -28,157 +33,83 @@
 #include "pawns.h"
 #include "position.h"
 #include "search.h"
-
-struct Thread;
-
-const int MAX_THREADS = 128;
-const int MAX_SPLITPOINTS_PER_THREAD = 8;
-
-/// Mutex and ConditionVariable struct are wrappers of the low level locking
-/// machinery and are modeled after the corresponding C++11 classes.
-
-struct Mutex {
-  Mutex() { lock_init(l); }
- ~Mutex() { lock_destroy(l); }
-
-  void lock() { lock_grab(l); }
-  void unlock() { lock_release(l); }
-
-private:
-  friend struct ConditionVariable;
-
-  Lock l;
-};
-
-struct ConditionVariable {
-  ConditionVariable() { cond_init(c); }
- ~ConditionVariable() { cond_destroy(c); }
-
-  void wait(Mutex& m) { cond_wait(c, m.l); }
-  void wait_for(Mutex& m, int ms) { timed_wait(c, m.l, ms); }
-  void notify_one() { cond_signal(c); }
-
-private:
-  WaitCondition c;
-};
+#include "thread_win32.h"
 
 
-/// SplitPoint struct stores information shared by the threads searching in
-/// parallel below the same split point. It is populated at splitting time.
+/// Thread struct keeps together all the thread-related stuff. We also use
+/// per-thread pawn and material hash tables so that once we get a pointer to an
+/// entry its life time is unlimited and we don't have to care about someone
+/// changing the entry under our feet.
 
-struct SplitPoint {
+class Thread {
 
-  // Const data after split point has been setup
-  const Position* pos;
-  Search::Stack* ss;
-  Thread* masterThread;
-  Depth depth;
-  Value beta;
-  int nodeType;
-  bool cutNode;
-
-  // Const pointers to shared data
-  MovePicker* movePicker;
-  SplitPoint* parentSplitPoint;
-
-  // Shared variable data
-  Mutex mutex;
-  std::bitset<MAX_THREADS> slavesMask;
-  volatile bool allSlavesSearching;
-  volatile uint64_t nodes;
-  volatile Value alpha;
-  volatile Value bestValue;
-  volatile Move bestMove;
-  volatile int moveCount;
-  volatile bool cutoff;
-};
-
-
-/// ThreadBase struct is the base of the hierarchy from where we derive all the
-/// specialized thread classes.
-
-struct ThreadBase {
-
-  ThreadBase() : handle(NativeHandle()), exit(false) {}
-  virtual ~ThreadBase() {}
-  virtual void idle_loop() = 0;
-  void notify_one();
-  void wait_for(volatile const bool& b);
-
+  std::thread nativeThread;
   Mutex mutex;
   ConditionVariable sleepCondition;
-  NativeHandle handle;
-  volatile bool exit;
-};
+  bool exit, searching;
 
-
-/// Thread struct keeps together all the thread related stuff like locks, state
-/// and especially split points. We also use per-thread pawn and material hash
-/// tables so that once we get a pointer to an entry its life time is unlimited
-/// and we don't have to care about someone changing the entry under our feet.
-
-struct Thread : public ThreadBase {
-
+public:
   Thread();
-  virtual void idle_loop();
-  bool cutoff_occurred() const;
-  bool available_to(const Thread* master) const;
+  virtual ~Thread();
+  virtual void search();
+#ifdef EMSCRIPTEN
+  void search_iteration();
+#endif
+  void idle_loop();
+  void start_searching(bool resume = false);
+  void wait_for_search_finished();
+  void wait(std::atomic_bool& condition);
 
-  void split(Position& pos, Search::Stack* ss, Value alpha, Value beta, Value* bestValue, Move* bestMove,
-             Depth depth, int moveCount, MovePicker* movePicker, int nodeType, bool cutNode);
-
-  SplitPoint splitPoints[MAX_SPLITPOINTS_PER_THREAD];
   Pawns::Table pawnsTable;
   Material::Table materialTable;
   Endgames endgames;
-  Position* activePosition;
-  size_t idx;
-  int maxPly;
-  SplitPoint* volatile activeSplitPoint;
-  volatile int splitPointsSize;
-  volatile bool searching;
+  size_t idx, PVIdx;
+  int maxPly, callsCnt;
+  uint64_t tbHits;
+
+  Position rootPos;
+  Search::RootMoves rootMoves;
+  Depth rootDepth;
+  Depth completedDepth;
+  std::atomic_bool resetCalls;
+  HistoryStats history;
+  MoveStats counterMoves;
+  FromToStats fromTo;
+  CounterMoveHistoryStats counterMoveHistory;
 };
 
 
-/// MainThread and TimerThread are derived classes used to characterize the two
-/// special threads: the main one and the recurring timer.
+/// MainThread is a derived class with a specific overload for the main thread
 
 struct MainThread : public Thread {
-  MainThread() : thinking(true) {} // Avoid a race with start_thinking()
-  virtual void idle_loop();
-  volatile bool thinking;
-};
+  virtual void search();
+#ifdef EMSCRIPTEN
+  void after_search();
+#endif
 
-struct TimerThread : public ThreadBase {
-
-  static const int Resolution = 5; // Millisec between two check_time() calls
-
-  TimerThread() : run(false) {}
-  virtual void idle_loop();
-
-  bool run;
+  bool easyMovePlayed, failedLow;
+  double bestMoveChanges;
+  Value previousScore;
 };
 
 
-/// ThreadPool struct handles all the threads related stuff like init, starting,
-/// parking and, most importantly, launching a slave thread at a split point.
-/// All the access to shared thread data is done through this class.
+/// ThreadPool struct handles all the threads-related stuff like init, starting,
+/// parking and, most importantly, launching a thread. All the access to threads
+/// data is done through this class.
 
 struct ThreadPool : public std::vector<Thread*> {
 
-  void init(); // No c'tor and d'tor, threads rely on globals that should be
-  void exit(); // initialized and are valid during the whole thread lifetime.
+  void init(); // No constructor and destructor, threads rely on globals that should
+  void exit(); // be initialized and valid during the whole thread lifetime.
 
   MainThread* main() { return static_cast<MainThread*>(at(0)); }
+  void start_thinking(Position&, StateListPtr&, const Search::LimitsType&);
   void read_uci_options();
-  Thread* available_slave(const Thread* master) const;
-  void wait_for_think_finished();
-  void start_thinking(const Position&, const Search::LimitsType&, Search::StateStackPtr&);
+  uint64_t nodes_searched() const;
+  uint64_t tb_hits() const;
 
-  Depth minimumSplitDepth;
-  Mutex mutex;
-  ConditionVariable sleepCondition;
-  TimerThread* timer;
+private:
+  StateListPtr setupStates;
 };
 
 extern ThreadPool Threads;

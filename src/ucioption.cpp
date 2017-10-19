@@ -2,6 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,14 +20,17 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cstdlib>
-#include <sstream>
+#include <ostream>
 
-#include "evaluate.h" /// Stockfish.js
 #include "misc.h"
+#include "search.h"
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
+
+#ifndef EMSCRIPTEN
+#include "syzygy/tbprobe.h"
+#endif
 
 using std::string;
 
@@ -35,17 +39,20 @@ UCI::OptionsMap Options; // Global object
 namespace UCI {
 
 /// 'On change' actions, triggered by an option's value change
-void on_clear_hash(const Option&) { TT.clear(); }
+void on_clear_hash(const Option&) { Search::clear(); }
 void on_hash_size(const Option& o) { TT.resize(o); }
 void on_logger(const Option& o) { start_logger(o); }
-void on_eval(const Option&) { Eval::init(); }
 void on_threads(const Option&) { Threads.read_uci_options(); }
+#ifndef EMSCRIPTEN
+void on_tb_path(const Option& o) { Tablebases::init(o); }
+#endif
+
 
 /// Our case insensitive less() function as required by UCI protocol
-bool ci_less(char c1, char c2) { return tolower(c1) < tolower(c2); }
-
 bool CaseInsensitiveLess::operator() (const string& s1, const string& s2) const {
-  return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(), ci_less);
+
+  return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(),
+         [](char c1, char c2) { return tolower(c1) < tolower(c2); });
 }
 
 
@@ -55,29 +62,36 @@ void init(OptionsMap& o) {
 
   const int MaxHashMB = Is64Bit ? 1024 * 1024 : 2048;
 
-  o["Write Debug Log"]       << Option(false, on_logger);
+#ifndef EMSCRIPTEN
+  o["Debug Log File"]        << Option("", on_logger);
+#endif
   o["Contempt"]              << Option(0, -100, 100);
-  o["Mobility (Midgame)"]    << Option(100, 0, 200, on_eval);
-  o["Mobility (Endgame)"]    << Option(100, 0, 200, on_eval);
-  o["Pawn Structure (Midgame)"] << Option(100, 0, 200, on_eval);
-  o["Pawn Structure (Endgame)"] << Option(100, 0, 200, on_eval);
-  o["Passed Pawns (Midgame)"]<< Option(100, 0, 200, on_eval);
-  o["Passed Pawns (Endgame)"]<< Option(100, 0, 200, on_eval);
-  o["Space"]                 << Option(100, 0, 200, on_eval);
-  o["King Safety"]           << Option(100, 0, 200, on_eval);
-  o["Min Split Depth"]       << Option(0, 0, 12, on_threads);
-  o["Threads"]               << Option(1, 1, MAX_THREADS, on_threads);
+#ifdef EMSCRIPTEN
+  o["Threads"]               << Option(1, 1, 1, on_threads);
+#else
+  o["Threads"]               << Option(1, 1, 128, on_threads);
+#endif
   o["Hash"]                  << Option(16, 1, MaxHashMB, on_hash_size);
   o["Clear Hash"]            << Option(on_clear_hash);
-  o["Ponder"]                << Option(true);
+  o["Ponder"]                << Option(false);
   o["MultiPV"]               << Option(1, 1, 500);
   o["Skill Level"]           << Option(20, 0, 20);
-  o["Skill Level Maximum Error"]<< Option(2, 1, 100);
-  o["Skill Level Probability"]  << Option(128, 1, 1000);
   o["Move Overhead"]         << Option(30, 0, 5000);
   o["Minimum Thinking Time"] << Option(20, 0, 5000);
-  o["Slow Mover"]            << Option(80, 10, 1000);
+  o["Slow Mover"]            << Option(89, 10, 1000);
+  o["nodestime"]             << Option(0, 0, 10000);
   o["UCI_Chess960"]          << Option(false);
+  o["UCI_Variant"]           << Option(variants.front().c_str(), variants);
+#ifndef EMSCRIPTEN
+  o["SyzygyPath"]            << Option("<empty>", on_tb_path);
+  o["SyzygyProbeDepth"]      << Option(1, 1, 100);
+  o["Syzygy50MoveRule"]      << Option(true);
+  o["SyzygyProbeLimit"]      << Option(6, 0, 6);
+#endif
+#ifdef CHESSCOM
+  o["Skill Level Maximum Error"] << Option(200, 0, 5000); /// In centipawns
+  o["Skill Level Probability"]   << Option(128, 1, 1000); /// 1 is most frequent.
+#endif
 }
 
 
@@ -87,20 +101,25 @@ void init(OptionsMap& o) {
 std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 
   for (size_t idx = 0; idx < om.size(); ++idx)
-      for (OptionsMap::const_iterator it = om.begin(); it != om.end(); ++it)
-          if (it->second.idx == idx)
+      for (const auto& it : om)
+          if (it.second.idx == idx)
           {
-              const Option& o = it->second;
-              os << "\noption name " << it->first << " type " << o.type;
+              const Option& o = it.second;
+              os << "\noption name " << it.first << " type " << o.type;
 
               if (o.type != "button")
                   os << " default " << o.defaultValue;
+
+              if (o.type == "combo")
+                  for (string value : o.comboValues)
+                      os << " var " << value;
 
               if (o.type == "spin")
                   os << " min " << o.min << " max " << o.max;
 
               break;
           }
+
   return os;
 }
 
@@ -110,6 +129,9 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 Option::Option(const char* v, OnChange f) : type("string"), min(0), max(0), on_change(f)
 { defaultValue = currentValue = v; }
 
+Option::Option(const char* v, const std::vector<std::string>& variants, OnChange f) : type("combo"), min(0), max(0), comboValues(variants), on_change(f)
+{ defaultValue = currentValue = v; }
+
 Option::Option(bool v, OnChange f) : type("check"), min(0), max(0), on_change(f)
 { defaultValue = currentValue = (v ? "true" : "false"); }
 
@@ -117,17 +139,21 @@ Option::Option(OnChange f) : type("button"), min(0), max(0), on_change(f)
 {}
 
 Option::Option(int v, int minv, int maxv, OnChange f) : type("spin"), min(minv), max(maxv), on_change(f)
-{ std::ostringstream ss; ss << v; defaultValue = currentValue = ss.str(); }
-
+{ defaultValue = currentValue = std::to_string(v); }
 
 Option::operator int() const {
   assert(type == "check" || type == "spin");
-  return (type == "spin" ? atoi(currentValue.c_str()) : currentValue == "true");
+  return (type == "spin" ? stoi(currentValue) : currentValue == "true");
 }
 
 Option::operator std::string() const {
-  assert(type == "string");
+  assert(type == "string" || type == "combo");
   return currentValue;
+}
+
+int Option::compare(const char* str) const {
+  assert(type == "string" || type == "combo");
+  return currentValue.compare(str);
 }
 
 
@@ -152,7 +178,8 @@ Option& Option::operator=(const string& v) {
 
   if (   (type != "button" && v.empty())
       || (type == "check" && v != "true" && v != "false")
-      || (type == "spin" && (atoi(v.c_str()) < min || atoi(v.c_str()) > max)))
+      || (type == "combo" && (std::find(comboValues.begin(), comboValues.end(), v) == comboValues.end()))
+      || (type == "spin" && (stoi(v) < min || stoi(v) > max)))
       return *this;
 
   if (type != "button")

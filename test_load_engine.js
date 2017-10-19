@@ -1,6 +1,6 @@
 var load_engine = require("./load_engine");
-var stockfish = load_engine();
-//var stockfish = load_engine("stockfish");
+//var stockfish = load_engine();
+var stockfish = load_engine("stockfish");
 
 stockfish.send("uci", function ()
 {

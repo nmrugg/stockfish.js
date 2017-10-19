@@ -1,6 +1,7 @@
 # Stockfish, a UCI chess playing engine derived from Glaurung 2.1
 # Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
 # Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
+# Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 #
 # Stockfish is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +22,10 @@
 ### ==========================================================================
 
 ### Establish the operating system name
-UNAME = $(shell uname)
+KERNEL = $(shell uname -s)
+ifeq ($(KERNEL),Linux)
+	OS = $(shell uname -o)
+endif
 
 ### Executable name
 EXE = stockfish
@@ -31,12 +35,16 @@ PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 
 ### Built-in benchmark for pgo-builds
-PGOBENCH = ./$(EXE) bench 16 1 1000 default time
+PGOBENCH = ./$(EXE) bench
 
 ### Object files
-OBJS = benchmark.o bitbase.o bitboard.o endgame.o evaluate.o main.o \
-	material.o misc.o movegen.o movepick.o pawns.o position.o \
-	search.o thread.o timeman.o tt.o uci.o ucioption.o
+OBJS = bitbase.o bitboard.o endgame.o evaluate.o main.o \
+ 	material.o misc.o movegen.o movepick.o pawns.o position.o psqt.o \
+ 	search.o thread.o timeman.o tt.o uci.o ucioption.o
+ifneq ($(COMP),emscripten)
+	OBJS += benchmark.o
+ 	OBJS += syzygy/tbprobe.o
+endif
 
 ### ==========================================================================
 ### Section 2. High-level Configuration
@@ -46,13 +54,12 @@ OBJS = benchmark.o bitbase.o bitboard.o endgame.o evaluate.o main.o \
 # ----------------------------------------------------------------------------
 #
 # debug = yes/no      --- -DNDEBUG         --- Enable/Disable debug mode
+# sanitize = yes/no   --- (-fsanitize )    --- enable undefined behavior checks
 # optimize = yes/no   --- (-O3/-fast etc.) --- Enable/Disable optimizations
 # arch = (name)       --- (-arch)          --- Target architecture
 # bits = 64/32        --- -DIS_64BIT       --- 64-/32-bit operating system
-# prefetch = yes/no   --- -DUSE_PREFETCH   --- Use prefetch x86 asm-instruction
-# bsfq = yes/no       --- -DUSE_BSFQ       --- Use bsfq x86_64 asm-instruction (only
-#                                              with GCC and ICC 64-bit)
-# popcnt = yes/no     --- -DUSE_POPCNT     --- Use popcnt x86_64 asm-instruction
+# prefetch = yes/no   --- -DUSE_PREFETCH   --- Use prefetch asm-instruction
+# popcnt = yes/no     --- -DUSE_POPCNT     --- Use popcnt asm-instruction
 # sse = yes/no        --- -msse            --- Use Intel Streaming SIMD Extensions
 # pext = yes/no       --- -DUSE_PEXT       --- Use pext x86_64 asm-instruction
 #
@@ -63,9 +70,9 @@ OBJS = benchmark.o bitbase.o bitboard.o endgame.o evaluate.o main.o \
 ### 2.1. General and architecture defaults
 optimize = yes
 debug = no
+sanitize = no
 bits = 32
 prefetch = no
-bsfq = no
 popcnt = no
 sse = no
 pext = no
@@ -107,7 +114,6 @@ ifeq ($(ARCH),x86-64)
 	arch = x86_64
 	bits = 64
 	prefetch = yes
-	bsfq = yes
 	sse = yes
 endif
 
@@ -115,7 +121,6 @@ ifeq ($(ARCH),x86-64-modern)
 	arch = x86_64
 	bits = 64
 	prefetch = yes
-	bsfq = yes
 	popcnt = yes
 	sse = yes
 endif
@@ -124,7 +129,6 @@ ifeq ($(ARCH),x86-64-bmi2)
 	arch = x86_64
 	bits = 64
 	prefetch = yes
-	bsfq = yes
 	popcnt = yes
 	sse = yes
 	pext = yes
@@ -133,7 +137,6 @@ endif
 ifeq ($(ARCH),armv7)
 	arch = armv7
 	prefetch = yes
-	bsfq = yes
 endif
 
 ifeq ($(ARCH),ppc-32)
@@ -152,7 +155,8 @@ endif
 
 ### 3.1 Selecting compiler (default = gcc)
 
-CXXFLAGS += -Wall -Wcast-qual -fno-exceptions -fno-rtti $(EXTRACXXFLAGS)
+CXXFLAGS += -Wall -Wcast-qual -fno-exceptions -fno-rtti -std=c++11 $(EXTRACXXFLAGS)
+DEPENDFLAGS += -std=c++11
 LDFLAGS += $(EXTRALDFLAGS)
 
 ifeq ($(COMP),)
@@ -162,14 +166,44 @@ endif
 ifeq ($(COMP),gcc)
 	comp=gcc
 	CXX=g++
-	CXXFLAGS += -ansi -pedantic -Wno-long-long -Wextra -Wshadow
+	CXXFLAGS += -pedantic -Wextra -Wshadow
+
+	ifeq ($(ARCH),armv7)
+		ifeq ($(OS),Android)
+			CXXFLAGS += -m$(bits)
+		endif
+	else
+		CXXFLAGS += -m$(bits)
+	endif
+
+	ifneq ($(KERNEL),Darwin)
+	   LDFLAGS += -Wl,--no-as-needed
+	endif
 endif
 
 ifeq ($(COMP),mingw)
 	comp=mingw
-	CXX=g++
+
+	ifeq ($(KERNEL),Linux)
+		ifeq ($(bits),64)
+			ifeq ($(shell which x86_64-w64-mingw32-c++-posix),)
+				CXX=x86_64-w64-mingw32-c++
+			else
+				CXX=x86_64-w64-mingw32-c++-posix
+			endif
+		else
+			ifeq ($(shell which i686-w64-mingw32-c++-posix),)
+				CXX=i686-w64-mingw32-c++
+			else
+				CXX=i686-w64-mingw32-c++-posix
+			endif
+		endif
+	else
+		CXX=g++
+	endif
+
 	CXXFLAGS += -Wextra -Wshadow
-	LDFLAGS += -static-libstdc++ -static-libgcc
+	LDFLAGS += -static
 endif
 
 ifeq ($(COMP),icc)
@@ -181,16 +215,27 @@ endif
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
-	profile_prepare = gcc-profile-prepare
-	profile_make = gcc-profile-make
-	profile_use = gcc-profile-use
-	profile_clean = gcc-profile-clean
 endif
 
 ifeq ($(COMP),clang)
 	comp=clang
 	CXX=clang++
-	CXXFLAGS += -pedantic -Wno-long-long -Wextra -Wshadow
+	CXXFLAGS += -pedantic -Wextra -Wshadow
+
+	ifeq ($(ARCH),armv7)
+		ifeq ($(OS),Android)
+			CXXFLAGS += -m$(bits)
+			LDFLAGS += -m$(bits)
+		endif
+	else
+		CXXFLAGS += -m$(bits)
+		LDFLAGS += -m$(bits)
+	endif
+
+	ifeq ($(KERNEL),Darwin)
+		CXXFLAGS += -stdlib=libc++
+		DEPENDFLAGS += -stdlib=libc++
+	endif
 endif
 
 ifeq ($(comp),icc)
@@ -205,16 +250,34 @@ else
 	profile_clean = gcc-profile-clean
 endif
 
-ifeq ($(UNAME),Darwin)
-	CXXFLAGS += -arch $(arch) -mmacosx-version-min=10.6
-	LDFLAGS += -arch $(arch) -mmacosx-version-min=10.6
+ifeq ($(KERNEL),Darwin)
+	CXXFLAGS += -arch $(arch) -mmacosx-version-min=10.9
+	LDFLAGS += -arch $(arch) -mmacosx-version-min=10.9
+endif
+
+### Travis CI script uses COMPILER to overwrite CXX
+ifdef COMPILER
+	COMPCXX=$(COMPILER)
 endif
 
 ifeq ($(COMP),emscripten)
 	CXXFLAGS += -s TOTAL_MEMORY=67108864
 	#NOTE: --closure 1 breaks the code
 	#TODO: File bug report for --closure 1.
-	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --memory-init-file 0 -s NO_EXIT_RUNTIME=1
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s NO_FILESYSTEM=1 --pre-js pre.js --post-js post.js
+endif
+ifeq ($(CHESSCOM),1)
+	CXXFLAGS += -DCHESSCOM
+	#NOTE: uci.cpp uses shadowing for simplicity.
+	CXXFLAGS:=$(filter-out -Wshadow,$(CXXFLAGS))
+endif
+ifeq ($(SYNC),1)
+	CXXFLAGS += -DSYNC
+endif
+
+### Allow overwriting CXX from command line
+ifdef COMPCXX
+	CXX=$(COMPCXX)
 endif
 
 # We don't want this in JS either. (Not indenting to make merging easier.)
@@ -222,29 +285,83 @@ ifneq ($(COMP),emscripten)
 ### On mingw use Windows threads, otherwise POSIX
 ifneq ($(comp),mingw)
 	# On Android Bionic's C library comes with its own pthread implementation bundled in
-	ifneq ($(arch),armv7)
+	ifneq ($(OS),Android)
 		# Haiku has pthreads in its libroot, so only link it in on other platforms
-		ifneq ($(UNAME),Haiku)
+		ifneq ($(KERNEL),Haiku)
 			LDFLAGS += -lpthread
 		endif
 	endif
 endif
 endif # end if for JS.
 
-### 3.4 Debugging
+### 3.2.1 Debugging
+ifneq ($(VARIANTS),NONE)
+	ifeq ($(VARIANTS),)
+		CXXFLAGS += -DANTI -DATOMIC -DCRAZYHOUSE -DHORDE -DKOTH -DRACE -DRELAY -DTHREECHECK
+	else
+		ifeq ($(findstring ANTI,$(VARIANTS)), ANTI)
+			CXXFLAGS += -DANTI
+		endif
+		ifeq ($(findstring ATOMIC,$(VARIANTS)), ATOMIC)
+			CXXFLAGS += -DATOMIC
+		endif
+		ifeq ($(findstring CRAZYHOUSE,$(VARIANTS)), CRAZYHOUSE)
+			CXXFLAGS += -DCRAZYHOUSE
+		endif
+		ifeq ($(findstring HORDE,$(VARIANTS)), HORDE)
+			CXXFLAGS += -DHORDE
+		endif
+		ifeq ($(findstring KOTH,$(VARIANTS)), KOTH)
+			CXXFLAGS += -DKOTH
+		endif
+		# alternate name for king of the hill
+		ifeq ($(findstring KINGOFTHEHILL,$(VARIANTS)), KINGOFTHEHILL)
+			CXXFLAGS += -DKOTH
+		endif
+		ifeq ($(findstring RACE,$(VARIANTS)), RACE)
+			CXXFLAGS += -DRACE
+		endif
+		ifeq ($(findstring RELAY,$(VARIANTS)), RELAY)
+			CXXFLAGS += -DRELAY
+		endif
+		ifeq ($(findstring THREECHECK,$(VARIANTS)), THREECHECK)
+			CXXFLAGS += -DTHREECHECK
+		endif
+		# alternate name for 3check
+		ifeq ($(findstring 3CHECK,$(VARIANTS)), 3CHECK)
+			CXXFLAGS += -DTHREECHECK
+		endif
+	endif
+endif
+
 ifeq ($(debug),no)
 	CXXFLAGS += -DNDEBUG
 else
 	CXXFLAGS += -g
 endif
 
-### 3.5 Optimization
+### 3.2.2 Debugging with undefined behavior sanitizers
+ifeq ($(sanitize),yes)
+        CXXFLAGS += -g3 -fsanitize=undefined
+        LDFLAGS += -fsanitize=undefined
+endif
+
+### 3.3 Optimization
+ifeq ($(DEBUGJS),1)
+	CXXFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1
+	LDFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1
+else
 ifeq ($(optimize),yes)
 
-	ifeq ($(comp),gcc)
-		CXXFLAGS += -O3
+	CXXFLAGS += -O3
 
-		ifeq ($(UNAME),Darwin)
+	ifeq ($(COMP),emscripten)
+		LDFLAGS += -O3
+	endif
+
+	ifeq ($(comp),gcc)
+
+		ifeq ($(KERNEL),Darwin)
 			ifeq ($(arch),i386)
 				CXXFLAGS += -mdynamic-no-pic
 			endif
@@ -253,44 +370,19 @@ ifeq ($(optimize),yes)
 			endif
 		endif
 
-		ifeq ($(arch),armv7)
+		ifeq ($(OS), Android)
 			CXXFLAGS += -fno-gcse -mthumb -march=armv7-a -mfloat-abi=softfp
 		endif
 	endif
 
-	ifeq ($(comp),mingw)
-		CXXFLAGS += -O3
-	endif
-
 	ifeq ($(comp),icc)
-		ifeq ($(UNAME),Darwin)
-			CXXFLAGS += -fast -mdynamic-no-pic
-		else
-			CXXFLAGS += -fast
+		ifeq ($(KERNEL),Darwin)
+			CXXFLAGS += -mdynamic-no-pic
 		endif
 	endif
 
 	ifeq ($(comp),clang)
-		### -O4 requires a linker that supports LLVM's LTO
-		ifeq ($(COMP),emscripten)
-			# Use for smaller, faster code (slower build times though)
-			CXXFLAGS += -O3
-			LDFLAGS += -O3
-			# Use -3 for debugging (preserve variable names)
-			# Use -4 for source map and line number comments
-			# Don't forget to clean before you build too!
-			#CXXFLAGS += -g3
-			#LDFLAGS += -g3
-			# For Debugging purposes.
-			#LDFLAGS += -s ASSERTIONS=1
-			#LDFLAGS += -s DISABLE_EXCEPTION_CATCHING=0
-			#LDFLAGS += -s EXCEPTION_DEBUG=1
-			#LDFLAGS += --profiling
-		else
-			CXXFLAGS += -O3
-		endif
-
-		ifeq ($(UNAME),Darwin)
+		ifeq ($(KERNEL),Darwin)
 			ifeq ($(pext),no)
 				CXXFLAGS += -flto
 				LDFLAGS += $(CXXFLAGS)
@@ -304,13 +396,14 @@ ifeq ($(optimize),yes)
 		endif
 	endif
 endif
+endif # debugjs
 
-### 3.6. Bits
+### 3.4 Bits
 ifeq ($(bits),64)
 	CXXFLAGS += -DIS_64BIT
 endif
 
-### 3.7 prefetch
+### 3.5 prefetch
 ifeq ($(prefetch),yes)
 	ifeq ($(sse),yes)
 		CXXFLAGS += -msse
@@ -320,12 +413,7 @@ else
 	CXXFLAGS += -DNO_PREFETCH
 endif
 
-### 3.8 bsfq
-ifeq ($(bsfq),yes)
-	CXXFLAGS += -DUSE_BSFQ
-endif
-
-### 3.9 popcnt
+### 3.6 popcnt
 ifeq ($(popcnt),yes)
 	ifeq ($(comp),icc)
 		CXXFLAGS += -msse3 -DUSE_POPCNT
@@ -334,33 +422,40 @@ ifeq ($(popcnt),yes)
 	endif
 endif
 
-### 3.10 pext
+### 3.7 pext
 ifeq ($(pext),yes)
 	CXXFLAGS += -DUSE_PEXT
 	ifeq ($(comp),$(filter $(comp),gcc clang mingw))
-		CXXFLAGS += -mbmi -mbmi2
+		CXXFLAGS += -mbmi2
 	endif
 endif
 
-### 3.11 Link Time Optimization, it works since gcc 4.5 but not on mingw.
+### 3.8 Link Time Optimization, it works since gcc 4.5 but not on mingw under Windows.
 ### This is a mix of compile and link time options because the lto link phase
 ### needs access to the optimization flags.
 ifeq ($(comp),gcc)
 	ifeq ($(optimize),yes)
 	ifeq ($(debug),no)
-		GCC_MAJOR := `$(CXX) -dumpversion | cut -f1 -d.`
-		GCC_MINOR := `$(CXX) -dumpversion | cut -f2 -d.`
-		ifeq (1,$(shell expr \( $(GCC_MAJOR) \> 4 \) \| \( $(GCC_MAJOR) \= 4 \& $(GCC_MINOR) \>= 5 \)))
-			CXXFLAGS += -flto
-			LDFLAGS += $(CXXFLAGS)
-		endif
+		CXXFLAGS += -flto
+		LDFLAGS += $(CXXFLAGS)
 	endif
 	endif
 endif
 
-### 3.12 Android 5 can only run position independent executables. Note that this
+ifeq ($(comp),mingw)
+	ifeq ($(KERNEL),Linux)
+	ifeq ($(optimize),yes)
+	ifeq ($(debug),no)
+		CXXFLAGS += -flto
+		LDFLAGS += $(CXXFLAGS)
+	endif
+	endif
+	endif
+endif
+
+### 3.9 Android 5 can only run position independent executables. Note that this
 ### breaks Android 4.0 and earlier.
-ifeq ($(arch),armv7)
+ifeq ($(OS), Android)
 	CXXFLAGS += -fPIE
 	LDFLAGS += -fPIE -pie
 endif
@@ -374,7 +469,7 @@ help:
 	@echo ""
 	@echo "To compile stockfish, type: "
 	@echo ""
-	@echo "make target ARCH=arch [COMP=comp]"
+	@echo "make target ARCH=arch [COMP=compiler] [COMPCXX=cxx]"
 	@echo ""
 	@echo "Supported targets:"
 	@echo ""
@@ -405,11 +500,17 @@ help:
 	@echo "clang                   > LLVM Clang compiler"
 	@echo "icc                     > Intel compiler"
 	@echo ""
-	@echo "Examples. If you don't know what to do, you likely want to run: "
+	@echo "Simple examples. If you don't know what to do, you likely want to run: "
 	@echo ""
 	@echo "make build ARCH=x86-64    (This is for 64-bit systems)"
 	@echo "make build ARCH=x86-32    (This is for 32-bit systems)"
 	@echo ""
+	@echo "Advanced examples, for experienced users: "
+	@echo ""
+	@echo "make build ARCH=x86-64 COMP=clang"
+	@echo "make profile-build ARCH=x86-64-modern COMP=gcc COMPCXX=g++-4.8"
+	@echo ""
+
 
 .PHONY: build profile-build
 build:
@@ -423,14 +524,14 @@ profile-build:
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) $(profile_prepare)
 	@echo ""
 	@echo "Step 1/4. Building executable for benchmark ..."
-	@touch *.cpp *.h
+	@touch *.cpp *.h syzygy/*.cpp syzygy/*.h
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) $(profile_make)
 	@echo ""
 	@echo "Step 2/4. Running benchmark for pgo-build ..."
-	@$(PGOBENCH) > /dev/null
+	$(PGOBENCH) > /dev/null
 	@echo ""
 	@echo "Step 3/4. Building final executable ..."
-	@touch *.cpp *.h
+	@touch *.cpp *.h syzygy/*.cpp syzygy/*.h
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) $(profile_use)
 	@echo ""
 	@echo "Step 4/4. Deleting profile data ..."
@@ -445,8 +546,7 @@ install:
 	-strip $(BINDIR)/$(EXE)
 
 clean:
-	$(RM) $(EXE) $(EXE).exe *.o .depend *~ core bench.txt *.gcda
-	$(RM) $(EXE).js
+	$(RM) $(EXE) $(EXE).exe $(EXE).js *.o .depend *~ core bench.txt *.gcda ./syzygy/*.o ./syzygy/*.gcda
 
 default:
 	help
@@ -461,11 +561,13 @@ config-sanity:
 	@echo ""
 	@echo "Config:"
 	@echo "debug: '$(debug)'"
+	@echo "sanitize: '$(sanitize)'"
 	@echo "optimize: '$(optimize)'"
 	@echo "arch: '$(arch)'"
 	@echo "bits: '$(bits)'"
+	@echo "kernel: '$(KERNEL)'"
+	@echo "os: '$(OS)'"
 	@echo "prefetch: '$(prefetch)'"
-	@echo "bsfq: '$(bsfq)'"
 	@echo "popcnt: '$(popcnt)'"
 	@echo "sse: '$(sse)'"
 	@echo "pext: '$(pext)'"
@@ -478,12 +580,12 @@ config-sanity:
 	@echo "Testing config sanity. If this fails, try 'make help' ..."
 	@echo ""
 	@test "$(debug)" = "yes" || test "$(debug)" = "no"
+	@test "$(sanitize)" = "yes" || test "$(sanitize)" = "no"
 	@test "$(optimize)" = "yes" || test "$(optimize)" = "no"
 	@test "$(arch)" = "any" || test "$(arch)" = "x86_64" || test "$(arch)" = "i386" || \
 	 test "$(arch)" = "ppc64" || test "$(arch)" = "ppc" || test "$(arch)" = "armv7"
 	@test "$(bits)" = "32" || test "$(bits)" = "64"
 	@test "$(prefetch)" = "yes" || test "$(prefetch)" = "no"
-	@test "$(bsfq)" = "yes" || test "$(bsfq)" = "no"
 	@test "$(popcnt)" = "yes" || test "$(popcnt)" = "no"
 	@test "$(sse)" = "yes" || test "$(sse)" = "no"
 	@test "$(pext)" = "yes" || test "$(pext)" = "no"
@@ -497,21 +599,18 @@ gcc-profile-prepare:
 
 gcc-profile-make:
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) \
-	EXTRACXXFLAGS='-fprofile-arcs' \
+	EXTRACXXFLAGS='-fprofile-generate' \
 	EXTRALDFLAGS='-lgcov' \
 	all
 
 gcc-profile-use:
-# Deleting corrupt ucioption.gc* profile files is necessary to avoid an 
-# "internal compiler error" for gcc versions 4.7.x
-	@rm -f ucioption.gc*
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) \
-	EXTRACXXFLAGS='-fbranch-probabilities' \
+	EXTRACXXFLAGS='-fprofile-use -fno-peel-loops -fno-tracer' \
 	EXTRALDFLAGS='-lgcov' \
 	all
 
 gcc-profile-clean:
-	@rm -rf *.gcda *.gcno bench.txt
+	@rm -rf *.gcda *.gcno syzygy/*.gcda syzygy/*.gcno bench.txt
 
 icc-profile-prepare:
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) icc-profile-clean
@@ -534,3 +633,4 @@ icc-profile-clean:
 	-@$(CXX) $(DEPENDFLAGS) -MM $(OBJS:.o=.cpp) > $@ 2> /dev/null
 
 -include .depend
+

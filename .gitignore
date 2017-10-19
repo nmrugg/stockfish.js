@@ -1,12 +1,11 @@
-.cproject
-.depend
-.project
-.settings/
+src/stockfish
+src/.depend
 *.o
+
+# Stockfish.js
 stockfish
 src/stockfish.js.map
 src/stockfish.js.mem
-node_modules/
 *~
 etc/
 merged_data.json

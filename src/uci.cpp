@@ -2,6 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,22 +27,61 @@
 #include "position.h"
 #include "search.h"
 #include "thread.h"
-#include "tt.h"
+#include "timeman.h"
 #include "uci.h"
+
+#ifndef EMSCRIPTEN
+#include "syzygy/tbprobe.h"
+#endif
 
 using namespace std;
 
+#ifndef EMSCRIPTEN
 extern void benchmark(const Position& pos, istream& is);
+#endif
 
 namespace {
 
-  // FEN string of the initial position, normal chess
-  const char* StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  Variant variant_from_name(string s) {
+      for (Variant v = CHESS_VARIANT; v < VARIANT_NB; ++v)
+          if (variants[v] == s)
+              return v;
+      return CHESS_VARIANT;
+  }
 
-  // Stack to keep track of the position states along the setup moves (from the
+  // FEN strings of the initial positions
+  const string StartFENs[VARIANT_NB] = {
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#ifdef ANTI
+  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#endif
+#ifdef ATOMIC
+  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#endif
+#ifdef CRAZYHOUSE
+  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1"
+#endif
+#ifdef HORDE
+  ,"rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1"
+#endif
+#ifdef KOTH
+  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#endif
+#ifdef RACE
+  ,"8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1"
+#endif
+#ifdef RELAY
+  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#endif
+#ifdef THREECHECK
+  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3+3 0 1"
+#endif
+  };
+
+  // A list to keep track of the position states along the setup moves (from the
   // start position to the position just before the search starts). Needed by
   // 'draw by repetition' detection.
-  Search::StateStackPtr SetupStates;
+  StateListPtr States(new std::deque<StateInfo>(1));
 
 
   // position() is called when engine receives the "position" UCI command.
@@ -54,11 +94,12 @@ namespace {
     Move m;
     string token, fen;
 
-    is >> token;
+    Variant variant = variant_from_name(Options["UCI_Variant"]);
 
+    is >> token;
     if (token == "startpos")
     {
-        fen = StartFEN;
+        fen = StartFENs[variant];
         is >> token; // Consume "moves" token if any
     }
     else if (token == "fen")
@@ -67,14 +108,14 @@ namespace {
     else
         return;
 
-    pos.set(fen, Options["UCI_Chess960"], Threads.main());
-    SetupStates = Search::StateStackPtr(new std::stack<StateInfo>());
+    States = StateListPtr(new std::deque<StateInfo>(1));
+    pos.set(fen, Options["UCI_Chess960"], variant, &States->back(), Threads.main());
 
     // Parse move list (if any)
     while (is >> token && (m = UCI::to_move(pos, token)) != MOVE_NONE)
     {
-        SetupStates->push(StateInfo());
-        pos.do_move(m, SetupStates->top());
+        States->push_back(StateInfo());
+        pos.do_move(m, States->back(), pos.gives_check(m));
     }
   }
 
@@ -85,19 +126,22 @@ namespace {
   void setoption(istringstream& is) {
 
     string token, name, value;
-
     is >> token; // Consume "name" token
 
     // Read option name (can contain spaces)
     while (is >> token && token != "value")
-        name += string(" ", !name.empty()) + token;
+        name += string(" ", name.empty() ? 0 : 1) + token;
 
     // Read option value (can contain spaces)
     while (is >> token)
-        value += string(" ", !value.empty()) + token;
+        value += string(" ", value.empty() ? 0 : 1) + token;
 
     if (Options.count(name))
+    {
         Options[name] = value;
+        if (name == "UCI_Variant")
+            sync_cout << "info string variant " << (string)Options["UCI_Variant"] << " startpos " << StartFENs[variant_from_name(Options["UCI_Variant"])] << sync_endl;
+    }
     else
         sync_cout << "No such option: " << name << sync_endl;
   }
@@ -107,16 +151,34 @@ namespace {
   // the thinking time and other parameters from the input string, then starts
   // the search.
 
-  void go(const Position& pos, istringstream& is) {
+  void go(Position& pos, istringstream& is) {
 
     Search::LimitsType limits;
     string token;
+
+    limits.startTime = now(); // As early as possible!
 
     while (is >> token)
         if (token == "searchmoves")
             while (is >> token)
                 limits.searchmoves.push_back(UCI::to_move(pos, token));
 
+#ifdef CHESSCOM
+        else if (token == "mindepth")  is >> limits.mindepth;
+        else if (token == "maxdepth")  is >> limits.maxdepth;
+        else if (token == "shallow")   is >> limits.shallow;
+        else if (token == "mintime")   is >> limits.mintime;
+        else if (token == "maxtime")   is >> limits.maxtime;
+        else if (token == "confidence") {
+            limits.smartdepth = 1;
+            is >> limits.confidence;
+            if (limits.confidence < 0.1) {
+                limits.confidence = 1;
+            } else {
+                limits.confidence = 1 / (limits.confidence * 10);
+            }
+        }
+#endif
         else if (token == "wtime")     is >> limits.time[WHITE];
         else if (token == "btime")     is >> limits.time[BLACK];
         else if (token == "winc")      is >> limits.inc[WHITE];
@@ -126,10 +188,9 @@ namespace {
         else if (token == "nodes")     is >> limits.nodes;
         else if (token == "movetime")  is >> limits.movetime;
         else if (token == "mate")      is >> limits.mate;
-        else if (token == "infinite")  limits.infinite = true;
-        else if (token == "ponder")    limits.ponder = true;
-
-    Threads.start_thinking(pos, limits, SetupStates);
+        else if (token == "infinite")  limits.infinite = 1;
+        else if (token == "ponder")    limits.ponder = 1;
+    Threads.start_thinking(pos, States, limits);
   }
 
 } // namespace
@@ -140,14 +201,36 @@ namespace {
 /// GUI dies unexpectedly. When called with some command line arguments, e.g. to
 /// run 'bench', once the command is executed the function returns immediately.
 /// In addition to the UCI ones, also some additional debug commands are supported.
-
-///NOTE: This has been modified for Stockfish.js since we can't have an infinite loop.
+#ifdef EMSCRIPTEN
 Position pos;
   void UCI::commandInit() {
-    pos = Position(StartFEN, false, Threads.main()); // The root position
+    Variant variant = variant_from_name(Options["UCI_Variant"]);
+    pos.set(StartFENs[variant], false, variant, &States->back(), Threads.main());
   }
   void UCI::command(const string& cmd) {
-      string token;
+    string token;
+#else
+#ifdef CHESSCOM
+/// For move_to_san()
+Position pos;
+#endif
+void UCI::loop(int argc, char* argv[]) {
+
+/// See "#ifdef CHESSCOM" above
+#ifndef CHESSCOM
+  Position pos;
+#endif
+  string token, cmd;
+
+  pos.set(StartFENs[CHESS_VARIANT], false, CHESS_VARIANT, &States->back(), Threads.main());
+
+  for (int i = 1; i < argc; ++i)
+      cmd += std::string(argv[i]) + " ";
+
+  do {
+      if (argc == 1 && !getline(cin, cmd)) // Block here waiting for input or EOF
+          cmd = "quit";
+#endif
       istringstream is(cmd);
 
       token.clear(); // getline() could return empty or blank line
@@ -163,27 +246,37 @@ Position pos;
           || (token == "ponderhit" && Search::Signals.stopOnPonderhit))
       {
           Search::Signals.stop = true;
-          Threads.main()->notify_one(); // Could be sleeping
+          Threads.main()->start_searching(true); // Could be sleeping
       }
       else if (token == "ponderhit")
-          Search::Limits.ponder = false; // Switch to normal search
+          Search::Limits.ponder = 0; // Switch to normal search
 
       else if (token == "uci")
           sync_cout << "id name " << engine_info(true)
                     << "\n"       << Options
                     << "\nuciok"  << sync_endl;
 
+      else if (token == "ucinewgame")
+      {
+          Search::clear();
+#ifndef EMSCRIPTEN
+          Tablebases::init(Options["SyzygyPath"]);
+#endif
+          Time.availableNodes = 0;
+      }
       else if (token == "isready")    sync_cout << "readyok" << sync_endl;
-      else if (token == "ucinewgame") TT.clear();
       else if (token == "go")         go(pos, is);
       else if (token == "position")   position(pos, is);
       else if (token == "setoption")  setoption(is);
 
       // Additional custom non-UCI commands, useful for debugging
       else if (token == "flip")       pos.flip();
+#ifndef EMSCRIPTEN
       else if (token == "bench")      benchmark(pos, is);
+#endif
       else if (token == "d")          sync_cout << pos << sync_endl;
       else if (token == "eval")       sync_cout << Eval::trace(pos) << sync_endl;
+#ifndef EMSCRIPTEN
       else if (token == "perft")
       {
           int depth;
@@ -195,51 +288,24 @@ Position pos;
 
           benchmark(pos, ss);
       }
+#endif
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
+#ifndef EMSCRIPTEN
+  } while (token != "quit" && argc == 1); // Passed args have one-shot behaviour
 
-   ///} while (token != "quit" && argc == 1); // Passed args have one-shot behaviour /// Can't have an infinite loop in JS.
-
-   ///Threads.wait_for_think_finished(); // Cannot quit whilst the search is running /// Don't need this either.
+  Threads.main()->wait_for_search_finished();
+#endif
 }
 
 
-///READDED
-/// format_move() converts a Move to a string in coordinate notation
-/// (g1f3, a7a8q, etc.). The only special case is castling moves, where we print
-/// in the e1g1 notation in normal chess mode, and in e1h1 notation in chess960
-/// mode. Internally castling moves are always encoded as "king captures rook".
-
-string UCI::format_move(Move m, bool chess960) {
-
-  Square from = from_sq(m);
-  Square to = to_sq(m);
-
-  if (m == MOVE_NONE)
-      return "(none)";
-
-  if (m == MOVE_NULL)
-      return "0000";
-
-  if (type_of(m) == CASTLING && !chess960)
-      to = make_square(to > from ? FILE_G : FILE_C, rank_of(from));
-
-  string move = square(from) + square(to);
-
-  if (type_of(m) == PROMOTION)
-      move += " pnbrqk"[promotion_type(m)];
-
-  return move;
-}
-
-
-///READDED
+#ifdef CHESSCOM
 /// move_to_san() takes a position and a legal Move as input and returns its
 /// short algebraic notation representation.
 
 const char* PieceToChar[COLOR_NB] = { " PNBRQK", " pnbrqk" };
 
-const string UCI::move_to_san(Position& pos, Move m) {
+const string UCI::move_to_san(Position& thisPos, Move m) {
 
   if (m == MOVE_NONE)
       return "(none)";
@@ -247,14 +313,14 @@ const string UCI::move_to_san(Position& pos, Move m) {
   if (m == MOVE_NULL)
       return "(null)";
 
-  assert(MoveList<LEGAL>(pos).contains(m));
+  assert(MoveList<LEGAL>(thisPos).contains(m));
 
   Bitboard others, b;
   string san;
-  Color us = pos.side_to_move();
+  Color us = thisPos.side_to_move();
   Square from = from_sq(m);
   Square to = to_sq(m);
-  Piece pc = pos.piece_on(from);
+  Piece pc = thisPos.piece_on(from);
   PieceType pt = type_of(pc);
 
   if (type_of(m) == CASTLING)
@@ -267,12 +333,12 @@ const string UCI::move_to_san(Position& pos, Move m) {
 
           // A disambiguation occurs if we have more then one piece of type 'pt'
           // that can reach 'to' with a legal move.
-          others = b = (pos.attacks_from(pc, to) & pos.pieces(us, pt)) ^ from;
+          others = b = (thisPos.attacks_from(pc, to) & thisPos.pieces(us, pt)) ^ from;
 
           while (b)
           {
               Square s = pop_lsb(&b);
-              if (!pos.legal(make_move(s, to), pos.pinned_pieces(us)))
+              if (!thisPos.legal(make_move(s, to)))
                   others ^= s;
           }
 
@@ -288,10 +354,10 @@ const string UCI::move_to_san(Position& pos, Move m) {
           else
               san += square(from);
       }
-      else if (pos.capture(m))
+      else if (thisPos.capture(m))
           san = char(file_of(from) - FILE_A + 'a');
 
-      if (pos.capture(m))
+      if (thisPos.capture(m))
           san += 'x';
 
       san += square(to);
@@ -300,19 +366,17 @@ const string UCI::move_to_san(Position& pos, Move m) {
           san += string("=") + PieceToChar[WHITE][promotion_type(m)];
   }
 
-  if (pos.gives_check(m, CheckInfo(pos)))
+  if (thisPos.gives_check(m))
   {
-      //NOTE: Use could use "Position& pos2 = const_cast<Position&>(pos);" and then use pos2 instead of pos, but that is much slower.
-      //      If we did to that, we could remove "void do_move(Move m, StateInfo& st) const;" and "void undo_move(Move m) const;" from uci.h.
       StateInfo st;
-      pos.do_move(m, st);
-      san += MoveList<LEGAL>(pos).size() ? "+" : "#";
-      pos.undo_move(m);
+      thisPos.do_move(m, st, thisPos.gives_check(m));
+      san += MoveList<LEGAL>(thisPos).size() ? "+" : "#";
+      thisPos.undo_move(m);
   }
 
   return san;
 }
-
+#endif
 
 /// UCI::value() converts a Value to a string suitable for use with the UCI
 /// protocol specification:
@@ -325,7 +389,7 @@ string UCI::value(Value v) {
 
   stringstream ss;
 
-  if (abs(v) < VALUE_MATE_IN_MAX_PLY)
+  if (abs(v) < VALUE_MATE - MAX_PLY)
       ss << "cp " << v * 100 / PawnValueEg;
   else
       ss << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
@@ -337,9 +401,7 @@ string UCI::value(Value v) {
 /// UCI::square() converts a Square to a string in algebraic notation (g1, a7, etc.)
 
 std::string UCI::square(Square s) {
-
-  char sq[] = { char('a' + file_of(s)), char('1' + rank_of(s)), 0 }; // NULL terminated
-  return sq;
+  return std::string{ char('a' + file_of(s)), char('1' + rank_of(s)) };
 }
 
 
@@ -362,7 +424,11 @@ string UCI::move(Move m, bool chess960) {
   if (type_of(m) == CASTLING && !chess960)
       to = make_square(to > from ? FILE_G : FILE_C, rank_of(from));
 
+#ifdef CRAZYHOUSE
+  string move = ((type_of(m) == DROP) ? std::string{" PNBRQK  PNBRQK "[dropped_piece(m)], '@'} : UCI::square(from)) + UCI::square(to);
+#else
   string move = UCI::square(from) + UCI::square(to);
+#endif
 
   if (type_of(m) == PROMOTION)
       move += " pnbrqk"[promotion_type(m)];
@@ -379,9 +445,9 @@ Move UCI::to_move(const Position& pos, string& str) {
   if (str.length() == 5) // Junior could send promotion piece in uppercase
       str[4] = char(tolower(str[4]));
 
-  for (MoveList<LEGAL> it(pos); *it; ++it)
-      if (str == UCI::move(*it, pos.is_chess960()))
-          return *it;
+  for (const auto& m : MoveList<LEGAL>(pos))
+      if (str == UCI::move(m, pos.is_chess960()))
+          return m;
 
   return MOVE_NONE;
 }

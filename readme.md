@@ -1,8 +1,8 @@
 ### Stockfish.js
 
-<a href="https://github.com/nmrugg/stockfish.js">Stockfish.js</a> is a pure JavaScript implementation of <a href="https://github.com/mcostalba/Stockfish">Stockfish</a>, the world's strongest chess engine.
+<a href="https://github.com/nmrugg/stockfish.js">Stockfish.js</a> is a pure JavaScript implementation of <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a>, the world's strongest chess engine.
 
-Stockfish.js is currently synced with Stockfish 6.
+Stockfish.js is currently synced with Stockfish 8.
 
 ### API
 
@@ -39,13 +39,13 @@ In Node.js, you can either run it directly from the command line (i.e., `node sr
 
 ### Note about pondering
 
-The code has been slightly refactored to allow for pondering. However, it can take a long time for Stockfish.js to process the "stop" or "ponderhit" commands. So it could be dangerous to use in a timed game.
+The code has been refactored to allow for pondering. However, it can take a long time for Stockfish.js to process the "stop" or "ponderhit" commands. So it could be dangerous to use in a timed game.
 
 In the future, it may be improved upon.
 
 ### Compiling
 
-You need to have the <a href="https://github.com/kripken/emscripten/">emscripten</a> compiler installed and in your path. Then you can compile Stockfish.js with the build script: `./build.sh`.
+You need to have the <a href="http://kripken.github.io/emscripten-site/docs/getting_started/downloads.html">emscripten</a> compiler installed and in your path. Then you can compile Stockfish.js with the build script: `./build.js`. See `./build.js --help` for details.
 
 ### Example
 
@@ -63,6 +63,7 @@ Alternatively, you can also run Stockfish.js from the command line via `./stockf
 
 - <a href="https://github.com/mcostalba/Stockfish">The Stockfish team</a>
 - <a href="https://github.com/exoticorn/stockfish-js">exoticorn</a>
+- <a href="https://github.com/ddugovic/Stockfish">ddugovic</a>
 
 ### License
 

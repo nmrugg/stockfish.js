@@ -1,11 +1,8 @@
-/*!
- * Stockfish.js (http://github.com/nmrugg/stockfish.js)
- * License: GPL
- */
 /**
- * Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
- * Copyright (C) 2008-2014 Marco Costalba, Joona Kiiski, Tord Romstad (Stockfish authors)
+ * Copyright (C) Tord Romstad (Glaurung author)
+ * Copyright (C) Marco Costalba, Joona Kiiski, Tord Romstad (Stockfish authors)
  * Copyright (C) Nathan Rugg (Stockfish.js)
+ * Copyright (C) Phillip Albanese - https://github.com/philososaur
  *
  * Stockfish is free, and distributed under the GNU General Public License
  * (GPL). Essentially, this means that you are free to do almost exactly
@@ -24,5 +21,10 @@
  */
 var STOCKFISH = (function ()
 {
-function load_stockfish(console)
-{
+    function load_stockfish(console)
+    {
+        /// Fake timer for Safari and IE/Edge.
+        ///NOTE: Both Chrome and Edge have "Safari" in it.
+        if (typeof navigator !== "undefined" && (/MSIE|Trident|Edge/i.test(navigator.userAgent) || (/Safari/i.test(navigator.userAgent) && !/Chrome|CriOS/i.test(navigator.userAgent)))) {
+            var dateNow = Date.now;
+        }

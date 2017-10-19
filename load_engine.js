@@ -2,6 +2,8 @@ var load_engine = (function ()
 {
     "use strict";
     
+    var debugging = false;
+    
     function array_remove(arr, i, order_irrelevant)
     {
         var len = arr.length;
@@ -48,7 +50,7 @@ var load_engine = (function ()
         function echo(data)
         {
             var str;
-            if (load_engine.debug) {
+            if (debugging) {
                 console.log("echo: ",  data.toString())
             }
             if (worker.onmessage) {
@@ -66,7 +68,6 @@ var load_engine = (function ()
             }
         }
         
-        /// If it ends with .js, execute it with node; otherwise, execute it directly (this can be any UCI compatible executable).
         if (path.slice(-3).toLowerCase() === ".js") {
             options.push(path);
             path = process.execPath;
@@ -85,7 +86,7 @@ var load_engine = (function ()
         
         worker.postMessage = function onin(str)
         {
-            if (load_engine.debug) {
+            if (debugging) {
                 console.log("stdin: " + str)
             }
             engine.stdin.write(str + "\n");
@@ -119,30 +120,10 @@ var load_engine = (function ()
         return line.substr(0, space_index);
     }
     
-    function toJSON(raw, cmdWord, streaming)
-    {
-        var firstWord;
-        var i;
-        var parts;
-        var len;
-        
-        if (cmdWord === "go") {
-            //firstWord = get_first_word(raw);
-            parts = raw.split(" ");
-            len = parts.length;
-            
-            for (i = 0; i < len; i += 1) {
-                
-            }
-        } else {
-            return raw;
-        }
-    }
-    
-    return function loader(path)
+    return function load_engine(path)
     {
         var worker = new_worker(path),
-            engine = {},
+            engine = {started: Date.now()},
             que = [],
             eval_regex = /Total Evaluation[\s\S]+\n$/;
         
@@ -170,7 +151,7 @@ var load_engine = (function ()
                 len = que.length;
                 
                 for (i = 0; i < len; i += 1) {
-                    cmd_first_word = que[i].firstWord;
+                    cmd_first_word = get_first_word(que[i].cmd);
                     if (cmd_first_word === cmd_type || (cmd_type === "other" && (cmd_first_word === "d" || cmd_first_word === "eval"))) {
                         return i;
                     }
@@ -199,7 +180,7 @@ var load_engine = (function ()
                 return;
             }
             
-            if (load_engine.debug) {
+            if (debugging) {
                 console.log("debug (onmessage): " + line)
             }
             
@@ -223,7 +204,7 @@ var load_engine = (function ()
             }
             
             if (my_que.stream) {
-                my_que.stream(my_que.args.raw ? line : toJSON(line, my_que.firstWord, true));
+                my_que.stream(line);
             }
             
             if (typeof my_que.message === "undefined") {
@@ -261,11 +242,9 @@ var load_engine = (function ()
                 if (eval_regex.test(my_que.message)) {
                     done = true;
                 }
-            } else if (line.substr(0, 8) === "pawn key") {
-                /// "key"
+            } else if (line.substr(0, 8) === "pawn key") { /// "key"
                 done = true;
-            } else if (line.substr(0, 12) === "Nodes/second") {
-                /// "bench" or "perft"
+            } else if (line.substr(0, 12) === "Nodes/second") { /// "bench" or "perft"
                 /// You could just return the last three lines, but I don't want to add more code to this file than is necessary.
                 done = true;
             } else if (line.substr(0, 15) === "Unknown command") {
@@ -278,38 +257,28 @@ var load_engine = (function ()
                 array_remove(que, que_num);
                 
                 if (my_que.cb && !my_que.discard) {
-                    //my_que.cb(my_que.message);
-                    my_que.cb(my_que.args.raw ? my_que.message : toJSON(my_que.message, my_que.firstWord));
+                    my_que.cb(my_que.message);
                 }
             }
         };
         
-        engine.send = function send(cmd, args, cb, stream)
+        engine.send = function send(cmd, cb, stream)
         {
             var no_reply;
             
-            /// Make args optional.
-            if (typeof args === "function") {
-                stream = cb;
-                cb = args;
-                args = {};
-            }
-            
             cmd = String(cmd).trim();
             
-            if (load_engine.debug) {
+            if (debugging) {
                 console.log("debug (send): " + cmd);
             }
             
             /// Only add a que for commands that always print.
-            ///NOTE: setoption may or may not print a statement. (It prints if the command was found to be invalid.)
+            ///NOTE: setoption may or may not print a statement.
             if (cmd !== "ucinewgame" && cmd !== "flip" && cmd !== "stop" && cmd !== "ponderhit" && cmd.substr(0, 8) !== "position"  && cmd.substr(0, 9) !== "setoption" && cmd !== "stop") {
                 que[que.length] = {
                     cmd: cmd,
                     cb: cb,
-                    stream: stream,
-                    firstWord: get_first_word(cmd),
-                    args: args || {},
+                    stream: stream
                 };
             } else {
                 no_reply = true;
@@ -328,11 +297,11 @@ var load_engine = (function ()
                 len = que.length;
             
             for (i = 0; i < len; i += 1) {
-                if (load_engine.debug) {
-                    console.log("debug (stop_moves): " + i, que[i].firstWord)
+                if (debugging) {
+                    console.log("debug (stop_moves): " + i, get_first_word(que[i].cmd))
                 }
                 /// We found a move that has not been stopped yet.
-                if (que[i].firstWord === "go" && !que[i].discard) {
+                if (get_first_word(que[i].cmd) === "go" && !que[i].discard) {
                     engine.send("stop");
                     que[i].discard = true;
                 }
