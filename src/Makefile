@@ -155,6 +155,10 @@ endif
 
 ### 3.1 Selecting compiler (default = gcc)
 
+ifeq ($(STATIC),1)
+	CXXFLAGS += -static
+endif
+
 CXXFLAGS += -Wall -Wcast-qual -fno-exceptions -fno-rtti -std=c++11 $(EXTRACXXFLAGS)
 DEPENDFLAGS += -std=c++11
 LDFLAGS += $(EXTRALDFLAGS)

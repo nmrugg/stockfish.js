@@ -155,6 +155,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log(                     "                  addition of \"mindepth\", \"maxdepth\", and \"shallow\" options to the \"go\" command,");
     console.log(                     "                  and \"Skill Level Maximum Error\" and \"Skill Level Probability\" uci options");
     console.log("  " + highlight("--sync") + "          Compile Stockfish to run searches synchronously (JS only)");
+    console.log("  " + highlight("--static") + "        Link libaries statically (not JS)");
     console.log("  " + highlight("--debug-js") + "      Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
     console.log("  " + highlight("--arch") + "          Architecture to build to (default \"" + note("js") + "\")");
     console.log(                     "                  \"" + note("x86-64-bmi2") + "\" is likely the fastest");
@@ -211,6 +212,14 @@ if (params["debug-js"]) {
         args.push("DEBUGJS=1");
     } else {
         warn("Ignoring --debug-js");
+    }
+}
+
+if (params.static) {
+    if (buildToJs) {
+        warn("Ignoring --static");
+    } else {
+        args.push("STATIC=1");
     }
 }
 
