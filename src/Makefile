@@ -372,8 +372,7 @@ ifeq ($(optimize),yes)
 	CXXFLAGS += -O3
 
 	ifeq ($(COMP),emscripten)
-		CXXFLAGS += -Oz
-		LDFLAGS += -Oz
+		LDFLAGS += -O3
 	endif
 
 	ifeq ($(comp),gcc)
