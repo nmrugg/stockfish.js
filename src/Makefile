@@ -98,7 +98,19 @@ ifeq ($(ARCH),general-64)
 	bits = 64
 endif
 
-ifeq ($(ARCH),js)
+ifeq ($(ARCH),asmjs)
+	arch = any
+	os = any
+	bits = 32
+	prefetch = no
+	bsfq = no
+	popcnt = no
+	sse = no
+	COMP = emscripten
+	EXE = stockfish.asm.js
+endif
+
+ifeq ($(ARCH),wasm)
 	arch = any
 	os = any
 	bits = 32
@@ -261,10 +273,14 @@ ifdef COMPILER
 endif
 
 ifeq ($(COMP),emscripten)
-	CXXFLAGS += -s WASM=1 -s TOTAL_MEMORY=67108864 -s BINARYEN_ASYNC_COMPILATION=0
+    ifeq ($(ARCH),wasm)
+    	CXXFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
+    	LDFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
+	endif
+	CXXFLAGS += -s TOTAL_MEMORY=67108864
 	#NOTE: --closure 1 breaks the code
 	#TODO: File bug report for --closure 1.
-	LDFLAGS += -s WASM=1 -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s NO_FILESYSTEM=1 --pre-js pre.js --post-js post.js -s BINARYEN_ASYNC_COMPILATION=0
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" --memory-init-file 0 -s NO_EXIT_RUNTIME=1 --pre-js pre.js --post-js post.js
 endif
 ifeq ($(CHESSCOM),1)
 	CXXFLAGS += -DCHESSCOM
@@ -356,7 +372,8 @@ ifeq ($(optimize),yes)
 	CXXFLAGS += -O3
 
 	ifeq ($(COMP),emscripten)
-		LDFLAGS += -O3
+		CXXFLAGS += -Oz
+		LDFLAGS += -Oz
 	endif
 
 	ifeq ($(comp),gcc)
@@ -546,7 +563,7 @@ install:
 	-strip $(BINDIR)/$(EXE)
 
 clean:
-	$(RM) $(EXE) $(EXE).exe $(EXE).js *.o .depend *~ core bench.txt *.gcda ./syzygy/*.o ./syzygy/*.gcda
+	$(RM) $(EXE) $(EXE).exe stockfish.js stockfish.asm.js *.o .depend *~ core bench.txt *.gcda ./syzygy/*.o ./syzygy/*.gcda
 
 default:
 	help
