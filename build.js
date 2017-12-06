@@ -14,6 +14,7 @@ var stockfishWASMPath = p.join(__dirname, "src", "stockfish.wasm");
 var stockfishWASMLoaderPath = p.join(__dirname, "src", "stockfish.js");
 var data;
 var license = fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
+var WASMloadingErrorSearch = "filename=nodePath[\"normalize\"](filename)";
 var buildToWASM;
 var buildToASMJS;
 var buildToAnyJS;
@@ -303,6 +304,13 @@ if (buildToASMJS) {
 
 if (buildToWASM) {
     data = fs.readFileSync(stockfishWASMLoaderPath, "utf8");
+    
+    /// Fix node.js relative file loading.
+    if (!data.indexOf(WASMloadingErrorSearch) === -1) {
+        throw new Error("Cannot fix WASM relative path loading error");
+    }
+    
+    data = data.replace(WASMloadingErrorSearch, "filename=nodePath.join(__dirname, filename);" + WASMloadingErrorSearch)
     
     /// Add the license if it's not there (emscripten removes all comments).
     if (data.indexOf(license) !== 0) {
