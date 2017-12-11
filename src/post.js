@@ -189,10 +189,11 @@ Browser.requestAnimationFrame = ourSetImmediate;
 /** Async Only END **/
 
 return Module;
-} /// End of load_stockfish()
+} /// End of load_stockfish() from pre.js
 
-    
-return function ()
+
+/// This is returned to STOCKFISH() in pre.js.
+return function (WasmPath)
 {
     var myConsole,
         Module,
@@ -248,7 +249,7 @@ return function ()
     /// We need to give them a chance to set postMessage
     wait(function ()
     {
-        Module = load_stockfish(myConsole);
+        Module = load_stockfish(myConsole, WasmPath);
         
         if (Module.print) {
             Module.print = myConsole.log;
@@ -264,7 +265,7 @@ return function ()
     return workerObj;
 };
 
-}());
+}()); /// End of STOCKFISH() closeure from pre.js.
 
 
 (function ()
@@ -364,7 +365,7 @@ return function ()
     if (isNode) {
         /// Was it called directly?
         if (require.main === module) {
-            stockfish = STOCKFISH();
+            stockfish = STOCKFISH(require("path").join(__dirname, "stockfish.wasm"));
             
             stockfish.onmessage = function onlog(line)
             {
@@ -397,7 +398,12 @@ return function ()
         
     /// Is it a web worker?
     } else if (typeof onmessage !== "undefined" && (typeof window === "undefined" || typeof window.document === "undefined")) {
-        stockfish = STOCKFISH();
+        if (self && self.location && self.location.hash) {
+            /// Use .substr() to trim off the hash (#).
+            stockfish = STOCKFISH(self.location.hash.substr(1));
+        } else {
+            stockfish = STOCKFISH();
+        }
         
         onmessage = function(event) {
             stockfish.postMessage(event.data, true);

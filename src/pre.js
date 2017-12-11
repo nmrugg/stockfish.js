@@ -21,10 +21,11 @@
  */
 var STOCKFISH = (function ()
 {
-    function load_stockfish(console)
+    function load_stockfish(console, WasmPath)
     {
         /// Fake timer for Safari and IE/Edge.
         ///NOTE: Both Chrome and Edge have "Safari" in it.
         if (typeof navigator !== "undefined" && (/MSIE|Trident|Edge/i.test(navigator.userAgent) || (/Safari/i.test(navigator.userAgent) && !/Chrome|CriOS/i.test(navigator.userAgent)))) {
             var dateNow = Date.now;
         }
+        var Module = {wasmBinaryFile: WasmPath};
