@@ -413,7 +413,6 @@ return function (WasmPath)
         {
             postMessage(line);
         };
-        
     }
     ///NOTE: If it's a normal browser, we don't need to do anything. The client can use the STOCKFISH() function directly.
 }());
