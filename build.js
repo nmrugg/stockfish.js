@@ -183,7 +183,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log("");
     console.log("Examples:");
     console.log("");
-    console.log("  Default: include all modifications and variants, compile to JS");
+    console.log("  Default: include all modifications and variants, compile to ASM.js and WASM");
     console.log("    ./build.js");
     console.log("");
     console.log("  Vanilla Stockfish: no modifications, no variants, 64-bit native binary");
@@ -270,9 +270,16 @@ if (String(params.version).toLowerCase() !== "date") {
 
 
 if (buildToWASM && buildToASMJS) {
+    console.log("\n" + note("Building ASM.js") + "\n");
     args.push("ARCH=asmjs");
+    child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
     args.pop();
+    if (Number(child.status) !== 0) {
+        process.exit(Number(child.status));
+    }
+    console.log("\n" + note("Building WASM") + "\n");
     args.push("ARCH=wasm");
+    child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
 } else {
     child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
 }

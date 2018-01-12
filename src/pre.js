@@ -1,6 +1,7 @@
 /**
  * Copyright (C) Tord Romstad (Glaurung author)
  * Copyright (C) Marco Costalba, Joona Kiiski, Tord Romstad (Stockfish authors)
+ * Copyright (C) Chess.com
  * Copyright (C) Nathan Rugg (Stockfish.js)
  * Copyright (C) Phillip Albanese - https://github.com/philososaur
  *
@@ -28,4 +29,7 @@ var STOCKFISH = (function ()
         if (typeof navigator !== "undefined" && (/MSIE|Trident|Edge/i.test(navigator.userAgent) || (/Safari/i.test(navigator.userAgent) && !/Chrome|CriOS/i.test(navigator.userAgent)))) {
             var dateNow = Date.now;
         }
-        var Module = {wasmBinaryFile: WasmPath};
+        var Module = {
+            wasmBinaryFile: WasmPath
+        };
+        
