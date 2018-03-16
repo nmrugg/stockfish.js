@@ -450,7 +450,9 @@ void MainThread::after_search() {
 
   sync_cout << "bestmove " << UCI::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
 #ifdef CHESSCOM
-  std::cout << " bestmoveSan " << UCI::move_to_san(rootPos, bestThread->rootMoves[0].pv[0]);
+  if (!pos.is_house()) {
+    std::cout << " bestmoveSan " << UCI::move_to_san(rootPos, bestThread->rootMoves[0].pv[0]);
+  }
 #endif
 
   if (bestThread->rootMoves[0].pv.size() > 1 || bestThread->rootMoves[0].extract_ponder_from_tt(rootPos))
@@ -463,7 +465,9 @@ void MainThread::after_search() {
       Position moveTrackingPos = rootPos;
       Move m = bestThread->rootMoves[0].pv[0];
       moveTrackingPos.do_move(m, st, moveTrackingPos.gives_check(m));
-      std::cout << " ponderSan " << UCI::move_to_san(moveTrackingPos, bestThread->rootMoves[0].pv[1]);
+      if (!pos.is_house()) {
+        std::cout << " ponderSan " << UCI::move_to_san(moveTrackingPos, bestThread->rootMoves[0].pv[1]);
+      }
     }
   std::cout << " baseTurn " << ((rootPos.side_to_move() == 0) ? "w" : "b");
   if (bestThread->rootMoves[0] == MOVE_NONE) {
@@ -2100,11 +2104,15 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
         Position moveTrackingPos = pos.this_thread()->rootPos;
         Move m;
 
-        ss << " pvSan "     << UCI::move_to_san(moveTrackingPos, rootMoves[i].pv[0]);
+        if (!pos.is_house()) {
+            ss << " pvSan "     << UCI::move_to_san(moveTrackingPos, rootMoves[i].pv[0]);
+        }
         for (size_t j = 1; j < rootMoves[i].pv.size(); ++j) {
             m = rootMoves[i].pv[j - 1];
             moveTrackingPos.do_move(m, st, moveTrackingPos.gives_check(m));
-            ss << " " << UCI::move_to_san(moveTrackingPos, rootMoves[i].pv[j]);
+            if (!pos.is_house()) {
+                ss << " " << UCI::move_to_san(moveTrackingPos, rootMoves[i].pv[j]);
+            }
         }
         
         ///NOTE: There are other values, such as "failedLow" and "previousScore" that could be of use tool
