@@ -189,23 +189,24 @@ Browser.requestAnimationFrame = ourSetImmediate;
 /** Async Only END **/
 
 return Module;
-} /// End of load_stockfish()
+} /// End of load_stockfish() from pre.js
 
-    
-return function ()
+
+/// This is returned to STOCKFISH() in pre.js.
+return function (WasmPath)
 {
-    var my_console,
+    var myConsole,
         Module,
-        return_val,
+        workerObj,
         cmds = [],
         wait = typeof setImmediate === "function" ? setImmediate : setTimeout;
     
-    my_console = {
+    myConsole = {
         log: function log(line)
         {
-            if (return_val.onmessage) {
+            if (workerObj.onmessage) {
                 /// Match Web Workers.
-                return_val.onmessage(line)
+                workerObj.onmessage(line)
             } else {
                 console.error("You must set onmessage");
                 console.info(line);
@@ -221,8 +222,10 @@ return function ()
         }
     };
     
-    return_val = {
-        postMessage: function send_message(str, sync)
+    myConsole.warn = myConsole.log;
+    
+    workerObj = {
+        postMessage: function sendMessage(str, sync)
         {
             function ccall()
             {
@@ -246,28 +249,28 @@ return function ()
     /// We need to give them a chance to set postMessage
     wait(function ()
     {
-        Module = load_stockfish(my_console);
+        Module = load_stockfish(myConsole, WasmPath);
         
         if (Module.print) {
-            Module.print = my_console.log;
+            Module.print = myConsole.log;
         }
         if (Module.printErr) {
-            Module.printErr = my_console.log;
+            Module.printErr = myConsole.log;
         }
         
         /// Initialize.
         Module.ccall("init", "number", [], []);
     }, 1);
     
-    return return_val;
+    return workerObj;
 };
 
-}());
+}()); /// End of STOCKFISH() closeure from pre.js.
 
 
 (function ()
 {
-    var is_node,
+    var isNode,
         stockfish;
     
     function completer(line)
@@ -312,7 +315,7 @@ return function ()
             "uci",
             "ucinewgame"
         ];
-        var completions_mid = [
+        var completionsMid = [
             "binc ",
             "btime ",
             "confidence ",
@@ -347,22 +350,22 @@ return function ()
             line = line.replace(/^.*\s/, "");
             if (line) {
                 /// Find completion mid line too.
-                hits = completions_mid.filter(filter);
+                hits = completionsMid.filter(filter);
             } else {
                 /// If no word has been typed, show all options.
-                hits = completions_mid;
+                hits = completionsMid;
             }
         }
         
         return [hits, line];
     }   
     
-    is_node = typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]";
+    isNode = typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]";
     
-    if (is_node) {
+    if (isNode) {
         /// Was it called directly?
         if (require.main === module) {
-            stockfish = STOCKFISH();
+            stockfish = STOCKFISH(require("path").join(__dirname, "stockfish.wasm"));
             
             stockfish.onmessage = function onlog(line)
             {
@@ -395,7 +398,12 @@ return function ()
         
     /// Is it a web worker?
     } else if (typeof onmessage !== "undefined" && (typeof window === "undefined" || typeof window.document === "undefined")) {
-        stockfish = STOCKFISH();
+        if (self && self.location && self.location.hash) {
+            /// Use .substr() to trim off the hash (#).
+            stockfish = STOCKFISH(self.location.hash.substr(1));
+        } else {
+            stockfish = STOCKFISH();
+        }
         
         onmessage = function(event) {
             stockfish.postMessage(event.data, true);
@@ -405,7 +413,6 @@ return function ()
         {
             postMessage(line);
         };
-        
     }
     ///NOTE: If it's a normal browser, we don't need to do anything. The client can use the STOCKFISH() function directly.
 }());
