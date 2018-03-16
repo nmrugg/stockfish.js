@@ -450,7 +450,7 @@ void MainThread::after_search() {
 
   sync_cout << "bestmove " << UCI::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
 #ifdef CHESSCOM
-  if (!pos.is_house()) {
+  if (!rootPos.is_house()) {
     std::cout << " bestmoveSan " << UCI::move_to_san(rootPos, bestThread->rootMoves[0].pv[0]);
   }
 #endif
@@ -465,7 +465,7 @@ void MainThread::after_search() {
       Position moveTrackingPos = rootPos;
       Move m = bestThread->rootMoves[0].pv[0];
       moveTrackingPos.do_move(m, st, moveTrackingPos.gives_check(m));
-      if (!pos.is_house()) {
+      if (!rootPos.is_house()) {
         std::cout << " ponderSan " << UCI::move_to_san(moveTrackingPos, bestThread->rootMoves[0].pv[1]);
       }
     }
