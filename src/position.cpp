@@ -162,11 +162,15 @@ std::ostream& operator<<(std::ostream& os, Position& pos) {
 #endif
 
 #ifdef CHESSCOM
+#ifdef CRAZYHOUSE
   if (!pos.is_house()) {
+#endif
     os << "\nLegal moves: ";
       for (const auto& m : MoveList<LEGAL>(pos))
           os << UCI::move_to_san(pos, m) << " ";
+#ifdef CRAZYHOUSE
     }
+#endif
   os << "\nLegal uci moves: ";
   for (const auto& m : MoveList<LEGAL>(pos))
       os << UCI::move(m, pos.is_chess960()) << " ";

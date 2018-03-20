@@ -450,9 +450,13 @@ void MainThread::after_search() {
 
   sync_cout << "bestmove " << UCI::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
 #ifdef CHESSCOM
+#ifdef CRAZYHOUSE
   if (!rootPos.is_house()) {
+#endif
     std::cout << " bestmoveSan " << UCI::move_to_san(rootPos, bestThread->rootMoves[0].pv[0]);
+#ifdef CRAZYHOUSE
   }
+#endif
 #endif
 
   if (bestThread->rootMoves[0].pv.size() > 1 || bestThread->rootMoves[0].extract_ponder_from_tt(rootPos))
@@ -465,9 +469,13 @@ void MainThread::after_search() {
       Position moveTrackingPos = rootPos;
       Move m = bestThread->rootMoves[0].pv[0];
       moveTrackingPos.do_move(m, st, moveTrackingPos.gives_check(m));
+#ifdef CRAZYHOUSE
       if (!rootPos.is_house()) {
+#endif
         std::cout << " ponderSan " << UCI::move_to_san(moveTrackingPos, bestThread->rootMoves[0].pv[1]);
+#ifdef CRAZYHOUSE
       }
+#endif
     }
   std::cout << " baseTurn " << ((rootPos.side_to_move() == 0) ? "w" : "b");
   if (bestThread->rootMoves[0] == MOVE_NONE) {
@@ -2104,15 +2112,23 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
         Position moveTrackingPos = pos.this_thread()->rootPos;
         Move m;
 
+#ifdef CRAZYHOUSE
         if (!pos.is_house()) {
+#endif
             ss << " pvSan "     << UCI::move_to_san(moveTrackingPos, rootMoves[i].pv[0]);
+#ifdef CRAZYHOUSE
         }
+#endif
         for (size_t j = 1; j < rootMoves[i].pv.size(); ++j) {
             m = rootMoves[i].pv[j - 1];
             moveTrackingPos.do_move(m, st, moveTrackingPos.gives_check(m));
+#ifdef CRAZYHOUSE
             if (!pos.is_house()) {
+#endif
                 ss << " " << UCI::move_to_san(moveTrackingPos, rootMoves[i].pv[j]);
+#ifdef CRAZYHOUSE
             }
+#endif
         }
         
         ///NOTE: There are other values, such as "failedLow" and "previousScore" that could be of use tool
