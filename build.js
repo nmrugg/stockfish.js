@@ -217,7 +217,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log("");
     console.log("  " + highlight("-f --force") + "      Always rebuild the entire project");
     console.log("  " + highlight("--force-linking") + " Always preforming the final linking step");
-    console.log("  " + highlight("--variants") + "      Comma separated list of variants to include (default " + note("all") + ")");
+    console.log("  " + highlight("--variants") + "      Comma separated list of variants to include (default: " + note("all") + ")");
     console.log(                     "                  Possible values are " + note("none") + " (no variants, except for Chess960),");
     console.log(                     "                  " + note("anti") + ", " + note("atomic") + ", " + note("crazyhouse") + ", " + note("horde") + ", " + note("kingofthehill") + ", " + note("race") + ", " + note("relay") + ", " + note("3check"));
     console.log("  " + highlight("--no-chesscom") + "   Disable changes made specifically for chess.com;");
@@ -227,13 +227,13 @@ if (params.help || params["help-all"] || params.h) {
     console.log("  " + highlight("--sync") + "          Compile Stockfish to run searches synchronously (JS only)");
     console.log("  " + highlight("--static") + "        Link libaries statically (not JS)");
     console.log("  " + highlight("--debug-js") + "      Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
-    console.log("  " + highlight("--arch") + "          Architecture to build to (default " + note("js") + ")");
+    console.log("  " + highlight("--arch") + "          Architecture to build to (default: " + note("js") + ")");
     console.log(                     "                  If the arch is set to " + note("js") + ", it will compile both an asm.js version");
     console.log(                     "                  and a WASM version. Set to " + note("asmjs") + " or " + note("wasm") + " for just one.");
     console.log(                     "                  " + note("x86-64-bmi2") + " is likely the fastest binary version");
-    console.log(                     "                  See --help-all for more options, or use " + highlight("--bin") + " instead");
-    console.log("  " + highlight("-b --bin") + "        Will attempt to build a binary engine that is the most suitable for your system");
-    console.log("  " + highlight("--make") + "          Path to program used to make Stockfish (default " + note("make") + ")");
+    console.log(                     "                  See " + highlight("--help-all") + " for more options, or use " + highlight("--bin") + " instead");
+    console.log("  " + highlight("-b --bin") + "        Attempt to build a binary engine that is the most suitable for this system");
+    console.log("  " + highlight("--make") + "          Path to program used to make Stockfish (default: " + note("make") + ")");
     console.log("  " + highlight("--comp") + "          Compiler to build C code with");
     console.log("  " + highlight("--compcxx") + "       Compiler to build C++ code with");
     console.log("  " + highlight("--version") + "       Specify Stockfish version number (default: " + note(stockfishVersion) + ")");
@@ -249,7 +249,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log("    ./build.js");
     console.log("");
     console.log("  Vanilla Stockfish: no modifications, no variants, 64-bit native binary");
-    console.log("    ./build.js --no-chesscom --variants=none --arch=x86-64-bmi2");
+    console.log("    ./build.js " + highlight("--no-chesscom") + " " + highlight("--variants=none") + " " + highlight("--arch=") + note("x86-64-bmi2"));
     console.log("");
     if (params["help-all"]) {
         console.log("");
