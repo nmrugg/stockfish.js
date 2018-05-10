@@ -4,7 +4,7 @@
 
 var spawnSync = require("child_process").spawnSync;
 var execFileSync = require("child_process").execFileSync;
-var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "sync"]});
+var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "sync", "b", "bin"]});
 var args = ["build", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
@@ -126,12 +126,70 @@ function changeVersion(version)
     }
 }
 
+function determineBestArch()
+{
+    var cpuData = "";
+    var cpuArch = "";
+    var arch;
+    
+    try {
+        cpuArch = execFileSync("uname", ["-m"], {encoding: "utf8", env: process.env, cwd: __dirname}).trim();
+    } catch (e) {}
+    
+    if (cpuArch === "i686" || cpuArch === "i386") {
+        arch = "general-32";
+    } else {
+        if (cpuArch !== "x86_64" || cpuArch === "amd64") {
+            warn("Unrecognized cpu architechure. Defaulting to x86_64.");
+        }
+        
+        try {
+            cpuData = execFileSync("cat", ["/proc/cpuinfo"], {encoding: "utf8", env: process.env, cwd: __dirname}).trim();
+        } catch (e) {}
+        
+        if (!cpuData) {
+            try {
+                cpuData = execFileSync("lscpu", {encoding: "utf8", env: process.env, cwd: __dirname}).trim();
+            } catch (e) {}
+        }
+        
+        if (!cpuData) {
+            try {
+                cpuData = execFileSync("lshw", ["-C", "cpu"], {encoding: "utf8", env: process.env, cwd: __dirname}).trim();
+            } catch (e) {}
+        }
+        
+        if (!cpuData) {
+            try {
+                /// FreeBSD & macOS?
+                cpuData = execFileSync("sysctl", ["-a"], {encoding: "utf8", env: process.env, cwd: __dirname}).trim();
+            } catch (e) {}
+        }
+        
+        if (/\bbmi2\b/i.test(cpuData)) {
+            arch = "x86-64-bmi2";
+        } else if (/\bpopcnt\b/i.test(cpuData)) {
+            arch = "x86-64-modern";
+        } else {
+            arch = "general-64";
+        }
+    }
+    
+    console.log(note("Building " + arch));
+    args.push("ARCH=" + arch);
+}
+
 
 if (!params.make) {
     params.make = "make";
 }
 
 if (params.arch) {
+    if (params.b || params.bin) {
+        warn("Cannot user --bin (or -b) with --arch");
+        process.exit(1);
+    }
+    
     if (params.arch === "js") {
         buildToWASM = true;
         buildToASMJS = true;
@@ -143,6 +201,8 @@ if (params.arch) {
             buildToWASM = true;
         }
     }
+} else if (params.b || params.bin) {
+    determineBestArch()
 } else {
     buildToWASM = true;
     buildToASMJS = true;
@@ -171,7 +231,8 @@ if (params.help || params["help-all"] || params.h) {
     console.log(                     "                  If the arch is set to " + note("js") + ", it will compile both an asm.js version");
     console.log(                     "                  and a WASM version. Set to " + note("asmjs") + " or " + note("wasm") + " for just one.");
     console.log(                     "                  " + note("x86-64-bmi2") + " is likely the fastest binary version");
-    console.log(                     "                  See --help-all for more options");
+    console.log(                     "                  See --help-all for more options, or use " + highlight("--bin") + " instead");
+    console.log("  " + highlight("-b --bin") + "        Will attempt to build a binary engine that is the most suitable for your system");
     console.log("  " + highlight("--make") + "          Path to program used to make Stockfish (default " + note("make") + ")");
     console.log("  " + highlight("--comp") + "          Compiler to build C code with");
     console.log("  " + highlight("--compcxx") + "       Compiler to build C++ code with");
