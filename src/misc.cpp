@@ -123,8 +123,10 @@ public:
 
 const string engine_info(bool to_uci) {
 
+#ifndef CHESSCOM
   const string months("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec");
   string month, day, year;
+#endif
   stringstream ss, date(__DATE__); // From compiler, format is "Sep 21 2008"
 
 #ifdef __EMSCRIPTEN__
@@ -133,6 +135,7 @@ const string engine_info(bool to_uci) {
   ss << "Stockfish " << Version << setfill('0');
 #endif
 
+#ifndef CHESSCOM
   if (Version.empty())
   {
       date >> month >> day >> year;
@@ -140,6 +143,7 @@ const string engine_info(bool to_uci) {
          << setw(2) << (1 + months.find(month) / 4) << "-"
          << setw(2) << day;
   }
+#endif
 
   ss << (Is64Bit ? " 64" : "")
      << (HasPext ? " BMI2" : (HasPopCnt ? " POPCNT" : ""))
