@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 extern "C" void init(int argc, char* argv[]) {
     main(argc, argv);
 }

@@ -127,7 +127,11 @@ const string engine_info(bool to_uci) {
   string month, day, year;
   stringstream ss, date(__DATE__); // From compiler, format is "Sep 21 2008"
 
+#ifdef __EMSCRIPTEN__
+  ss << "Stockfish.js " << Version << setfill('0');
+#else
   ss << "Stockfish " << Version << setfill('0');
+#endif
 
   if (Version.empty())
   {
@@ -139,9 +143,13 @@ const string engine_info(bool to_uci) {
 
   ss << (Is64Bit ? " 64" : "")
      << (HasPext ? " BMI2" : (HasPopCnt ? " POPCNT" : ""))
+#ifdef CHESSCOM
+     << " by T. Romstad, M. Costalba, J. Kiiski, G. Linscott, D. Dugovic, F. Fichter, N. Fiekas, et al.";
+#else
      << " Multi-Variant"
      << (to_uci  ? "\nid author ": " by ")
      << "D. Dugovic, F. Fichter et al.";
+#endif
 
   return ss.str();
 }
