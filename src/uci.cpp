@@ -316,12 +316,12 @@ extern "C" void uci_command(const char *c_cmd) {
       else if (token == "isready")    sync_cout << "readyok" << sync_endl;
 
       // Additional custom non-UCI commands, mainly for debugging
-#ifndef __EMSCRIPTEN__
       else if (token == "flip")  pos.flip();
+#ifndef __EMSCRIPTEN__
       else if (token == "bench") bench(pos, is, states);
+#endif  // __EMSCRIPTEN__
       else if (token == "d")     sync_cout << pos << sync_endl;
       else if (token == "eval")  sync_cout << Eval::trace(pos) << sync_endl;
-#endif  // __EMSCRIPTEN__
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
 #ifndef __EMSCRIPTEN__

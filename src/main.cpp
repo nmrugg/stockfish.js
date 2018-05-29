@@ -59,3 +59,9 @@ int main(int argc, char* argv[]) {
 #endif
   return 0;
 }
+
+#ifdef EMSCRIPTEN
+extern "C" void init(int argc, char* argv[]) {
+    main(argc, argv);
+}
+#endif

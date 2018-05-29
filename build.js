@@ -18,7 +18,7 @@ var buildToWASM;
 var buildToASMJS;
 var buildToAnyJS;
 var child;
-var stockfishVersion = "8";
+var stockfishVersion = "9";
 var postFilePath;
 var postFile;
 var fistRun;
