@@ -91,10 +91,6 @@ void init(OptionsMap& o) {
   o["Syzygy50MoveRule"]      << Option(true);
   o["SyzygyProbeLimit"]      << Option(6, 0, 6);
 #endif  // #ifndef __EMSCRIPTEN__
-#ifdef CHESSCOM
-  o["Skill Level Maximum Error"] << Option(200, 0, 5000); /// In centipawns
-  o["Skill Level Probability"]   << Option(128, 1, 1000); /// 1 is most frequent.
-#endif
 }
 
 

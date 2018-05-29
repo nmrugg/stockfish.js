@@ -127,11 +127,7 @@ const string engine_info(bool to_uci) {
   string month, day, year;
   stringstream ss, date(__DATE__); // From compiler, format is "Sep 21 2008"
 
-#ifdef EMSCRIPTEN
-  ss << "Stockfish.js " << Version << setfill('0');
-#else
   ss << "Stockfish " << Version << setfill('0');
-#endif
 
   if (Version.empty())
   {
@@ -174,7 +170,7 @@ void dbg_print() {
 /// the same time.
 
 std::ostream& operator<<(std::ostream& os, SyncCout sc) {
-#ifndef EMSCRIPTEN
+
   static Mutex m;
 
   if (sc == IO_LOCK)
@@ -182,7 +178,7 @@ std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 
   if (sc == IO_UNLOCK)
       m.unlock();
-#endif
+
   return os;
 }
 

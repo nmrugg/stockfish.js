@@ -32,7 +32,6 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
-
 #ifndef __EMSCRIPTEN__
 #include "syzygy/tbprobe.h"
 #endif
@@ -150,21 +149,6 @@ std::ostream& operator<<(std::ostream& os, const Position& pos) {
       os << "\nTablebases WDL: " << std::setw(4) << wdl << " (" << s1 << ")"
          << "\nTablebases DTZ: " << std::setw(4) << dtz << " (" << s2 << ")";
   }
-#endif
-
-#ifdef CHESSCOM
-#ifdef CRAZYHOUSE
-  if (!pos.is_house()) {
-#endif
-    os << "\nLegal moves: ";
-      for (const auto& m : MoveList<LEGAL>(pos))
-          os << UCI::move_to_san(pos, m) << " ";
-#ifdef CRAZYHOUSE
-    }
-#endif
-  os << "\nLegal uci moves: ";
-  for (const auto& m : MoveList<LEGAL>(pos))
-      os << UCI::move(m, pos.is_chess960()) << " ";
 #endif
 
   return os;
@@ -2180,23 +2164,6 @@ bool Position::is_draw(int ply) const {
   if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
       return true;
 
-/* Old
-  StateInfo* stp = st;
-#ifdef CHESSCOM
-  int stopAt = std::min(st->rule50, st->pliesFromNull);
-  int repCount = 0;
-
-  while (stopAt > 1 && (stp = stp->previous->previous)) {
-      if (stp->key == st->key) {
-          if (++repCount == 2) {
-              return true;
-          }
-      }
-      stopAt -= 2;
-  }
-#else
-  for (int i = 2, rep = 1, e = std::min(st->rule50, st->pliesFromNull); i <= e; i += 2)
-*/
 #ifdef CRAZYHOUSE
   int end = is_house() ? st->pliesFromNull : std::min(st->rule50, st->pliesFromNull);
 #else
@@ -2219,6 +2186,7 @@ bool Position::is_draw(int ply) const {
           && ++cnt + (ply > i) == 2)
           return true;
   }
+
   return false;
 }
 

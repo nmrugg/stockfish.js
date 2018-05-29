@@ -89,6 +89,7 @@ public:
 /// MainThread is a derived class specific for main thread
 
 struct MainThread : public Thread {
+
   using Thread::Thread;
 
   void search() override;
