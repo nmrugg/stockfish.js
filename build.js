@@ -4,7 +4,7 @@
 
 var spawnSync = require("child_process").spawnSync;
 var execFileSync = require("child_process").execFileSync;
-var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "sync", "b", "bin"]});
+var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "sync", "b", "bin", "no-skill"]});
 var args = ["build", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
@@ -226,6 +226,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log(                     "                  and Skill Level Maximum Error and Skill Level Probability uci options");
     console.log("  " + highlight("--sync") + "          Compile Stockfish to run searches synchronously (JS only)");
     console.log("  " + highlight("--static") + "        Link libaries statically (not JS)");
+    console.log("  " + highlight("--no-skill") + "      Disable skill levels (always plays strongest moves)");
     console.log("  " + highlight("--debug-js") + "      Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
     console.log("  " + highlight("--arch") + "          Architecture to build to (default: " + note("js") + ")");
     console.log(                     "                  If the arch is set to " + note("js") + ", it will compile both an asm.js version");
@@ -322,6 +323,10 @@ if (params.comp) {
 }
 if (params.compcxx) {
     args.push("COMPCXX=" + params.compcxx);
+}
+
+if (!params["no-skill"]) {
+    args.push("SKILL=1");
 }
 
 if (String(params.version).toLowerCase() === "timestamp") {

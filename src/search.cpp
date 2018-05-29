@@ -805,9 +805,9 @@ void Thread::search_iteration() {
 
 #ifdef SKILL
   // If skill level is enabled, swap best PV line with the sub-optimal one
-  if (skill.enabled())
+  if (skill_.enabled())
       std::swap(rootMoves[0], *std::find(rootMoves.begin(), rootMoves.end(),
-                skill.best ? skill.best : skill.pick_best(multiPV)));
+                skill_.best ? skill_.best : skill_.pick_best(multiPV_)));
 #endif
 
   if (mainThread_) {
@@ -1931,11 +1931,37 @@ moves_loop: // When in check, search starts from here
     int weakness = 125 - level * 9/4;
     int maxScore = -VALUE_INFINITE;
 
+#ifdef CHESSCOM
+    weakness = 120 - 2 * level;
+#endif
+
     // Choose best move. For each move score we add two terms, both dependent on
     // weakness. One is deterministic and bigger for weaker levels, and one is
     // random. Then we choose the move with the resulting highest score.
     for (size_t i = 0; i < multiPV; ++i)
     {
+#ifdef CHESSCOM
+        int score = rootMoves[i].score;
+
+        // Extra protection in case the score was cleared.
+        if (score == -32001 || score == 32001) {
+            continue;
+        }
+
+        // Do allow crazy blunders at very low skills
+        if (i > 0 && rootMoves[i - 1].score > score + (Options["Skill Level Maximum Error"] * PawnValueMg) / 100)
+            break;
+
+        // This is our magic formula
+        score += (  weakness * int(topScore - score)
+                  + delta * (rng.rand<unsigned>() % weakness)) / Options["Skill Level Probability"];
+
+        if (score > maxScore)
+        {
+            maxScore = score;
+            best = rootMoves[i].pv[0];
+        }
+#else
         // This is our magic formula
         int push = (  weakness * int(topScore - rootMoves[i].score)
                     + delta * (rng.rand<unsigned>() % weakness)) / 128;
@@ -1945,6 +1971,7 @@ moves_loop: // When in check, search starts from here
             maxScore = rootMoves[i].score + push;
             best = rootMoves[i].pv[0];
         }
+#endif
     }
 
     return best;

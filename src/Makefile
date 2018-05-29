@@ -365,8 +365,8 @@ ifeq ($(findstring USELONGESTPV,$(VARIANTS)), USELONGESTPV)
 	CXXFLAGS += -DUSELONGESTPV
 endif
 
-ifneq ($(COMP),emscripten)
-CXXFLAGS += -DSKILL
+ifeq ($(SKILL),1)
+	CXXFLAGS += -DSKILL
 endif
 
 ifeq ($(debug),no)
