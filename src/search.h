@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 #ifndef SEARCH_H_INCLUDED
 #define SEARCH_H_INCLUDED
 
-#include <atomic>
 #include <vector>
 
 #include "misc.h"
@@ -32,21 +31,24 @@ class Position;
 
 namespace Search {
 
+/// Threshold used for countermoves based pruning
+constexpr int CounterMovePruneThreshold = 0;
+
+
 /// Stack struct keeps track of the information we need to remember from nodes
 /// shallower and deeper in the tree during the search. Each search thread has
 /// its own array of Stack objects, indexed by the current ply.
 
 struct Stack {
   Move* pv;
+  PieceToHistory* contHistory;
   int ply;
   Move currentMove;
   Move excludedMove;
   Move killers[2];
   Value staticEval;
-  Value history;
-  bool skipEarlyPruning;
+  int statScore;
   int moveCount;
-  CounterMoveStats* counterMoves;
 };
 
 
@@ -57,13 +59,18 @@ struct Stack {
 struct RootMove {
 
   explicit RootMove(Move m) : pv(1, m) {}
-
-  bool operator<(const RootMove& m) const { return m.score < score; } // Descending sort
-  bool operator==(const Move& m) const { return pv[0] == m; }
   bool extract_ponder_from_tt(Position& pos);
+  bool operator==(const Move& m) const { return pv[0] == m; }
+  bool operator<(const RootMove& m) const { // Sort in descending order
+    return m.score != score ? m.score < score
+                            : m.previousScore < previousScore;
+  }
 
   Value score = -VALUE_INFINITE;
   Value previousScore = -VALUE_INFINITE;
+  int selDepth = 0;
+  int TBRank = 0;
+  Value TBScore;
   std::vector<Move> pv;
 };
 
@@ -71,14 +78,14 @@ typedef std::vector<RootMove> RootMoves;
 
 
 /// LimitsType struct stores information sent by GUI about available time to
-/// search the current move, maximum depth/time, if we are in analysis mode or
-/// if we have to ponder while it's our opponent's turn to move.
+/// search the current move, maximum depth/time, or if we are in analysis mode.
 
 struct LimitsType {
 
   LimitsType() { // Init explicitly due to broken value-initialization of non POD in MSVC
-    nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] =
-    npmsec = movestogo = depth = movetime = mate = infinite = ponder = 0;
+    time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = npmsec = movetime = TimePoint(0);
+    movestogo = depth = mate = perft = infinite = 0;
+    nodes = 0;
 #ifdef CHESSCOM
     mindepth = smartdepth = mintime = maxtime = confidence = 0;
     maxdepth = shallow = MAX_PLY;
@@ -86,33 +93,23 @@ struct LimitsType {
   }
 
   bool use_time_management() const {
-    return !(mate | movetime | depth | nodes | infinite);
+    return !(mate | movetime | depth | nodes | perft | infinite);
   }
 
   std::vector<Move> searchmoves;
-  int time[COLOR_NB], inc[COLOR_NB], npmsec, movestogo, depth, movetime, mate, infinite, ponder;
+  TimePoint time[COLOR_NB], inc[COLOR_NB], npmsec, movetime, startTime;
+  int movestogo, depth, mate, perft, infinite;
   int64_t nodes;
-  TimePoint startTime;
 #ifdef CHESSCOM
   int mindepth, maxdepth, shallow, smartdepth;
   double maxtime, mintime, confidence;
 #endif
 };
 
-
-/// SignalsType struct stores atomic flags updated during the search, typically
-/// in an async fashion e.g. to stop the search by the GUI.
-
-struct SignalsType {
-  std::atomic_bool stop, stopOnPonderhit;
-};
-
-extern SignalsType Signals;
 extern LimitsType Limits;
 
 void init();
 void clear();
-template<bool Root = true> uint64_t perft(Position& pos, Depth depth);
 
 } // namespace Search
 

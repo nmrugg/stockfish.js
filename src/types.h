@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -78,38 +78,39 @@
 #  include <immintrin.h> // Header for _pext_u64() intrinsic
 #  define pext(b, m) _pext_u64(b, m)
 #else
-#  define pext(b, m) (0)
+#  define pext(b, m) 0
 #endif
 
 #ifdef USE_POPCNT
-const bool HasPopCnt = true;
+constexpr bool HasPopCnt = true;
 #else
-const bool HasPopCnt = false;
+constexpr bool HasPopCnt = false;
 #endif
 
 #ifdef USE_PEXT
-const bool HasPext = true;
+constexpr bool HasPext = true;
 #else
-const bool HasPext = false;
+constexpr bool HasPext = false;
 #endif
 
 #ifdef IS_64BIT
-const bool Is64Bit = true;
+constexpr bool Is64Bit = true;
 #else
-const bool Is64Bit = false;
+constexpr bool Is64Bit = false;
 #endif
 
 typedef uint64_t Key;
 typedef uint64_t Bitboard;
 
-#ifdef CRAZYHOUSE
-const int MAX_MOVES = 512;
+#if defined(CRAZYHOUSE) || defined(HORDE)
+constexpr int MAX_MOVES = 512;
 #else
-const int MAX_MOVES = 256;
+constexpr int MAX_MOVES = 256;
 #endif
-const int MAX_PLY   = 128;
+constexpr int MAX_PLY   = 128;
 
 enum Variant {
+  //main variants
   CHESS_VARIANT,
 #ifdef ANTI
   ANTI_VARIANT,
@@ -120,49 +121,109 @@ enum Variant {
 #ifdef CRAZYHOUSE
   CRAZYHOUSE_VARIANT,
 #endif
+#ifdef EXTINCTION
+  EXTINCTION_VARIANT,
+#endif
+#ifdef GRID
+  GRID_VARIANT,
+#endif
 #ifdef HORDE
   HORDE_VARIANT,
 #endif
 #ifdef KOTH
   KOTH_VARIANT,
 #endif
+#ifdef LOSERS
+  LOSERS_VARIANT,
+#endif
 #ifdef RACE
   RACE_VARIANT,
-#endif
-#ifdef RELAY
-  RELAY_VARIANT,
 #endif
 #ifdef THREECHECK
   THREECHECK_VARIANT,
 #endif
-  VARIANT_NB
+#ifdef TWOKINGS
+  TWOKINGS_VARIANT,
+#endif
+  VARIANT_NB,
+  LAST_VARIANT = VARIANT_NB - 1,
+  //subvariants
+#ifdef SUICIDE
+  SUICIDE_VARIANT,
+#endif
+#ifdef BUGHOUSE
+  BUGHOUSE_VARIANT,
+#endif
+#ifdef DISPLACEDGRID
+  DISPLACEDGRID_VARIANT,
+#endif
+#ifdef LOOP
+  LOOP_VARIANT,
+#endif
+#ifdef SLIPPEDGRID
+  SLIPPEDGRID_VARIANT,
+#endif
+#ifdef TWOKINGSSYMMETRIC
+  TWOKINGSSYMMETRIC_VARIANT,
+#endif
+  SUBVARIANT_NB,
 };
 
 //static const constexpr char* variants[] doesn't play nicely with uci.h
-static std::vector<std::string> variants = {"chess"
+static std::vector<std::string> variants = {
+//main variants
+"chess",
 #ifdef ANTI
-,"giveaway"
+"giveaway",
 #endif
 #ifdef ATOMIC
-,"atomic"
+"atomic",
 #endif
 #ifdef CRAZYHOUSE
-,"crazyhouse"
+"crazyhouse",
+#endif
+#ifdef EXTINCTION
+"extinction",
+#endif
+#ifdef GRID
+"grid",
 #endif
 #ifdef HORDE
-,"horde"
+"horde",
 #endif
 #ifdef KOTH
-,"kingofthehill"
+"kingofthehill",
+#endif
+#ifdef LOSERS
+"losers",
 #endif
 #ifdef RACE
-,"racingkings"
-#endif
-#ifdef RELAY
-,"relay"
+"racingkings",
 #endif
 #ifdef THREECHECK
-,"threecheck"
+"3check",
+#endif
+#ifdef TWOKINGS
+"twokings",
+#endif
+//subvariants
+#ifdef SUICIDE
+"suicide",
+#endif
+#ifdef BUGHOUSE
+"bughouse",
+#endif
+#ifdef DISPLACEDGRID
+"displacedgrid",
+#endif
+#ifdef LOOP
+"loop",
+#endif
+#ifdef SLIPPEDGRID
+"slippedgrid",
+#endif
+#ifdef TWOKINGSSYMMETRIC
+"twokingssymmetric",
 #endif
 };
 
@@ -187,14 +248,21 @@ enum MoveType {
   NORMAL,
   PROMOTION = 1 << 14,
   ENPASSANT = 2 << 14,
-  CASTLING  = 3 << 14
+  CASTLING  = 3 << 14,
+  // special moves use promotion piece type bits as flags
+#if defined(ANTI) || defined(CRAZYHOUSE) || defined(EXTINCTION)
+  SPECIAL = ENPASSANT,
+#endif
 #ifdef CRAZYHOUSE
-  ,DROP = 1 << 17
+  DROP = 1 << 12,
+#endif
+#if defined(ANTI) || defined(EXTINCTION)
+  KING_PROMOTION = 2 << 12, // not used as an actual move type
 #endif
 };
 
 enum Color {
-  WHITE, BLACK, NO_COLOR, COLOR_NB = 2
+  WHITE, BLACK, COLOR_NB = 2
 };
 
 enum CastlingSide {
@@ -212,17 +280,28 @@ enum CastlingRight {
 };
 
 template<Color C, CastlingSide S> struct MakeCastling {
-  static const CastlingRight
+  static constexpr CastlingRight
   right = C == WHITE ? S == QUEEN_SIDE ? WHITE_OOO : WHITE_OO
                      : S == QUEEN_SIDE ? BLACK_OOO : BLACK_OO;
 };
 
+#ifdef GRID
+enum GridLayout {
+  NORMAL_GRID,
+#ifdef DISPLACEDGRID
+  DISPLACED_GRID,
+#endif
+#ifdef SLIPPEDGRID
+  SLIPPED_GRID,
+#endif
+  GRIDLAYOUT_NB
+};
+#endif
+
 #ifdef THREECHECK
-enum CheckCount {
+enum CheckCount : int {
   CHECKS_0 = 0, CHECKS_1 = 1, CHECKS_2 = 2, CHECKS_3 = 3, CHECKS_NB = 4
 };
-
-const CheckCount Checks[] = { CHECKS_0, CHECKS_1, CHECKS_2, CHECKS_3 };
 #endif
 
 enum Phase {
@@ -257,53 +336,90 @@ enum Value : int {
   VALUE_MATE_IN_MAX_PLY  =  VALUE_MATE - 2 * MAX_PLY,
   VALUE_MATED_IN_MAX_PLY = -VALUE_MATE + 2 * MAX_PLY,
 
-  PawnValueMg   = 188,   PawnValueEg   = 248,
-  KnightValueMg = 753,   KnightValueEg = 832,
-  BishopValueMg = 826,   BishopValueEg = 897,
-  RookValueMg   = 1285,  RookValueEg   = 1371,
-  QueenValueMg  = 2513,  QueenValueEg  = 2650,
+  PawnValueMg   = 171,   PawnValueEg   = 240,
+  KnightValueMg = 764,   KnightValueEg = 848,
+  BishopValueMg = 826,   BishopValueEg = 891,
+  RookValueMg   = 1282,  RookValueEg   = 1373,
+  QueenValueMg  = 2500,  QueenValueEg  = 2670,
 #ifdef ANTI
-  PawnValueMgAnti   = -113,  PawnValueEgAnti   = -350,
-  KnightValueMgAnti = -127,  KnightValueEgAnti = -137,
-  BishopValueMgAnti = -256,  BishopValueEgAnti = -99,
-  RookValueMgAnti   = -461,  RookValueEgAnti   = -180,
-  QueenValueMgAnti  = -230,  QueenValueEgAnti  = -327,
-  KingValueMgAnti   = -51,   KingValueEgAnti   =  191,
+  PawnValueMgAnti   = -108,  PawnValueEgAnti   = -165,
+  KnightValueMgAnti = -155,  KnightValueEgAnti = 194,
+  BishopValueMgAnti = -270,  BishopValueEgAnti = 133,
+  RookValueMgAnti   = -472,  RookValueEgAnti   = 56,
+  QueenValueMgAnti  = -114,  QueenValueEgAnti  = -218,
+  KingValueMgAnti   = -23,   KingValueEgAnti   = 173,
 #endif
 #ifdef ATOMIC
-  PawnValueMgAtomic   = 332,   PawnValueEgAtomic   = 438,
-  KnightValueMgAtomic = 478,   KnightValueEgAtomic = 736,
-  BishopValueMgAtomic = 614,   BishopValueEgAtomic = 823,
-  RookValueMgAtomic   = 957,   RookValueEgAtomic   = 1278,
-  QueenValueMgAtomic  = 1904,  QueenValueEgAtomic  = 2918,
+  PawnValueMgAtomic   = 244,   PawnValueEgAtomic   = 367,
+  KnightValueMgAtomic = 437,   KnightValueEgAtomic = 652,
+  BishopValueMgAtomic = 552,   BishopValueEgAtomic = 716,
+  RookValueMgAtomic   = 787,   RookValueEgAtomic   = 1074,
+  QueenValueMgAtomic  = 1447,  QueenValueEgAtomic  = 1892,
 #endif
 #ifdef CRAZYHOUSE
-  PawnValueMgHouse   = 174,   PawnValueEgHouse   = 259,
-  KnightValueMgHouse = 445,   KnightValueEgHouse = 667,
-  BishopValueMgHouse = 513,   BishopValueEgHouse = 690,
-  RookValueMgHouse   = 699,   RookValueEgHouse   = 790,
-  QueenValueMgHouse  = 936,   QueenValueEgHouse  = 1222,
+  PawnValueMgHouse   = 149,   PawnValueEgHouse   = 206,
+  KnightValueMgHouse = 447,   KnightValueEgHouse = 527,
+  BishopValueMgHouse = 450,   BishopValueEgHouse = 521,
+  RookValueMgHouse   = 619,   RookValueEgHouse   = 669,
+  QueenValueMgHouse  = 878,   QueenValueEgHouse  = 965,
+#endif
+#ifdef EXTINCTION
+  PawnValueMgExtinction   = 209,   PawnValueEgExtinction   = 208,
+  KnightValueMgExtinction = 823,   KnightValueEgExtinction = 1091,
+  BishopValueMgExtinction = 1097,  BishopValueEgExtinction = 1055,
+  RookValueMgExtinction   = 726,   RookValueEgExtinction   = 950,
+  QueenValueMgExtinction  = 2111,  QueenValueEgExtinction  = 2014,
+  KingValueMgExtinction   = 919,   KingValueEgExtinction   = 1093,
+#endif
+#ifdef GRID
+  PawnValueMgGrid   = 38,    PawnValueEgGrid   = 55,
+  KnightValueMgGrid = 993,   KnightValueEgGrid = 903,
+  BishopValueMgGrid = 685,   BishopValueEgGrid = 750,
+  RookValueMgGrid   = 1018,  RookValueEgGrid   = 1055,
+  QueenValueMgGrid  = 2556,  QueenValueEgGrid  = 2364,
 #endif
 #ifdef HORDE
-  PawnValueMgHorde   = 406,   PawnValueEgHorde   = 427,
-  KnightValueMgHorde = 708,   KnightValueEgHorde = 851,
-  BishopValueMgHorde = 736,   BishopValueEgHorde = 859,
-  RookValueMgHorde   = 1341,  RookValueEgHorde   = 1175,
-  QueenValueMgHorde  = 2777,  QueenValueEgHorde  = 3182,
-  KingValueMgHorde   = 2041,  KingValueEgHorde   = 975,
+  PawnValueMgHorde   = 321,   PawnValueEgHorde   = 326,
+  KnightValueMgHorde = 888,   KnightValueEgHorde = 991,
+  BishopValueMgHorde = 743,   BishopValueEgHorde = 1114,
+  RookValueMgHorde   = 948,   RookValueEgHorde   = 1230,
+  QueenValueMgHorde  = 2736,  QueenValueEgHorde  = 2554,
+  KingValueMgHorde   = 2073,  KingValueEgHorde   = 921,
+#endif
+#ifdef KOTH
+  PawnValueMgHill   = 136,   PawnValueEgHill   = 225,
+  KnightValueMgHill = 657,   KnightValueEgHill = 781,
+  BishopValueMgHill = 763,   BishopValueEgHill = 849,
+  RookValueMgHill   = 1010,  RookValueEgHill   = 1175,
+  QueenValueMgHill  = 2104,  QueenValueEgHill  = 2402,
+#endif
+#ifdef LOSERS
+  PawnValueMgLosers   = -40,   PawnValueEgLosers   = -25,
+  KnightValueMgLosers = -23,   KnightValueEgLosers = 369,
+  BishopValueMgLosers = -206,  BishopValueEgLosers = 245,
+  RookValueMgLosers   = -415,  RookValueEgLosers   = 80,
+  QueenValueMgLosers  = -111,  QueenValueEgLosers  = -209,
 #endif
 #ifdef RACE
-  KnightValueMgRace = 720,   KnightValueEgRace = 801,
-  BishopValueMgRace = 904,   BishopValueEgRace = 929,
-  RookValueMgRace   = 1265,  RookValueEgRace  = 1731,
-  QueenValueMgRace  = 2198,  QueenValueEgRace = 2226,
+  KnightValueMgRace = 777,   KnightValueEgRace = 881,
+  BishopValueMgRace = 1025,  BishopValueEgRace = 1070,
+  RookValueMgRace   = 1272,  RookValueEgRace   = 1847,
+  QueenValueMgRace  = 1674,  QueenValueEgRace  = 2280,
 #endif
 #ifdef THREECHECK
-  PawnValueMgThreeCheck   = 181,   PawnValueEgThreeCheck   = 245,
-  KnightValueMgThreeCheck = 691,   KnightValueEgThreeCheck = 850,
-  BishopValueMgThreeCheck = 829,   BishopValueEgThreeCheck = 845,
-  RookValueMgThreeCheck   = 1222,  RookValueEgThreeCheck   = 1386,
-  QueenValueMgThreeCheck  = 2274,  QueenValueEgThreeCheck  = 2573,
+  PawnValueMgThreeCheck   = 119,   PawnValueEgThreeCheck   = 205,
+  KnightValueMgThreeCheck = 645,   KnightValueEgThreeCheck = 770,
+  BishopValueMgThreeCheck = 693,   BishopValueEgThreeCheck = 754,
+  RookValueMgThreeCheck   = 1027,  RookValueEgThreeCheck   = 1418,
+  QueenValueMgThreeCheck  = 1947,  QueenValueEgThreeCheck  = 2323,
+#endif
+#ifdef TWOKINGS
+  PawnValueMgTwoKings   = 206,   PawnValueEgTwoKings   = 265,
+  KnightValueMgTwoKings = 887,   KnightValueEgTwoKings = 871,
+  BishopValueMgTwoKings = 940,   BishopValueEgTwoKings = 898,
+  RookValueMgTwoKings   = 1360,  RookValueEgTwoKings   = 1415,
+  QueenValueMgTwoKings  = 2455,  QueenValueEgTwoKings  = 2846,
+  KingValueMgTwoKings   = 554,   KingValueEgTwoKings   = 806,
 #endif
 
   MidgameLimit  = 15258, EndgameLimit  = 3915
@@ -322,11 +438,9 @@ enum Piece {
   PIECE_NB = 16
 };
 
-const Piece Pieces[] = { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
-                         B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING };
 extern Value PieceValue[VARIANT_NB][PHASE_NB][PIECE_NB];
 
-enum Depth {
+enum Depth : int {
 
   ONE_PLY = 1,
 
@@ -341,7 +455,7 @@ enum Depth {
 
 static_assert(!(ONE_PLY & (ONE_PLY - 1)), "ONE_PLY is not a power of 2");
 
-enum Square {
+enum Square : int {
   SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
   SQ_A2, SQ_B2, SQ_C2, SQ_D2, SQ_E2, SQ_F2, SQ_G2, SQ_H2,
   SQ_A3, SQ_B3, SQ_C3, SQ_D3, SQ_E3, SQ_F3, SQ_G3, SQ_H3,
@@ -352,12 +466,14 @@ enum Square {
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8,
   SQ_NONE,
 
-  SQUARE_NB = 64,
+  SQUARE_NB = 64
+};
 
+enum Direction : int {
   NORTH =  8,
   EAST  =  1,
-  SOUTH = -8,
-  WEST  = -1,
+  SOUTH = -NORTH,
+  WEST  = -EAST,
 
   NORTH_EAST = NORTH + EAST,
   SOUTH_EAST = SOUTH + EAST,
@@ -374,13 +490,13 @@ enum Rank : int {
 };
 
 
-/// Score enum stores a middlegame and an endgame value in a single integer
-/// (enum). The least significant 16 bits are used to store the endgame value
-/// and the upper 16 bits are used to store the middlegame value. Take some
-/// care to avoid left-shifting a signed int to avoid undefined behavior.
+/// Score enum stores a middlegame and an endgame value in a single integer (enum).
+/// The least significant 16 bits are used to store the middlegame value and the
+/// upper 16 bits are used to store the endgame value. We have to take care to
+/// avoid left-shifting a signed int to avoid undefined behavior.
 enum Score : int { SCORE_ZERO };
 
-inline Score make_score(int mg, int eg) {
+constexpr Score make_score(int mg, int eg) {
   return Score((int)((unsigned int)eg << 16) + mg);
 }
 
@@ -388,101 +504,127 @@ inline Score make_score(int mg, int eg) {
 /// according to the standard a simple cast to short is implementation defined
 /// and so is a right shift of a signed integer.
 inline Value eg_value(Score s) {
-
   union { uint16_t u; int16_t s; } eg = { uint16_t(unsigned(s + 0x8000) >> 16) };
   return Value(eg.s);
 }
 
 inline Value mg_value(Score s) {
-
   union { uint16_t u; int16_t s; } mg = { uint16_t(unsigned(s)) };
   return Value(mg.s);
 }
 
-#define ENABLE_BASE_OPERATORS_ON(T)                             \
-inline T operator+(T d1, T d2) { return T(int(d1) + int(d2)); } \
-inline T operator-(T d1, T d2) { return T(int(d1) - int(d2)); } \
-inline T operator*(int i, T d) { return T(i * int(d)); }        \
-inline T operator*(T d, int i) { return T(int(d) * i); }        \
-inline T operator-(T d) { return T(-int(d)); }                  \
-inline T& operator+=(T& d1, T d2) { return d1 = d1 + d2; }      \
-inline T& operator-=(T& d1, T d2) { return d1 = d1 - d2; }      \
-inline T& operator*=(T& d, int i) { return d = T(int(d) * i); }
+#define ENABLE_BASE_OPERATORS_ON(T)                                \
+constexpr T operator+(T d1, T d2) { return T(int(d1) + int(d2)); } \
+constexpr T operator-(T d1, T d2) { return T(int(d1) - int(d2)); } \
+constexpr T operator-(T d) { return T(-int(d)); }                  \
+inline T& operator+=(T& d1, T d2) { return d1 = d1 + d2; }         \
+inline T& operator-=(T& d1, T d2) { return d1 = d1 - d2; }
 
-#define ENABLE_FULL_OPERATORS_ON(T)                             \
-ENABLE_BASE_OPERATORS_ON(T)                                     \
-inline T& operator++(T& d) { return d = T(int(d) + 1); }        \
-inline T& operator--(T& d) { return d = T(int(d) - 1); }        \
-inline T operator/(T d, int i) { return T(int(d) / i); }        \
-inline int operator/(T d1, T d2) { return int(d1) / int(d2); }  \
+#define ENABLE_INCR_OPERATORS_ON(T)                                \
+inline T& operator++(T& d) { return d = T(int(d) + 1); }           \
+inline T& operator--(T& d) { return d = T(int(d) - 1); }
+
+#define ENABLE_FULL_OPERATORS_ON(T)                                \
+ENABLE_BASE_OPERATORS_ON(T)                                        \
+ENABLE_INCR_OPERATORS_ON(T)                                        \
+constexpr T operator*(int i, T d) { return T(i * int(d)); }        \
+constexpr T operator*(T d, int i) { return T(int(d) * i); }        \
+constexpr T operator/(T d, int i) { return T(int(d) / i); }        \
+constexpr int operator/(T d1, T d2) { return int(d1) / int(d2); }  \
+inline T& operator*=(T& d, int i) { return d = T(int(d) * i); }    \
 inline T& operator/=(T& d, int i) { return d = T(int(d) / i); }
 
 ENABLE_FULL_OPERATORS_ON(Variant)
 ENABLE_FULL_OPERATORS_ON(Value)
-ENABLE_FULL_OPERATORS_ON(PieceType)
-ENABLE_FULL_OPERATORS_ON(Piece)
-ENABLE_FULL_OPERATORS_ON(Color)
 #ifdef THREECHECK
 ENABLE_FULL_OPERATORS_ON(CheckCount)
 #endif
 ENABLE_FULL_OPERATORS_ON(Depth)
-ENABLE_FULL_OPERATORS_ON(Square)
-ENABLE_FULL_OPERATORS_ON(File)
-ENABLE_FULL_OPERATORS_ON(Rank)
+ENABLE_FULL_OPERATORS_ON(Direction)
+
+ENABLE_INCR_OPERATORS_ON(PieceType)
+ENABLE_INCR_OPERATORS_ON(Piece)
+ENABLE_INCR_OPERATORS_ON(Color)
+ENABLE_INCR_OPERATORS_ON(Square)
+ENABLE_INCR_OPERATORS_ON(File)
+ENABLE_INCR_OPERATORS_ON(Rank)
 
 ENABLE_BASE_OPERATORS_ON(Score)
 
 #undef ENABLE_FULL_OPERATORS_ON
+#undef ENABLE_INCR_OPERATORS_ON
 #undef ENABLE_BASE_OPERATORS_ON
 
 /// Additional operators to add integers to a Value
-inline Value operator+(Value v, int i) { return Value(int(v) + i); }
-inline Value operator-(Value v, int i) { return Value(int(v) - i); }
+constexpr Value operator+(Value v, int i) { return Value(int(v) + i); }
+constexpr Value operator-(Value v, int i) { return Value(int(v) - i); }
 inline Value& operator+=(Value& v, int i) { return v = v + i; }
 inline Value& operator-=(Value& v, int i) { return v = v - i; }
 
+/// Additional operators to add a Direction to a Square
+inline Square operator+(Square s, Direction d) { return Square(int(s) + int(d)); }
+inline Square operator-(Square s, Direction d) { return Square(int(s) - int(d)); }
+inline Square& operator+=(Square &s, Direction d) { return s = s + d; }
+inline Square& operator-=(Square &s, Direction d) { return s = s - d; }
+
 /// Only declared but not defined. We don't want to multiply two scores due to
 /// a very high risk of overflow. So user should explicitly convert to integer.
-inline Score operator*(Score s1, Score s2);
+Score operator*(Score, Score) = delete;
 
 /// Division of a Score must be handled separately for each term
 inline Score operator/(Score s, int i) {
   return make_score(mg_value(s) / i, eg_value(s) / i);
 }
 
-inline Color operator~(Color c) {
+/// Multiplication of a Score by an integer. We check for overflow in debug mode.
+inline Score operator*(Score s, int i) {
+
+  Score result = Score(int(s) * i);
+
+  assert(eg_value(result) == (i * eg_value(s)));
+  assert(mg_value(result) == (i * mg_value(s)));
+  assert((i == 0) || (result / i) == s );
+
+  return result;
+}
+
+constexpr Color operator~(Color c) {
   return Color(c ^ BLACK); // Toggle color
 }
 
-inline Square operator~(Square s) {
+constexpr Square operator~(Square s) {
   return Square(s ^ SQ_A8); // Vertical flip SQ_A1 -> SQ_A8
 }
 
-inline Piece operator~(Piece pc) {
+constexpr File operator~(File f) {
+  return File(f ^ FILE_H); // Horizontal flip FILE_A -> FILE_H
+}
+
+constexpr Piece operator~(Piece pc) {
   return Piece(pc ^ 8); // Swap color of piece B_KNIGHT -> W_KNIGHT
 }
 
-inline CastlingRight operator|(Color c, CastlingSide s) {
+constexpr CastlingRight operator|(Color c, CastlingSide s) {
   return CastlingRight(WHITE_OO << ((s == QUEEN_SIDE) + 2 * c));
 }
 
-inline Value mate_in(int ply) {
+constexpr Value mate_in(int ply) {
   return VALUE_MATE - ply;
 }
 
-inline Value mated_in(int ply) {
+constexpr Value mated_in(int ply) {
   return -VALUE_MATE + ply;
 }
 
-inline Square make_square(File f, Rank r) {
+constexpr Square make_square(File f, Rank r) {
   return Square((r << 3) + f);
 }
 
-inline Piece make_piece(Color c, PieceType pt) {
+constexpr Piece make_piece(Color c, PieceType pt) {
   return Piece((c << 3) + pt);
 }
 
-inline PieceType type_of(Piece pc) {
+constexpr PieceType type_of(Piece pc) {
   return PieceType(pc & 7);
 }
 
@@ -491,27 +633,27 @@ inline Color color_of(Piece pc) {
   return Color(pc >> 3);
 }
 
-inline bool is_ok(Square s) {
+constexpr bool is_ok(Square s) {
   return s >= SQ_A1 && s <= SQ_H8;
 }
 
-inline File file_of(Square s) {
+constexpr File file_of(Square s) {
   return File(s & 7);
 }
 
-inline Rank rank_of(Square s) {
+constexpr Rank rank_of(Square s) {
   return Rank(s >> 3);
 }
 
-inline Square relative_square(Color c, Square s) {
+constexpr Square relative_square(Color c, Square s) {
   return Square(s ^ (c * 56));
 }
 
-inline Rank relative_rank(Color c, Rank r) {
+constexpr Rank relative_rank(Color c, Rank r) {
   return Rank(r ^ (c * 7));
 }
 
-inline Rank relative_rank(Color c, Square s) {
+constexpr Rank relative_rank(Color c, Square s) {
   return relative_rank(c, rank_of(s));
 }
 
@@ -520,33 +662,58 @@ inline bool opposite_colors(Square s1, Square s2) {
   return ((s >> 3) ^ s) & 1;
 }
 
-inline Square pawn_push(Color c) {
+constexpr Direction pawn_push(Color c) {
   return c == WHITE ? NORTH : SOUTH;
 }
 
+#ifdef RACE
+constexpr Square horizontal_flip(Square s) {
+  return Square(s ^ SQ_H1); // Horizontal flip SQ_A1 -> SQ_H1
+}
+#endif
+
+inline MoveType type_of(Move m);
+
 inline Square from_sq(Move m) {
 #ifdef CRAZYHOUSE
-  if (m & DROP)
+  if (type_of(m) == DROP)
       return SQ_NONE;
 #endif
   return Square((m >> 6) & 0x3F);
 }
 
-inline Square to_sq(Move m) {
+constexpr Square to_sq(Move m) {
   return Square(m & 0x3F);
 }
 
-inline MoveType type_of(Move m) {
+inline int from_to(Move m) {
 #ifdef CRAZYHOUSE
-  if (m & DROP)
-      return DROP;
+  if (type_of(m) == DROP)
+      return (m & 0x3F) + 0x1000;
+#endif
+ return m & 0xFFF;
+}
+
+inline MoveType type_of(Move m) {
+#if defined(ANTI) || defined(CRAZYHOUSE) || defined(EXTINCTION)
+  if ((m & (3 << 14)) == SPECIAL && (m & (3 << 12)))
+  {
+#ifdef CRAZYHOUSE
+      if ((m & (3 << 12)) == DROP)
+          return DROP;
+#endif
+#if defined(ANTI) || defined(EXTINCTION)
+      if ((m & (3 << 12)) == KING_PROMOTION)
+          return PROMOTION;
+#endif
+  }
 #endif
   return MoveType(m & (3 << 14));
 }
 
 inline PieceType promotion_type(Move m) {
-#ifdef ANTI
-  if ((m >> 16) & 1)
+#if defined(ANTI) || defined(EXTINCTION)
+  if ((m & (3 << 14)) == SPECIAL && (m & (3 << 12)) == KING_PROMOTION)
       return KING;
 #endif
   return PieceType(((m >> 12) & 3) + KNIGHT);
@@ -558,25 +725,60 @@ inline Move make_move(Square from, Square to) {
 
 template<MoveType T>
 inline Move make(Square from, Square to, PieceType pt = KNIGHT) {
-#ifdef ANTI
+#if defined(ANTI) || defined(EXTINCTION)
   if (pt == KING)
-      return Move((1 << 16) | (T + (from << 6) + to));
+      return Move(SPECIAL + KING_PROMOTION + (from << 6) + to);
 #endif
   return Move(T + ((pt - KNIGHT) << 12) + (from << 6) + to);
 }
 
 #ifdef CRAZYHOUSE
-inline Move make_drop(Square to, Piece pc) {
-  return Move(DROP + (pc << 18) + to);
+constexpr Move make_drop(Square to, Piece pc) {
+  return Move(SPECIAL + DROP + (pc << 6) + to);
 }
 
-inline Piece dropped_piece(Move m) {
-  return Piece((m >> 18) & 15);
+constexpr Piece dropped_piece(Move m) {
+  return Piece((m >> 6) & 15);
 }
 #endif
 
 inline bool is_ok(Move m) {
   return from_sq(m) != to_sq(m); // Catch MOVE_NULL and MOVE_NONE
+}
+
+inline Variant main_variant(Variant v) {
+  if (v < VARIANT_NB)
+      return v;
+  switch(v)
+  {
+#ifdef SUICIDE
+  case SUICIDE_VARIANT:
+      return ANTI_VARIANT;
+#endif
+#ifdef BUGHOUSE
+  case BUGHOUSE_VARIANT:
+      return CRAZYHOUSE_VARIANT;
+#endif
+#ifdef DISPLACEDGRID
+  case DISPLACEDGRID_VARIANT:
+      return GRID_VARIANT;
+#endif
+#ifdef LOOP
+  case LOOP_VARIANT:
+      return CRAZYHOUSE_VARIANT;
+#endif
+#ifdef SLIPPEDGRID
+  case SLIPPEDGRID_VARIANT:
+      return GRID_VARIANT;
+#endif
+#ifdef TWOKINGSSYMMETRIC
+  case TWOKINGSSYMMETRIC_VARIANT:
+      return TWOKINGS_VARIANT;
+#endif
+  default:
+      assert(false);
+      return CHESS_VARIANT; // Silence a warning
+  }
 }
 
 #endif // #ifndef TYPES_H_INCLUDED
