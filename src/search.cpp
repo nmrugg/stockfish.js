@@ -321,11 +321,11 @@ namespace {
 
 #if defined(EMSCRIPTEN) && !defined(SYNC)
 void search_iteration_call(void *thread) {
-    ((Thread *)thread)->search_iteration();
+  ((Thread *)thread)->search_iteration();
 }
 
 void after_search_call(void *mainThread) {
-    ((MainThread *)mainThread)->after_search();
+  ((MainThread *)mainThread)->after_search();
 }
 #endif
 
@@ -595,14 +595,6 @@ size_t multiPV_;
 #ifdef SKILL
 Skill skill_(Options["Skill Level"]);
 #endif
-
-void search_iteration_call(void *thread) {
-  ((Thread *)thread)->search_iteration();
-}
-
-void after_search_call(void *mainThread) {
-  ((MainThread *)mainThread)->after_search();
-}
 
 void Thread::search() {
   lastBestMove_ = MOVE_NONE;
@@ -998,9 +990,8 @@ namespace {
 
 #ifdef CHESSCOM
         // Step 2. Check for aborted search and immediate draw
-        if (Signals.stop.load(std::memory_order_relaxed) || pos.is_draw() || ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (ss->ply >= Threads.main()->rootDepth + Limits.shallow))
-            return (ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (ss->ply >= Threads.main()->rootDepth + Limits.shallow)) && !inCheck ? evaluate(pos)
-                                                  : DrawValue[pos.side_to_move()];
+        if (Threads.stop.load(std::memory_order_relaxed) || pos.is_draw(ss->ply) || ss->ply >= MAX_PLY || ss->ply >= Limits.maxdepth || (ss->ply >= Threads.main()->rootDepth + Limits.shallow))
+            return (ss->ply >= MAX_PLY && !inCheck) ? evaluate(pos) : VALUE_DRAW;
 #else
         // Step 2. Check for aborted search and immediate draw
         if (   Threads.stop.load(std::memory_order_relaxed)
@@ -2153,7 +2144,7 @@ void MainThread::check_time() {
       Threads.stop = true;
 #ifdef CHESSCOM
       if (Limits.maxtime > 0 && Limits.maxtime < elapsed) {
-            Signals.stop = true;
+            Threads.stop = true;
       }
 #endif
 }

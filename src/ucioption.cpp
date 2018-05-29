@@ -62,7 +62,6 @@ void init(OptionsMap& o) {
   // at most 2^32 clusters.
   constexpr int MaxHashMB = Is64Bit ? 131072 : 2048;
 
-#ifndef EMSCRIPTEN
   o["Debug Log File"]        << Option("", on_logger);
   o["Contempt"]              << Option(12, -100, 100);
   o["Analysis Contempt"]     << Option("Both var Off var White var Black var Both", "Both");

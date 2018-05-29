@@ -35,6 +35,7 @@ namespace PSQT {
 }
 
 int main(int argc, char* argv[]) {
+
   std::cout << engine_info() << std::endl;
 
   UCI::init(Options);
@@ -44,6 +45,7 @@ int main(int argc, char* argv[]) {
   Bitbases::init();
   Search::init();
   Pawns::init();
+#ifndef __EMSCRIPTEN__
   Tablebases::init(CHESS_VARIANT, Options["SyzygyPath"]); // After Bitboards are set
 #endif
   TT.resize(Options["Hash"]);
@@ -56,13 +58,9 @@ int main(int argc, char* argv[]) {
   Threads.set(0);
 #endif
   return 0;
-#endif
 }
 
 #ifdef EMSCRIPTEN
-extern "C" void uci_command(const char* cmd) {
-    UCI::command(cmd);
-}
 extern "C" void init(int argc, char* argv[]) {
     main(argc, argv);
     UCI::commandInit();

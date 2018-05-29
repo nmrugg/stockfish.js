@@ -2219,7 +2219,6 @@ bool Position::is_draw(int ply) const {
           && ++cnt + (ply > i) == 2)
           return true;
   }
-#endif
   return false;
 }
 
