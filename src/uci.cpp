@@ -187,6 +187,23 @@ namespace {
             while (is >> token)
                 limits.searchmoves.push_back(UCI::to_move(pos, token));
 
+#ifdef CHESSCOM
+        else if (token == "mindepth")  is >> limits.mindepth;
+        else if (token == "maxdepth")  is >> limits.maxdepth;
+        else if (token == "shallow")   is >> limits.shallow;
+        else if (token == "mintime")   is >> limits.mintime;
+        else if (token == "maxtime")   is >> limits.maxtime;
+        else if (token == "confidence") {
+            limits.smartdepth = 1;
+            is >> limits.confidence;
+            if (limits.confidence < 0.1) {
+                limits.confidence = 1;
+            } else {
+                limits.confidence = 1 / (limits.confidence * 10);
+            }
+        }
+#endif
+
         else if (token == "wtime")     is >> limits.time[WHITE];
         else if (token == "btime")     is >> limits.time[BLACK];
         else if (token == "winc")      is >> limits.inc[WHITE];

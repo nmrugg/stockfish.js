@@ -46,8 +46,12 @@
 namespace Search {
 
   LimitsType Limits;
+#ifdef CHESSCOM
+  int minSmartDepth;
+#endif
 }
 
+#ifndef __EMSCRIPTEN__
 namespace Tablebases {
 
   int Cardinality;
@@ -57,6 +61,7 @@ namespace Tablebases {
 }
 
 namespace TB = Tablebases;
+#endif
 
 using std::string;
 using Eval::evaluate;
@@ -563,6 +568,12 @@ void Thread::search() {
   timeReduction_ = 1.0;
   us_ = rootPos.side_to_move();
 
+#ifdef CHESSCOM
+ if (Limits.smartdepth) {
+      minSmartDepth = std::max(Limits.mindepth, 6);
+ }
+#endif
+
   std::memset(ss_-4, 0, 7 * sizeof(Stack));
   for (int i = 4; i > 0; i--)
      (ss_-i)->contHistory = this->contHistory[NO_PIECE][0].get(); // Use as sentinel
@@ -580,7 +591,12 @@ void Thread::search() {
   // When playing with strength handicap enable MultiPV search that we will
   // use behind the scenes to retrieve a set of possible moves.
   if (skill_.enabled())
+#ifdef CHESSCOM
+/// The bigger multiPV is, the more bad moves will be avaiable to choose from.
+      multiPV_ = std::max(multiPV_, (size_t)5);
+#else
       multiPV_ = std::max(multiPV_, (size_t)4);
+#endif
 #endif
 
   multiPV_ = std::min(multiPV_, rootMoves.size());
@@ -609,6 +625,9 @@ void Thread::search_iteration() {
 
   // Iterative deepening loop until requested to stop or the target depth is reached
   while (   (rootDepth += ONE_PLY) < DEPTH_MAX
+#ifdef CHESSCOM
+         && (rootDepth) <= Limits.maxdepth
+#endif
          && !Threads.stop
          && !(Limits.depth && mainThread_ && rootDepth / ONE_PLY > Limits.depth))
   {
@@ -757,6 +776,12 @@ void Thread::search_iteration() {
           skill_.pick_best(multiPV_);
 #endif
 
+#ifdef CHESSCOM
+      if (Limits.smartdepth && rootDepth >= minSmartDepth && Time.elapsed() >= Limits.mintime && mainThread_->bestMoveChanges < std::min(Limits.confidence * 10, Limits.confidence * (std::max(1, rootDepth - minSmartDepth)))) {
+          Threads.stop = true;
+      }
+#endif
+
       // Do we have time for the next iteration? Can we stop searching now?
       if (    Limits.use_time_management()
           && !Threads.stop
@@ -781,14 +806,29 @@ void Thread::search_iteration() {
               if (   rootMoves.size() == 1
                   || Time.elapsed() > Time.optimum() * bestMoveInstability * improvingFactor / 581)
               {
+#ifdef CHESSCOM
+                if (rootDepth >= Limits.mindepth && Time.elapsed() >= Limits.mintime) {
+#endif
                   // If we are allowed to ponder do not stop the search now but
                   // keep pondering until the GUI sends "ponderhit" or "stop".
                   if (Threads.ponder)
                       Threads.stopOnPonderhit = true;
                   else
                       Threads.stop = true;
+#ifdef CHESSCOM
+                }
+#endif
               }
           }
+
+#ifdef CHESSCOM
+      if (Limits.maxtime > 0 && Limits.maxtime < Time.elapsed()) {
+        if (Threads.ponder)
+            Threads.stopOnPonderhit = true;
+        else
+            Threads.stop = true;
+      }
+#endif
 
 #ifdef __EMSCRIPTEN__
       emscripten_async_call(search_iteration_call, this, 0);
@@ -876,6 +916,10 @@ namespace {
         // Step 2. Check for aborted search and immediate draw
         if (   Threads.stop.load(std::memory_order_relaxed)
             || pos.is_draw(ss->ply)
+#ifdef CHESSCOM
+            || ss->ply >= Limits.maxdepth
+            || (ss->ply >= Threads.main()->rootDepth + Limits.shallow)
+#endif
             || ss->ply >= MAX_PLY)
             return (ss->ply >= MAX_PLY && !inCheck) ? evaluate(pos) : VALUE_DRAW;
 
@@ -1627,6 +1671,9 @@ moves_loop: // When in check, search starts from here
 
     // Check for an immediate draw or maximum ply reached
     if (   pos.is_draw(ss->ply)
+#ifdef CHESSCOM
+        || ss->ply >= Limits.maxdepth
+#endif
         || ss->ply >= MAX_PLY)
         return (ss->ply >= MAX_PLY && !inCheck) ? evaluate(pos) : VALUE_DRAW;
 
@@ -2009,7 +2056,16 @@ void MainThread::check_time() {
   if (   (Limits.use_time_management() && elapsed > Time.maximum() - 10)
       || (Limits.movetime && elapsed >= Limits.movetime)
       || (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
+#ifdef CHESSCOM
+        if (Threads.main()->rootDepth >= Limits.mindepth && Time.elapsed() >= Limits.mintime)
+#endif
       Threads.stop = true;
+      
+#ifdef CHESSCOM
+      if (Limits.maxtime > 0 && Limits.maxtime < elapsed) {
+            Threads.stop = true;
+      }
+#endif
 }
 
 
@@ -2024,7 +2080,9 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
   size_t PVIdx = pos.this_thread()->PVIdx;
   size_t multiPV = std::min((size_t)Options["MultiPV"], rootMoves.size());
   uint64_t nodesSearched = Threads.nodes_searched();
+#ifndef __EMSCRIPTEN__
   uint64_t tbHits = Threads.tb_hits() + (TB::RootInTB ? rootMoves.size() : 0);
+#endif
 
   for (size_t i = 0; i < multiPV; ++i)
   {
@@ -2036,8 +2094,10 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
       Depth d = updated ? depth : depth - ONE_PLY;
       Value v = updated ? rootMoves[i].score : rootMoves[i].previousScore;
 
+#ifndef __EMSCRIPTEN__
       bool tb = TB::RootInTB && abs(v) < VALUE_MATE - MAX_PLY;
       v = tb ? rootMoves[i].TBScore : v;
+#endif
 
       if (ss.rdbuf()->in_avail()) // Not at first line
           ss << "\n";
@@ -2048,7 +2108,11 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
          << " multipv "  << i + 1
          << " score "    << UCI::value(v);
 
+#ifndef __EMSCRIPTEN__
       if (!tb && i == PVIdx)
+#else
+      if (i == PVIdx)
+#endif
           ss << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
 
       ss << " nodes "    << nodesSearched
@@ -2057,12 +2121,21 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
       if (elapsed > 1000) // Earlier makes little sense
           ss << " hashfull " << TT.hashfull();
 
+#ifndef __EMSCRIPTEN__
       ss << " tbhits "   << tbHits
+#else
+      ss
+#endif
          << " time "     << elapsed
          << " pv";
 
       for (Move m : rootMoves[i].pv)
           ss << " " << UCI::move(m, pos.is_chess960());
+          
+#ifdef CHESSCOM
+        ///NOTE: There are other values, such as "failedLow" and "previousScore" that could be of use tool
+        ss << " bmc " << Threads.main()->bestMoveChanges;
+#endif
   }
 
   return ss.str();
