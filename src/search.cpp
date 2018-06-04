@@ -406,6 +406,7 @@ void MainThread::search() {
                    : rootPos.checkers() ? rootPos.checkmate_value()
                    : rootPos.stalemate_value();
       sync_cout << "info depth 0 score " << UCI::value(score) << sync_endl;
+      after_search();
   }
   else
   {
