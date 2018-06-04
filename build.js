@@ -250,7 +250,10 @@ if (params.help || params["help-all"] || params.h) {
     console.log("    ./build.js");
     console.log("");
     console.log("  Vanilla Stockfish: no modifications, no variants, 64-bit native binary");
-    console.log("    ./build.js " + highlight("--no-chesscom") + " " + highlight("--variants=none") + " " + highlight("--arch=") + note("x86-64-bmi2"));
+    console.log("    ./build.js " + highlight("--no-chesscom") + " " + highlight("--variants=") + note("none") + " " + highlight("--arch=") + note("x86-64-bmi2"));
+    console.log("");
+    console.log("  Build Chess.com engine");
+    console.log("    ./build.js " + highlight("-f") + " " + highlight("--variants") + " " +  note("crazyhouse,3check,koth"));
     console.log("");
     if (params["help-all"]) {
         console.log("");
