@@ -217,9 +217,9 @@ if (params.help || params["help-all"] || params.h) {
     console.log("");
     console.log("  " + highlight("-f --force") + "      Always rebuild the entire project");
     console.log("  " + highlight("--force-linking") + " Always preforming the final linking step");
-    console.log("  " + highlight("--variants") + "      Comma separated list of variants to include (default: " + note("all") + ")");
-    console.log(                     "                  Possible values are " + note("none") + " (no variants, except for Chess960),");
-    console.log(                     "                  " + note("anti") + ", " + note("atomic") + ", " + note("crazyhouse") + ", " + note("horde") + ", " + note("kingofthehill") + ", " + note("race") + ", " + note("relay") + ", " + note("3check"));
+    console.log("  " + highlight("--variants") + "      Comma separated list of variants to include (default: " + note("none") + ")");
+    console.log(                     "                  Possible values are " + note("all") + ", " + note("none") + " (no variants, except for Chess960),");
+    console.log(                     "                  " + note("anti") + ", " + note("atomic") + ", " + note("crazyhouse") + ", " + note("horde") + ", " + note("kingofthehill") + ", " + note("race") + ", " + note("relay") + ", or " + note("3check"));
     console.log("  " + highlight("--no-chesscom") + "   Disable changes made specifically for chess.com;");
     console.log(                     "                  this includes showing SAN moves, fixing three-fold repetition,");
     console.log(                     "                  addition of mindepth, maxdepth, and shallow options to the go command,");
@@ -286,8 +286,10 @@ if (params.help || params["help-all"] || params.h) {
     }
 }
 
-if (params.variants && params.variants !== true && params.variants.toLowerCase() !== "all") {
+if (params.variants && params.variants.toLowerCase() !== "all") {
     args.push("VARIANTS=" + params.variants.toUpperCase());
+} else if (!params.variants) {
+    args.push("VARIANTS=NONE");
 }
 
 if (!params["no-chesscom"]) {
