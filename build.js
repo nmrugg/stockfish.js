@@ -4,7 +4,7 @@
 
 var spawnSync = require("child_process").spawnSync;
 var execFileSync = require("child_process").execFileSync;
-var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "sync", "b", "bin", "no-skill"]});
+var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "sync", "b", "bin", "no-skill", "colors"]});
 var args = ["build", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
@@ -85,7 +85,7 @@ function get_params(options, argv)
 
 function color(color_code, str)
 {
-    if (process.stdout.isTTY) {
+    if (process.stdout.isTTY || params.colors) {
         str = "\u001B[" + color_code + "m" + str + "\u001B[0m";
     }
     
@@ -241,6 +241,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log(                     "                  Use " + note("date") + " to use the current date");
     console.log(                     "                  Use " + note("timestamp") + " to use the current Unix timestamp");
     console.log(                     "                  Use " + note("hash") + " to use the current git commit hash");
+    console.log("  " + highlight("--colors") + "        Always colorize the output, even through a pipe");
     console.log("  " + highlight("-h --help") + "       Show build.js's help");
     console.log("  " + highlight("--help-all") + "      Show Stockfish's Makefile help as well");
     console.log("");
