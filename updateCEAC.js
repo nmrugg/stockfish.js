@@ -113,7 +113,7 @@ function copy()
     
     fs.mkdirSync(srcDir);
     
-    execSync("cp *.cpp *.h Makefile license.js " + srcDir, {cwd: p.join(__dirname, "src"), env: process.env});
+    execSync("cp *.cpp *.h Makefile license.js pre.js post.js " + srcDir, {cwd: p.join(__dirname, "src"), env: process.env});
     
     syzygyDir = p.join(srcDir, "syzygy");
     
