@@ -233,6 +233,9 @@ if (params.help || params["help-all"] || params.h) {
     console.log(                     "                  and a WASM version. Set to " + note("asmjs") + " or " + note("wasm") + " for just one.");
     console.log(                     "                  " + note("x86-64-bmi2") + " is likely the fastest binary version");
     console.log(                     "                  See " + highlight("--help-all") + " for more options, or use " + highlight("--bin") + " instead");
+    console.log("  " + highlight("--basename") + "      The filename for the engine (default: " + note ("stockfish") + ")");
+    console.log(                     "                  This will not only rename the files, it will also rewrite the base JS file");
+    console.log(                     "                  to load the correct WASM and ASM engines");
     console.log("  " + highlight("-b --bin") + "        Attempt to build a binary engine that is the most suitable for this system");
     console.log("  " + highlight("--make") + "          Path to program used to make Stockfish (default: " + note("make") + ")");
     console.log("  " + highlight("--comp") + "          Compiler to build C code with");
@@ -380,12 +383,20 @@ if (Number(child.status) !== 0) {
     process.exit(Number(child.status));
 }
 
+if (!buildToAnyJS && params.basename) {
+    fs.renameSync(stockfishPath, p.join(__dirname, "src", params.basename));
+}
+
 if (buildToASMJS) {
     data = fs.readFileSync(stockfishJSPath, "utf8");
     
     /// Add the license if it's not there (emscripten removes all comments).
     if (data.indexOf(license) !== 0) {
         fs.writeFileSync(stockfishJSPath, license + data);
+    }
+    
+    if (params.basename) {
+        fs.renameSync(stockfishJSPath, p.join(__dirname, "src", params.basename + ".asm.js"));
     }
 }
 
@@ -395,8 +406,17 @@ if (buildToWASM) {
     /// Remove "var Module" so that it does not overwrite our custom module.
     data = data.replace("var Module;", "");
     
+    if (params.basename) {
+        data = data.replace(/stockfish\.wasm/g, params.basename + ".wasm");
+    }
+    
     /// Add the license if it's not there (emscripten removes all comments).
     if (data.indexOf(license) !== 0) {
         fs.writeFileSync(stockfishWASMLoaderPath, license + data);
+    }
+    
+    if (params.basename) {
+        fs.renameSync(stockfishWASMLoaderPath, p.join(__dirname, "src", params.basename + ".js"));
+        fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
     }
 }
