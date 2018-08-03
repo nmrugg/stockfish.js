@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -50,38 +50,17 @@ struct Entry {
   // the position. For instance, in KBP vs K endgames, the scaling function looks
   // for rook pawns and wrong-colored bishops.
   ScaleFactor scale_factor(const Position& pos, Color c) const {
-#ifdef KOTH
-    if (pos.is_koth()) return SCALE_FACTOR_NORMAL;
-#endif
-#ifdef RACE
-    if (pos.is_race()) return SCALE_FACTOR_NORMAL;
-#endif
-#ifdef THREECHECK
-    if (pos.is_three_check()) return SCALE_FACTOR_NORMAL;
-#endif
-#ifdef HORDE
-    if (pos.is_horde()) return SCALE_FACTOR_NORMAL;
-#endif
-#ifdef ATOMIC
-    if (pos.is_atomic()) return SCALE_FACTOR_NORMAL;
-#endif
-#ifdef ANTI
-    if (pos.is_anti()) return SCALE_FACTOR_NORMAL;
-#endif
-#ifdef CRAZYHOUSE
-    if (pos.is_house()) return SCALE_FACTOR_NORMAL;
-#endif
     ScaleFactor sf = scalingFunction[c] ? (*scalingFunction[c])(pos)
                                         :  SCALE_FACTOR_NONE;
     return sf != SCALE_FACTOR_NONE ? sf : ScaleFactor(factor[c]);
   }
 
   Key key;
-  int16_t value;
-  uint8_t factor[COLOR_NB];
   EndgameBase<Value>* evaluationFunction;
   EndgameBase<ScaleFactor>* scalingFunction[COLOR_NB]; // Could be one for each
                                                        // side (e.g. KPKP, KBPsKs)
+  int16_t value;
+  uint8_t factor[COLOR_NB];
   Phase gamePhase;
 };
 

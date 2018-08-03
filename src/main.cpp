@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,8 +26,7 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
-
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
 #include "syzygy/tbprobe.h"
 #endif
 
@@ -36,6 +35,7 @@ namespace PSQT {
 }
 
 int main(int argc, char* argv[]) {
+
   std::cout << engine_info() << std::endl;
 
   UCI::init(Options);
@@ -45,26 +45,23 @@ int main(int argc, char* argv[]) {
   Bitbases::init();
   Search::init();
   Pawns::init();
-  Threads.init();
-#ifndef EMSCRIPTEN
-  Tablebases::init(Options["SyzygyPath"]);
+#ifndef __EMSCRIPTEN__
+  Tablebases::init(CHESS_VARIANT, Options["SyzygyPath"]); // After Bitboards are set
 #endif
   TT.resize(Options["Hash"]);
+  Threads.set(Options["Threads"]);
+  Search::clear(); // After threads are up
 
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
   UCI::loop(argc, argv);
 
-  Threads.exit();
-  return 0;
+  Threads.set(0);
 #endif
+  return 0;
 }
 
-#ifdef EMSCRIPTEN
-extern "C" void uci_command(const char* cmd) {
-    UCI::command(cmd);
-}
+#ifdef __EMSCRIPTEN__
 extern "C" void init(int argc, char* argv[]) {
     main(argc, argv);
-    UCI::commandInit();
 }
 #endif

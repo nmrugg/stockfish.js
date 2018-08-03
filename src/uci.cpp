@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -28,60 +30,75 @@
 #include "search.h"
 #include "thread.h"
 #include "timeman.h"
+#include "tt.h"
 #include "uci.h"
-
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
 #include "syzygy/tbprobe.h"
 #endif
 
 using namespace std;
 
-#ifndef EMSCRIPTEN
-extern void benchmark(const Position& pos, istream& is);
+#ifndef __EMSCRIPTEN__
+extern vector<string> setup_bench(const Position&, istream&);
 #endif
 
 namespace {
 
-  Variant variant_from_name(string s) {
-      for (Variant v = CHESS_VARIANT; v < VARIANT_NB; ++v)
-          if (variants[v] == s)
-              return v;
-      return CHESS_VARIANT;
-  }
-
   // FEN strings of the initial positions
-  const string StartFENs[VARIANT_NB] = {
-  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+  const string StartFENs[SUBVARIANT_NB] = {
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
 #ifdef ANTI
-  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
 #endif
 #ifdef ATOMIC
-  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
 #endif
 #ifdef CRAZYHOUSE
-  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1"
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1",
+#endif
+#ifdef EXTINCTION
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+#endif
+#ifdef GRID
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
 #endif
 #ifdef HORDE
-  ,"rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1"
+  "rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1",
 #endif
 #ifdef KOTH
-  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+#endif
+#ifdef LOSERS
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
 #endif
 #ifdef RACE
-  ,"8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1"
-#endif
-#ifdef RELAY
-  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+  "8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1",
 #endif
 #ifdef THREECHECK
-  ,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3+3 0 1"
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3+3 0 1",
+#endif
+#ifdef TWOKINGS
+  "rnbqkknr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKKNR w KQkq - 0 1",
+#endif
+#ifdef SUICIDE
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1",
+#endif
+#ifdef BUGHOUSE
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1",
+#endif
+#ifdef DISPLACEDGRID
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+#endif
+#ifdef LOOP
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1",
+#endif
+#ifdef SLIPPEDGRID
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+#endif
+#ifdef TWOKINGSSYMMETRIC
+  "rnbqkknr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKKNR w KQkq - 0 1",
 #endif
   };
-
-  // A list to keep track of the position states along the setup moves (from the
-  // start position to the position just before the search starts). Needed by
-  // 'draw by repetition' detection.
-  StateListPtr States(new std::deque<StateInfo>(1));
 
 
   // position() is called when engine receives the "position" UCI command.
@@ -89,12 +106,12 @@ namespace {
   // or the starting position ("startpos") and then makes the moves given in the
   // following move list ("moves").
 
-  void position(Position& pos, istringstream& is) {
+  void position(Position& pos, istringstream& is, StateListPtr& states) {
 
     Move m;
     string token, fen;
 
-    Variant variant = variant_from_name(Options["UCI_Variant"]);
+    Variant variant = UCI::variant_from_name(Options["UCI_Variant"]);
 
     is >> token;
     if (token == "startpos")
@@ -108,14 +125,14 @@ namespace {
     else
         return;
 
-    States = StateListPtr(new std::deque<StateInfo>(1));
-    pos.set(fen, Options["UCI_Chess960"], variant, &States->back(), Threads.main());
+    states = StateListPtr(new std::deque<StateInfo>(1)); // Drop old and create a new one
+    pos.set(fen, Options["UCI_Chess960"], variant, &states->back(), Threads.main());
 
     // Parse move list (if any)
     while (is >> token && (m = UCI::to_move(pos, token)) != MOVE_NONE)
     {
-        States->push_back(StateInfo());
-        pos.do_move(m, States->back(), pos.gives_check(m));
+        states->emplace_back();
+        pos.do_move(m, states->back());
     }
   }
 
@@ -130,17 +147,23 @@ namespace {
 
     // Read option name (can contain spaces)
     while (is >> token && token != "value")
-        name += string(" ", name.empty() ? 0 : 1) + token;
+        name += (name.empty() ? "" : " ") + token;
 
     // Read option value (can contain spaces)
     while (is >> token)
-        value += string(" ", value.empty() ? 0 : 1) + token;
+        value += (value.empty() ? "" : " ") + token;
 
     if (Options.count(name))
     {
         Options[name] = value;
-        if (name == "UCI_Variant")
-            sync_cout << "info string variant " << (string)Options["UCI_Variant"] << " startpos " << StartFENs[variant_from_name(Options["UCI_Variant"])] << sync_endl;
+        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+        if (name == "uci_variant") {
+            Variant variant = UCI::variant_from_name(value);
+            sync_cout << "info string variant " << (string)Options["UCI_Variant"] << " startpos " << StartFENs[variant] << sync_endl;
+#ifndef __EMSCRIPTEN__
+            Tablebases::init(variant, Options["SyzygyPath"]);
+#endif
+        }
     }
     else
         sync_cout << "No such option: " << name << sync_endl;
@@ -151,10 +174,11 @@ namespace {
   // the thinking time and other parameters from the input string, then starts
   // the search.
 
-  void go(Position& pos, istringstream& is) {
+  void go(Position& pos, istringstream& is, StateListPtr& states) {
 
     Search::LimitsType limits;
     string token;
+    bool ponderMode = false;
 
     limits.startTime = now(); // As early as possible!
 
@@ -179,6 +203,7 @@ namespace {
             }
         }
 #endif
+
         else if (token == "wtime")     is >> limits.time[WHITE];
         else if (token == "btime")     is >> limits.time[BLACK];
         else if (token == "winc")      is >> limits.inc[WHITE];
@@ -188,10 +213,56 @@ namespace {
         else if (token == "nodes")     is >> limits.nodes;
         else if (token == "movetime")  is >> limits.movetime;
         else if (token == "mate")      is >> limits.mate;
+        else if (token == "perft")     is >> limits.perft;
         else if (token == "infinite")  limits.infinite = 1;
-        else if (token == "ponder")    limits.ponder = 1;
-    Threads.start_thinking(pos, States, limits);
+        else if (token == "ponder")    ponderMode = true;
+
+    Threads.start_thinking(pos, states, limits, ponderMode);
   }
+
+
+  // bench() is called when engine receives the "bench" command. Firstly
+  // a list of UCI commands is setup according to bench parameters, then
+  // it is run one by one printing a summary at the end.
+
+#ifndef __EMSCRIPTEN__
+  void bench(Position& pos, istream& args, StateListPtr& states) {
+
+    string token;
+    uint64_t num, nodes = 0, cnt = 1;
+
+    vector<string> list = setup_bench(pos, args);
+    num = count_if(list.begin(), list.end(), [](string s) { return s.find("go ") == 0; });
+
+    TimePoint elapsed = now();
+
+    for (const auto& cmd : list)
+    {
+        istringstream is(cmd);
+        is >> skipws >> token;
+
+        if (token == "go")
+        {
+            cerr << "\nPosition: " << cnt++ << '/' << num << endl;
+            go(pos, is, states);
+            Threads.main()->wait_for_search_finished();
+            nodes += Threads.nodes_searched();
+        }
+        else if (token == "setoption")  setoption(is);
+        else if (token == "position")   position(pos, is, states);
+        else if (token == "ucinewgame") Search::clear();
+    }
+
+    elapsed = now() - elapsed + 1; // Ensure positivity to avoid a 'divide by zero'
+
+    dbg_print(); // Just before exiting
+
+    cerr << "\n==========================="
+         << "\nTotal time (ms) : " << elapsed
+         << "\nNodes searched  : " << nodes
+         << "\nNodes/second    : " << 1000 * nodes / elapsed << endl;
+  }
+#endif
 
 } // namespace
 
@@ -201,28 +272,16 @@ namespace {
 /// GUI dies unexpectedly. When called with some command line arguments, e.g. to
 /// run 'bench', once the command is executed the function returns immediately.
 /// In addition to the UCI ones, also some additional debug commands are supported.
-#ifdef EMSCRIPTEN
-Position pos;
-  void UCI::commandInit() {
-    Variant variant = variant_from_name(Options["UCI_Variant"]);
-    pos.set(StartFENs[variant], false, variant, &States->back(), Threads.main());
-  }
-  void UCI::command(const string& cmd) {
-    string token;
-#else
-#ifdef CHESSCOM
-/// For move_to_san()
-Position pos;
-#endif
+
+#ifndef __EMSCRIPTEN__
 void UCI::loop(int argc, char* argv[]) {
 
-/// See "#ifdef CHESSCOM" above
-#ifndef CHESSCOM
   Position pos;
-#endif
   string token, cmd;
+  StateListPtr states(new std::deque<StateInfo>(1));
+  auto uiThread = std::make_shared<Thread>(0);
 
-  pos.set(StartFENs[CHESS_VARIANT], false, CHESS_VARIANT, &States->back(), Threads.main());
+  pos.set(StartFENs[CHESS_VARIANT], false, CHESS_VARIANT, &states->back(), uiThread.get());
 
   for (int i = 1; i < argc; ++i)
       cmd += std::string(argv[i]) + " ";
@@ -230,153 +289,63 @@ void UCI::loop(int argc, char* argv[]) {
   do {
       if (argc == 1 && !getline(cin, cmd)) // Block here waiting for input or EOF
           cmd = "quit";
-#endif
+#else
+extern "C" void uci_command(const char *c_cmd) {
+  static bool initialized = false;
+  static Position pos;
+  static StateListPtr states(new std::deque<StateInfo>(1));
+  static auto uiThread = std::make_shared<Thread>(0);
+  if (!initialized) {
+    pos.set(StartFENs[CHESS_VARIANT], false, CHESS_VARIANT, &states->back(), uiThread.get());
+    initialized = true;
+  }
+
+  std::string token, cmd(c_cmd);
+#endif  // __EMSCRIPTEN__
+
       istringstream is(cmd);
 
-      token.clear(); // getline() could return empty or blank line
+      token.clear(); // Avoid a stale if getline() returns empty or blank line
       is >> skipws >> token;
 
-      // The GUI sends 'ponderhit' to tell us to ponder on the same move the
-      // opponent has played. In case Signals.stopOnPonderhit is set we are
-      // waiting for 'ponderhit' to stop the search (for instance because we
-      // already ran out of time), otherwise we should continue searching but
-      // switching from pondering to normal search.
+      // The GUI sends 'ponderhit' to tell us the user has played the expected move.
+      // So 'ponderhit' will be sent if we were told to ponder on the same move the
+      // user has played. We should continue searching but switch from pondering to
+      // normal search. In case Threads.stopOnPonderhit is set we are waiting for
+      // 'ponderhit' to stop the search, for instance if max search depth is reached.
       if (    token == "quit"
           ||  token == "stop"
-          || (token == "ponderhit" && Search::Signals.stopOnPonderhit))
-      {
-          Search::Signals.stop = true;
-          Threads.main()->start_searching(true); // Could be sleeping
-      }
+          || (token == "ponderhit" && Threads.stopOnPonderhit))
+          Threads.stop = true;
+
       else if (token == "ponderhit")
-          Search::Limits.ponder = 0; // Switch to normal search
+          Threads.ponder = false; // Switch to normal search
 
       else if (token == "uci")
           sync_cout << "id name " << engine_info(true)
                     << "\n"       << Options
                     << "\nuciok"  << sync_endl;
 
-      else if (token == "ucinewgame")
-      {
-          Search::clear();
-#ifndef EMSCRIPTEN
-          Tablebases::init(Options["SyzygyPath"]);
-#endif
-          Time.availableNodes = 0;
-      }
-      else if (token == "isready")    sync_cout << "readyok" << sync_endl;
-      else if (token == "go")         go(pos, is);
-      else if (token == "position")   position(pos, is);
       else if (token == "setoption")  setoption(is);
+      else if (token == "go")         go(pos, is, states);
+      else if (token == "position")   position(pos, is, states);
+      else if (token == "ucinewgame") Search::clear();
+      else if (token == "isready")    sync_cout << "readyok" << sync_endl;
 
-      // Additional custom non-UCI commands, useful for debugging
-      else if (token == "flip")       pos.flip();
-#ifndef EMSCRIPTEN
-      else if (token == "bench")      benchmark(pos, is);
-#endif
-      else if (token == "d")          sync_cout << pos << sync_endl;
-      else if (token == "eval")       sync_cout << Eval::trace(pos) << sync_endl;
-#ifndef EMSCRIPTEN
-      else if (token == "perft")
-      {
-          int depth;
-          stringstream ss;
-
-          is >> depth;
-          ss << Options["Hash"]    << " "
-             << Options["Threads"] << " " << depth << " current perft";
-
-          benchmark(pos, ss);
-      }
-#endif
+      // Additional custom non-UCI commands, mainly for debugging
+      else if (token == "flip")  pos.flip();
+#ifndef __EMSCRIPTEN__
+      else if (token == "bench") bench(pos, is, states);
+#endif  // __EMSCRIPTEN__
+      else if (token == "d")     sync_cout << pos << sync_endl;
+      else if (token == "eval")  sync_cout << Eval::trace(pos) << sync_endl;
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
-#ifndef EMSCRIPTEN
-  } while (token != "quit" && argc == 1); // Passed args have one-shot behaviour
-
-  Threads.main()->wait_for_search_finished();
+#ifndef __EMSCRIPTEN__
+  } while (token != "quit" && argc == 1); // Command line args are one-shot
 #endif
 }
 
-
-#ifdef CHESSCOM
-/// move_to_san() takes a position and a legal Move as input and returns its
-/// short algebraic notation representation.
-
-const char* PieceToChar[COLOR_NB] = { " PNBRQK", " pnbrqk" };
-
-const string UCI::move_to_san(Position& thisPos, Move m) {
-
-  if (m == MOVE_NONE)
-      return "(none)";
-
-  if (m == MOVE_NULL)
-      return "(null)";
-
-  assert(MoveList<LEGAL>(thisPos).contains(m));
-
-  Bitboard others, b;
-  string san;
-  Color us = thisPos.side_to_move();
-  Square from = from_sq(m);
-  Square to = to_sq(m);
-  Piece pc = thisPos.piece_on(from);
-  PieceType pt = type_of(pc);
-
-  if (type_of(m) == CASTLING)
-      san = to > from ? "O-O" : "O-O-O";
-  else
-  {
-      if (pt != PAWN)
-      {
-          san = PieceToChar[WHITE][pt]; // Upper case
-
-          // A disambiguation occurs if we have more then one piece of type 'pt'
-          // that can reach 'to' with a legal move.
-          others = b = (thisPos.attacks_from(pc, to) & thisPos.pieces(us, pt)) ^ from;
-
-          while (b)
-          {
-              Square s = pop_lsb(&b);
-              if (!thisPos.legal(make_move(s, to)))
-                  others ^= s;
-          }
-
-          if (!others)
-          { /* Disambiguation is not needed */ }
-
-          else if (!(others & file_bb(from)))
-              san += char(file_of(from) - FILE_A + 'a');
-
-          else if (!(others & rank_bb(from)))
-              san += char(rank_of(from) - RANK_1 + '1');
-
-          else
-              san += square(from);
-      }
-      else if (thisPos.capture(m))
-          san = char(file_of(from) - FILE_A + 'a');
-
-      if (thisPos.capture(m))
-          san += 'x';
-
-      san += square(to);
-
-      if (type_of(m) == PROMOTION)
-          san += string("=") + PieceToChar[WHITE][promotion_type(m)];
-  }
-
-  if (thisPos.gives_check(m))
-  {
-      StateInfo st;
-      thisPos.do_move(m, st, thisPos.gives_check(m));
-      san += MoveList<LEGAL>(thisPos).size() ? "+" : "#";
-      thisPos.undo_move(m);
-  }
-
-  return san;
-}
-#endif
 
 /// UCI::value() converts a Value to a string suitable for use with the UCI
 /// protocol specification:
@@ -386,6 +355,8 @@ const string UCI::move_to_san(Position& thisPos, Move m) {
 ///           use negative values for y.
 
 string UCI::value(Value v) {
+
+  assert(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
   stringstream ss;
 
@@ -450,4 +421,14 @@ Move UCI::to_move(const Position& pos, string& str) {
           return m;
 
   return MOVE_NONE;
+}
+
+
+Variant UCI::variant_from_name(const string& str) {
+
+  for (Variant v = CHESS_VARIANT; v < SUBVARIANT_NB; ++v)
+      if (variants[v] == str)
+          return v;
+
+  return CHESS_VARIANT;
 }
