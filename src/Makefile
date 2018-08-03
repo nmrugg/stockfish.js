@@ -353,10 +353,10 @@ ifeq ($(DEBUGJS),1)
 else
 ifeq ($(optimize),yes)
 
-	CXXFLAGS += -O3
+	CXXFLAGS += -Os
 
 	ifeq ($(COMP),emscripten)
-		LDFLAGS += -O3
+		LDFLAGS += -Os
 	endif
 
 	ifeq ($(comp),gcc)
