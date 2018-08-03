@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+//! Chess.com (c) 2018
+
 "use strict";
 
 var spawnSync = require("child_process").spawnSync;
