@@ -10,26 +10,23 @@ You can run Stockfish.js directly from the command line with Node.js.
 
 In a web browser, Stockfish.js can be run in a web-worker, which can be created like this:
 
-    var stockfish = new Worker("stockfish.js");
-
-If you don't want to use Web Workers, simply add a script tag, like this:
-
-    <script src="stockfish.js"></script>
-
-Then you can create a new instance by calling the `STOCKFISH()` function.
-
-    var stockfish = STOCKFISH();
-
-Input (standard UCI commands) to the engine is posted as a message to the worker:
-
-    stockfish.postMessage("go depth 15");
+```js
+var stockfish = new Worker("stockfish.js");
+```
 
 The output of the engine is again posted as a message. To receive it, you need to add a message handler:
 
-    stockfish.onmessage = function(event) {
-        //NOTE: Web Workers wrap the response in an object.
-        console.log(event.data ? event.data : event);
-    };
+```js
+stockfish.onmessage = function onmessage(event) {
+    console.log(event.data);
+};
+```
+
+Input (standard UCI commands) to the engine is posted as a message to the worker:
+
+```js
+stockfish.postMessage("go depth 15");
+```
 
 Stockfish.js can be found in the npm repository and installed like this: `npm install stockfish`.
 
