@@ -689,9 +689,11 @@ void Thread::search_iteration() {
                   }
               }
               else if (bestValue_ >= beta_)
+              {
                   beta_ = std::min(bestValue_ + delta_, VALUE_INFINITE);
                   if (mainThread_)
                 	  ++failedHighCnt;
+              }
               else
                   break;
 
