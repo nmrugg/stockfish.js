@@ -1983,7 +1983,7 @@ moves_loop: // When in check, search starts from here
         }
 
         // Do allow crazy blunders at very low skills
-        if (i > 0 && rootMoves[i - 1].score > score + (Options["Skill Level Maximum Error"] * PawnValueMg) / 100)
+        if (i > 0 && rootMoves[i - 1].score > score + (int(Options["Skill Level Maximum Error"]) * PawnValueMg) / 100)
             break;
 
         // This is our magic formula
@@ -2083,7 +2083,7 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
 #ifndef __EMSCRIPTEN__
       bool tb = TB::RootInTB && abs(v) < VALUE_MATE - MAX_PLY;
       v = tb ? rootMoves[i].tbScore : v;
-
+#endif
       if (ss.rdbuf()->in_avail()) // Not at first line
           ss << "\n";
 
