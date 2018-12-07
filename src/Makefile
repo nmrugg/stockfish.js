@@ -290,8 +290,11 @@ endif
 
 ifeq ($(COMP),emscripten)
     ifeq ($(ARCH),wasm)
-    	CXXFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
-    	LDFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
+        CXXFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
+        LDFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
+    else
+        CXXFLAGS += -s WASM=0
+        LDFLAGS += -s WASM=0
 	endif
 	CXXFLAGS += -s TOTAL_MEMORY=67108864 -s NO_FILESYSTEM=1
 	#NOTE: --closure 1 breaks the code
@@ -419,8 +422,8 @@ endif
 
 ### 3.3 Optimization
 ifeq ($(DEBUGJS),1)
-	CXXFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1
-	LDFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1
+	CXXFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1 -s DEMANGLE_SUPPORT=1
+	LDFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1 -s DEMANGLE_SUPPORT=1
 else
 ifeq ($(optimize),yes)
 

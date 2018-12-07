@@ -48,6 +48,7 @@ inline TimePoint now() {
 #ifndef __EMSCRIPTEN__
         (std::chrono::steady_clock::now().time_since_epoch()).count();
 #else
+        // See https://github.com/kripken/emscripten/issues/4929
         (std::chrono::system_clock::now().time_since_epoch()).count();
 #endif
 }

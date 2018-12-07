@@ -2120,7 +2120,7 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
           ss << " " << UCI::move(m, pos.is_chess960());
           
 #ifdef CHESSCOM
-        ///NOTE: There are other values, such as "failedLow" and "previousScore" that could be of use tool
+        ///NOTE: There are other values, such as "failedLow_" and "previousScore" that could be of use tool
         ss << " bmc " << Threads.main()->bestMoveChanges;
 #endif
   }
