@@ -306,9 +306,6 @@ ifeq ($(CHESSCOM),1)
 	#NOTE: uci.cpp uses shadowing for simplicity.
 	CXXFLAGS:=$(filter-out -Wshadow,$(CXXFLAGS))
 endif
-ifeq ($(SYNC),1)
-	CXXFLAGS += -DSYNC
-endif
 
 ### Allow overwriting CXX from command line
 ifdef COMPCXX
