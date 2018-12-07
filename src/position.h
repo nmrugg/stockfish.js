@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -45,7 +45,6 @@ struct StateInfo {
 #ifdef THREECHECK
   CheckCount checksGiven[COLOR_NB];
 #endif
-  Score  psq;
   Square epSquare;
 
   // Not copied when making a move (will be recomputed anyhow)
@@ -206,6 +205,9 @@ public:
 #ifdef LOOP
   bool is_loop() const;
 #endif
+#ifdef PLACEMENT
+  bool is_placement() const;
+#endif
 #ifdef EXTINCTION
   bool is_extinction() const;
   bool is_extinction_win() const;
@@ -261,12 +263,14 @@ public:
 #endif
 #if defined(ANTI) || defined(LOSERS)
   bool can_capture() const;
+  int capture_count(Move m) const;
 #endif
 #ifdef SUICIDE
   bool is_suicide() const;
 #endif
   Thread* this_thread() const;
   bool is_draw(int ply) const;
+  bool has_game_cycle(int ply) const;
   bool has_repeated() const;
   int rule50_count() const;
   Score psq_score() const;
@@ -313,6 +317,7 @@ private:
   Bitboard castlingPath[CASTLING_RIGHT_NB];
   int gamePly;
   Color sideToMove;
+  Score psq;
   Thread* thisThread;
   StateInfo* st;
   bool chess960;
@@ -320,6 +325,14 @@ private:
   Variant subvar;
 
 };
+
+namespace PSQT {
+#ifdef CRAZYHOUSE
+  extern Score psq[VARIANT_NB][PIECE_NB][SQUARE_NB+1];
+#else
+  extern Score psq[VARIANT_NB][PIECE_NB][SQUARE_NB];
+#endif
+}
 
 extern std::ostream& operator<<(std::ostream& os, const Position& pos);
 
@@ -396,6 +409,10 @@ template<PieceType Pt> inline Square Position::square(Color c) const {
 #ifdef TWOKINGS
   if (is_two_kings() && Pt == KING && pieceCount[make_piece(c, Pt)] > 1)
       return royal_king(c);
+#endif
+#ifdef PLACEMENT
+  if (is_placement() && pieceCount[make_piece(c, Pt)] == 0)
+      return SQ_NONE;
 #endif
 #ifdef ANTI
   // There may be zero, one, or multiple kings
@@ -557,7 +574,7 @@ inline Key Position::material_key() const {
 }
 
 inline Score Position::psq_score() const {
-  return st->psq;
+  return psq;
 }
 
 inline Value Position::non_pawn_material(Color c) const {
@@ -699,9 +716,8 @@ inline bool Position::can_capture() const {
       return true;
   Bitboard target = pieces(~sideToMove);
   Bitboard b1 = pieces(sideToMove, PAWN), b2 = pieces(sideToMove) - b1;
-  while (b1)
-      if (attacks_from<PAWN>(pop_lsb(&b1), sideToMove) & target)
-          return true;
+  if ((sideToMove == WHITE ? pawn_attacks_bb<WHITE>(b1) : pawn_attacks_bb<BLACK>(b1)) & target)
+      return true;
   while (b2)
   {
       Square s = pop_lsb(&b2);
@@ -709,6 +725,22 @@ inline bool Position::can_capture() const {
           return true;
   }
   return false;
+}
+
+// Position::capture_count estimates the count of captures after this move
+
+inline int Position::capture_count(Move m) const {
+  Square from = from_sq(m), to = to_sq(m);
+  Bitboard target = (pieces(sideToMove) ^ from) ^ to;
+  Bitboard occupied = type_of(m) == ENPASSANT ? ((pieces() ^ from) ^ to) ^ (ep_square() - pawn_push(sideToMove)) : (pieces() ^ from) ^ to;
+  Bitboard b1 = pieces(~sideToMove, PAWN) & occupied, b2 = (pieces(~sideToMove) ^ b1) & occupied;
+  int c = popcount(((sideToMove == WHITE ? pawn_attacks_bb<BLACK>(b1) : pawn_attacks_bb<WHITE>(b1))) & target);
+  while (b2)
+  {
+      Square s = pop_lsb(&b2);
+      c += popcount(attacks_bb(type_of(piece_on(s)), s, occupied) & target);
+  }
+  return c;
 }
 #endif
 
@@ -788,7 +820,7 @@ inline bool Position::can_capture_losers() const {
 
 #ifdef SUICIDE
 inline bool Position::is_suicide() const {
-    return subvar == SUICIDE_VARIANT;
+  return subvar == SUICIDE_VARIANT;
 }
 #endif
 
@@ -811,11 +843,13 @@ inline Value Position::material_in_hand(Color c) const {
 inline void Position::add_to_hand(Color c, PieceType pt) {
   pieceCountInHand[c][pt]++;
   pieceCountInHand[c][ALL_PIECES]++;
+  psq += PSQT::psq[CRAZYHOUSE_VARIANT][make_piece(c, pt)][SQ_NONE];
 }
 
 inline void Position::remove_from_hand(Color c, PieceType pt) {
   pieceCountInHand[c][pt]--;
   pieceCountInHand[c][ALL_PIECES]--;
+  psq -= PSQT::psq[CRAZYHOUSE_VARIANT][make_piece(c, pt)][SQ_NONE];
 }
 
 inline bool Position::is_promoted(Square s) const {
@@ -825,13 +859,19 @@ inline bool Position::is_promoted(Square s) const {
 
 #ifdef BUGHOUSE
 inline bool Position::is_bughouse() const {
-  return subvar == BUGHOUSE_VARIANT;
+  return var == CRAZYHOUSE_VARIANT && subvar == BUGHOUSE_VARIANT;
 }
 #endif
 
 #ifdef LOOP
 inline bool Position::is_loop() const {
-  return subvar == LOOP_VARIANT;
+  return var == CRAZYHOUSE_VARIANT && subvar == LOOP_VARIANT;
+}
+#endif
+
+#ifdef PLACEMENT
+inline bool Position::is_placement() const {
+  return var == CRAZYHOUSE_VARIANT && subvar == PLACEMENT_VARIANT;
 }
 #endif
 
@@ -896,7 +936,7 @@ inline Variant Position::variant() const {
 }
 
 inline Variant Position::subvariant() const {
-    return subvar;
+  return subvar;
 }
 
 inline bool Position::is_variant_end() const {
@@ -1085,6 +1125,7 @@ inline void Position::put_piece(Piece pc, Square s) {
   index[s] = pieceCount[pc]++;
   pieceList[pc][index[s]] = s;
   pieceCount[make_piece(color_of(pc), ALL_PIECES)]++;
+  psq += PSQT::psq[var][pc][s];
 }
 
 inline void Position::remove_piece(Piece pc, Square s) {
@@ -1106,20 +1147,22 @@ inline void Position::remove_piece(Piece pc, Square s) {
   pieceList[pc][index[lastSquare]] = lastSquare;
   pieceList[pc][pieceCount[pc]] = SQ_NONE;
   pieceCount[make_piece(color_of(pc), ALL_PIECES)]--;
+  psq -= PSQT::psq[var][pc][s];
 }
 
 inline void Position::move_piece(Piece pc, Square from, Square to) {
 
   // index[from] is not updated and becomes stale. This works as long as index[]
   // is accessed just by known occupied squares.
-  Bitboard from_to_bb = SquareBB[from] ^ SquareBB[to];
-  byTypeBB[ALL_PIECES] ^= from_to_bb;
-  byTypeBB[type_of(pc)] ^= from_to_bb;
-  byColorBB[color_of(pc)] ^= from_to_bb;
+  Bitboard fromTo = SquareBB[from] ^ SquareBB[to];
+  byTypeBB[ALL_PIECES] ^= fromTo;
+  byTypeBB[type_of(pc)] ^= fromTo;
+  byColorBB[color_of(pc)] ^= fromTo;
   board[from] = NO_PIECE;
   board[to] = pc;
   index[to] = index[from];
   pieceList[pc][index[to]] = to;
+  psq += PSQT::psq[var][pc][to] - PSQT::psq[var][pc][from];
 }
 
 #ifdef CRAZYHOUSE
