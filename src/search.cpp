@@ -367,7 +367,9 @@ void Search::clear() {
   Time.availableNodes = 0;
   TT.clear();
   Threads.clear();
+#ifndef __EMSCRIPTEN__
   Tablebases::init(CHESS_VARIANT, Options["SyzygyPath"]); // Free up mapped files
+#endif
 }
 
 Color us_;
