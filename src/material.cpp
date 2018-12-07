@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,12 +35,12 @@ namespace {
     {
     //            OUR PIECES
     // pair pawn knight bishop rook queen
-    {1667                               }, // Bishop pair
-    {  40,    0                         }, // Pawn
-    {  32,  255,  -3                    }, // Knight      OUR PIECES
+    {1438                               }, // Bishop pair
+    {  40,   38                         }, // Pawn
+    {  32,  255, -62                    }, // Knight      OUR PIECES
     {   0,  104,   4,    0              }, // Bishop
-    { -26,   -2,  47,   105,  -149      }, // Rook
-    {-189,   24, 117,   133,  -134, -10 }  // Queen
+    { -26,   -2,  47,   105,  -208      }, // Rook
+    {-189,   24, 117,   133,  -134, -6  }  // Queen
     },
 #ifdef ANTI
     {
@@ -385,7 +385,7 @@ namespace {
   bool is_KQKRPs(const Position& pos, Color us) {
     return  !pos.count<PAWN>(us)
           && pos.non_pawn_material(us) == QueenValueMg
-          && pos.count<QUEEN>(us)  == 1
+          && pos.count<QUEEN>(us) == 1
           && pos.count<ROOK>(~us) == 1
           && pos.count<PAWN>(~us) >= 1;
   }

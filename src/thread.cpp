@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -90,9 +90,9 @@ void Thread::clear() {
 
   for (auto& to : continuationHistory)
       for (auto& h : to)
-          h.get()->fill(0);
+          h->fill(0);
 
-  continuationHistory[NO_PIECE][0].get()->fill(Search::CounterMovePruneThreshold - 1);
+  continuationHistory[NO_PIECE][0]->fill(Search::CounterMovePruneThreshold - 1);
 }
 
 /// Thread::start_searching() wakes up the thread that will start the search
@@ -129,7 +129,7 @@ void Thread::idle_loop() {
   // some Windows NUMA hardware, for instance in fishtest. To make it simple,
   // just check if running threads are below a threshold, in this case all this
   // NUMA machinery is not needed.
-  if (Options["Threads"] >= 8)
+  if (Options["Threads"] > 8)
       WinProcGroup::bindThisThread(idx);
 
   while (true)

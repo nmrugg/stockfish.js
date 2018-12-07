@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -220,7 +220,7 @@ Value Endgame<CHESS_VARIANT, KRKP>::operator()(const Position& pos) const {
 }
 
 
-/// KR vs KB. This is very simple, and always returns drawish scores.  The
+/// KR vs KB. This is very simple, and always returns drawish scores. The
 /// score is slightly bigger when the defending king is close to the edge.
 template<>
 Value Endgame<CHESS_VARIANT, KRKB>::operator()(const Position& pos) const {

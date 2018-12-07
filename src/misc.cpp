@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -227,11 +227,11 @@ void bindThisThread(size_t) {}
 
 #else
 
-/// get_group() retrieves logical processor information using Windows specific
+/// best_group() retrieves logical processor information using Windows specific
 /// API and returns the best group id for the thread with index idx. Original
 /// code from Texel by Peter Österlund.
 
-int get_group(size_t idx) {
+int best_group(size_t idx) {
 
   int threads = 0;
   int nodes = 0;
@@ -302,7 +302,7 @@ int get_group(size_t idx) {
 void bindThisThread(size_t idx) {
 
   // Use only local variables to be thread-safe
-  int group = get_group(idx);
+  int group = best_group(idx);
 
   if (group == -1)
       return;

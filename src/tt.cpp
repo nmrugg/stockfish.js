@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -85,10 +85,10 @@ void TranspositionTable::clear() {
 
   for (size_t idx = 0; idx < Options["Threads"]; idx++)
   {
-      threads.push_back(std::thread([this, idx]() {
+      threads.emplace_back([this, idx]() {
 
           // Thread binding gives faster search on systems with a first-touch policy
-          if (Options["Threads"] >= 8)
+          if (Options["Threads"] > 8)
               WinProcGroup::bindThisThread(idx);
 
           // Each thread will zero its part of the hash table
@@ -98,7 +98,7 @@ void TranspositionTable::clear() {
                                 stride : clusterCount - start;
 
           std::memset(&table[start], 0, len * sizeof(Cluster));
-      }));
+      });
   }
 
   for (std::thread& th: threads)
@@ -123,8 +123,7 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
   for (int i = 0; i < ClusterSize; ++i)
       if (!tte[i].key16 || tte[i].key16 == key16)
       {
-          if ((tte[i].genBound8 & 0xFC) != generation8 && tte[i].key16)
-              tte[i].genBound8 = uint8_t(generation8 | tte[i].bound()); // Refresh
+          tte[i].genBound8 = uint8_t(generation8 | tte[i].bound()); // Refresh
 
           return found = (bool)tte[i].key16, &tte[i];
       }

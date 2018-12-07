@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -205,6 +205,9 @@ public:
 #ifdef LOOP
   bool is_loop() const;
 #endif
+#ifdef PLACEMENT
+  bool is_placement() const;
+#endif
 #ifdef EXTINCTION
   bool is_extinction() const;
   bool is_extinction_win() const;
@@ -260,6 +263,7 @@ public:
 #endif
 #if defined(ANTI) || defined(LOSERS)
   bool can_capture() const;
+  int capture_count(Move m) const;
 #endif
 #ifdef SUICIDE
   bool is_suicide() const;
@@ -405,6 +409,10 @@ template<PieceType Pt> inline Square Position::square(Color c) const {
 #ifdef TWOKINGS
   if (is_two_kings() && Pt == KING && pieceCount[make_piece(c, Pt)] > 1)
       return royal_king(c);
+#endif
+#ifdef PLACEMENT
+  if (is_placement() && pieceCount[make_piece(c, Pt)] == 0)
+      return SQ_NONE;
 #endif
 #ifdef ANTI
   // There may be zero, one, or multiple kings
@@ -718,6 +726,22 @@ inline bool Position::can_capture() const {
   }
   return false;
 }
+
+// Position::capture_count estimates the count of captures after this move
+
+inline int Position::capture_count(Move m) const {
+  Square from = from_sq(m), to = to_sq(m);
+  Bitboard target = (pieces(sideToMove) ^ from) ^ to;
+  Bitboard occupied = type_of(m) == ENPASSANT ? ((pieces() ^ from) ^ to) ^ (ep_square() - pawn_push(sideToMove)) : (pieces() ^ from) ^ to;
+  Bitboard b1 = pieces(~sideToMove, PAWN) & occupied, b2 = (pieces(~sideToMove) ^ b1) & occupied;
+  int c = popcount(((sideToMove == WHITE ? pawn_attacks_bb<BLACK>(b1) : pawn_attacks_bb<WHITE>(b1))) & target);
+  while (b2)
+  {
+      Square s = pop_lsb(&b2);
+      c += popcount(attacks_bb(type_of(piece_on(s)), s, occupied) & target);
+  }
+  return c;
+}
 #endif
 
 #ifdef LOSERS
@@ -796,7 +820,7 @@ inline bool Position::can_capture_losers() const {
 
 #ifdef SUICIDE
 inline bool Position::is_suicide() const {
-    return subvar == SUICIDE_VARIANT;
+  return subvar == SUICIDE_VARIANT;
 }
 #endif
 
@@ -819,13 +843,13 @@ inline Value Position::material_in_hand(Color c) const {
 inline void Position::add_to_hand(Color c, PieceType pt) {
   pieceCountInHand[c][pt]++;
   pieceCountInHand[c][ALL_PIECES]++;
-  psq += PSQT::psq[var][make_piece(c, pt)][SQ_NONE];
+  psq += PSQT::psq[CRAZYHOUSE_VARIANT][make_piece(c, pt)][SQ_NONE];
 }
 
 inline void Position::remove_from_hand(Color c, PieceType pt) {
   pieceCountInHand[c][pt]--;
   pieceCountInHand[c][ALL_PIECES]--;
-  psq -= PSQT::psq[var][make_piece(c, pt)][SQ_NONE];
+  psq -= PSQT::psq[CRAZYHOUSE_VARIANT][make_piece(c, pt)][SQ_NONE];
 }
 
 inline bool Position::is_promoted(Square s) const {
@@ -835,13 +859,19 @@ inline bool Position::is_promoted(Square s) const {
 
 #ifdef BUGHOUSE
 inline bool Position::is_bughouse() const {
-  return subvar == BUGHOUSE_VARIANT;
+  return var == CRAZYHOUSE_VARIANT && subvar == BUGHOUSE_VARIANT;
 }
 #endif
 
 #ifdef LOOP
 inline bool Position::is_loop() const {
-  return subvar == LOOP_VARIANT;
+  return var == CRAZYHOUSE_VARIANT && subvar == LOOP_VARIANT;
+}
+#endif
+
+#ifdef PLACEMENT
+inline bool Position::is_placement() const {
+  return var == CRAZYHOUSE_VARIANT && subvar == PLACEMENT_VARIANT;
 }
 #endif
 
@@ -906,7 +936,7 @@ inline Variant Position::variant() const {
 }
 
 inline Variant Position::subvariant() const {
-    return subvar;
+  return subvar;
 }
 
 inline bool Position::is_variant_end() const {

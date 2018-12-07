@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -160,6 +160,9 @@ enum Variant {
 #ifdef LOOP
   LOOP_VARIANT,
 #endif
+#ifdef PLACEMENT
+  PLACEMENT_VARIANT,
+#endif
 #ifdef SLIPPEDGRID
   SLIPPEDGRID_VARIANT,
 #endif
@@ -218,6 +221,9 @@ static std::vector<std::string> variants = {
 #endif
 #ifdef LOOP
 "loop",
+#endif
+#ifdef PLACEMENT
+"placement",
 #endif
 #ifdef SLIPPEDGRID
 "slippedgrid",
@@ -279,12 +285,6 @@ enum CastlingRight {
   CASTLING_RIGHT_NB = 16
 };
 
-template<Color C, CastlingSide S> struct MakeCastling {
-  static constexpr CastlingRight
-  right = C == WHITE ? S == QUEEN_SIDE ? WHITE_OOO : WHITE_OO
-                     : S == QUEEN_SIDE ? BLACK_OOO : BLACK_OO;
-};
-
 #ifdef GRID
 enum GridLayout {
   NORMAL_GRID,
@@ -335,11 +335,11 @@ enum Value : int {
   VALUE_MATE_IN_MAX_PLY  =  VALUE_MATE - 2 * MAX_PLY,
   VALUE_MATED_IN_MAX_PLY = -VALUE_MATE + 2 * MAX_PLY,
 
-  PawnValueMg   = 171,   PawnValueEg   = 240,
-  KnightValueMg = 764,   KnightValueEg = 848,
-  BishopValueMg = 826,   BishopValueEg = 891,
-  RookValueMg   = 1282,  RookValueEg   = 1373,
-  QueenValueMg  = 2500,  QueenValueEg  = 2670,
+  PawnValueMg   = 136,   PawnValueEg   = 208,
+  KnightValueMg = 782,   KnightValueEg = 865,
+  BishopValueMg = 830,   BishopValueEg = 918,
+  RookValueMg   = 1289,  RookValueEg   = 1378,
+  QueenValueMg  = 2529,  QueenValueEg  = 2687,
 #ifdef ANTI
   PawnValueMgAnti   = -108,  PawnValueEgAnti   = -165,
   KnightValueMgAnti = -155,  KnightValueEgAnti = 194,
@@ -737,7 +737,7 @@ constexpr Move make_drop(Square to, Piece pc) {
 }
 
 constexpr Piece dropped_piece(Move m) {
-  return Piece((m >> 6) & 15);
+  return Piece((m >> 6) & 0x0F);
 }
 #endif
 
@@ -764,6 +764,10 @@ inline Variant main_variant(Variant v) {
 #endif
 #ifdef LOOP
   case LOOP_VARIANT:
+      return CRAZYHOUSE_VARIANT;
+#endif
+#ifdef PLACEMENT
+  case PLACEMENT_VARIANT:
       return CRAZYHOUSE_VARIANT;
 #endif
 #ifdef SLIPPEDGRID

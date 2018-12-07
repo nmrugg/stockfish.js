@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,42 +32,6 @@ namespace {
   #define S(mg, eg) make_score(mg, eg)
 
   // Pawn penalties
-  constexpr Score Isolated[VARIANT_NB] = {
-    S( 5, 15),
-#ifdef ANTI
-    S(54, 69),
-#endif
-#ifdef ATOMIC
-    S(24, 14),
-#endif
-#ifdef CRAZYHOUSE
-    S(30, 27),
-#endif
-#ifdef EXTINCTION
-    S(13, 16),
-#endif
-#ifdef GRID
-    S(13, 16),
-#endif
-#ifdef HORDE
-    S(16, 38),
-#endif
-#ifdef KOTH
-    S(30, 27),
-#endif
-#ifdef LOSERS
-    S(53, 69),
-#endif
-#ifdef RACE
-    S(0, 0),
-#endif
-#ifdef THREECHECK
-    S(30, 27),
-#endif
-#ifdef TWOKINGS
-    S(13, 16),
-#endif
-  };
   constexpr Score Backward[VARIANT_NB] = {
     S( 9, 24),
 #ifdef ANTI
@@ -141,6 +105,42 @@ namespace {
     S(13, 40),
 #endif
   };
+  constexpr Score Isolated[VARIANT_NB] = {
+    S( 5, 15),
+#ifdef ANTI
+    S(54, 69),
+#endif
+#ifdef ATOMIC
+    S(24, 14),
+#endif
+#ifdef CRAZYHOUSE
+    S(30, 27),
+#endif
+#ifdef EXTINCTION
+    S(13, 16),
+#endif
+#ifdef GRID
+    S(13, 16),
+#endif
+#ifdef HORDE
+    S(16, 38),
+#endif
+#ifdef KOTH
+    S(30, 27),
+#endif
+#ifdef LOSERS
+    S(53, 69),
+#endif
+#ifdef RACE
+    S(0, 0),
+#endif
+#ifdef THREECHECK
+    S(30, 27),
+#endif
+#ifdef TWOKINGS
+    S(13, 16),
+#endif
+  };
 
   // Connected pawn bonus by opposed, phalanx, #support and rank
   Score Connected[VARIANT_NB][2][2][3][RANK_NB];
@@ -149,10 +149,10 @@ namespace {
   // RANK_1 = 0 is used for files where we have no pawn, or pawn is behind our king.
   constexpr Value ShelterStrength[VARIANT_NB][int(FILE_NB) / 2][RANK_NB] = {
   {
-    { V( -3), V( 81), V( 93), V( 58), V( 39), V( 18), V(  25) },
-    { V(-40), V( 61), V( 35), V(-49), V(-29), V(-11), V( -63) },
-    { V( -7), V( 75), V( 23), V( -2), V( 32), V(  3), V( -45) },
-    { V(-36), V(-13), V(-29), V(-52), V(-48), V(-67), V(-166) }
+    { V( -6), V( 81), V( 93), V( 58), V( 39), V( 18), V(  25) },
+    { V(-43), V( 61), V( 35), V(-49), V(-29), V(-11), V( -63) },
+    { V(-10), V( 75), V( 23), V( -2), V( 32), V(  3), V( -45) },
+    { V(-39), V(-13), V(-29), V(-52), V(-48), V(-67), V(-166) }
   },
 #ifdef ANTI
   {},
@@ -239,14 +239,9 @@ namespace {
     { V(-10), V(-14), V( 90), V(15), V( 2), V( -7), V(-16) }
   };
 
-  // Danger of blocked enemy pawns storming our king, by rank
-  constexpr Value BlockedStorm[RANK_NB] =
-    { V(0), V(0), V(66), V(6), V(5), V(1), V(15) };
-
 #ifdef HORDE
   constexpr Score ImbalancedHorde = S(49, 39);
 #endif
-
   #undef S
   #undef V
 
@@ -330,7 +325,6 @@ namespace {
         // which could become passed after one or two pawn pushes when are
         // not attacked more times than defended.
         if (   !(stoppers ^ lever ^ leverPush)
-            && !(ourPawns & forward_file_bb(Us, s))
             && popcount(supported) >= popcount(lever) - 1
             && popcount(phalanx)   >= popcount(leverPush))
             e->passedPawns[Us] |= s;
@@ -472,10 +466,8 @@ Value Entry::evaluate_shelter(const Position& pos, Square ksq) {
   Bitboard ourPawns = b & pos.pieces(Us);
   Bitboard theirPawns = b & pos.pieces(Them);
 
-  Value safety = (ourPawns & file_bb(ksq)) ? Value(5) : Value(-5);
-
-  if (shift<Down>(theirPawns) & (FileABB | FileHBB) & BlockRanks & ksq)
-      safety += Value(374);
+  Value safety = (shift<Down>(theirPawns) & (FileABB | FileHBB) & BlockRanks & ksq) ?
+                 Value(374) : Value(5);
 
   File center = std::max(FILE_B, std::min(FILE_G, file_of(ksq)));
   for (File f = File(center - 1); f <= File(center + 1); ++f)
@@ -488,7 +480,7 @@ Value Entry::evaluate_shelter(const Position& pos, Square ksq) {
 
       int d = std::min(f, ~f);
       safety += ShelterStrength[pos.variant()][d][ourRank];
-      safety -= (ourRank && (ourRank == theirRank - 1)) ? BlockedStorm[theirRank]
+      safety -= (ourRank && (ourRank == theirRank - 1)) ? 66 * (theirRank == RANK_3)
                                                         : UnblockedStorm[d][theirRank];
   }
 
@@ -500,23 +492,24 @@ Value Entry::evaluate_shelter(const Position& pos, Square ksq) {
 /// when king square changes, which is about 20% of total king_safety() calls.
 
 template<Color Us>
-Score Entry::do_king_safety(const Position& pos, Square ksq) {
+Score Entry::do_king_safety(const Position& pos) {
 
+  Square ksq = pos.square<KING>(Us);
   kingSquares[Us] = ksq;
   castlingRights[Us] = pos.can_castle(Us);
   int minKingPawnDistance = 0;
 
   Bitboard pawns = pos.pieces(Us, PAWN);
   if (pawns)
-      while (!(DistanceRingBB[ksq][minKingPawnDistance++] & pawns)) {}
+      while (!(DistanceRingBB[ksq][++minKingPawnDistance] & pawns)) {}
 
   Value bonus = evaluate_shelter<Us>(pos, ksq);
 
   // If we can castle use the bonus after the castling if it is bigger
-  if (pos.can_castle(MakeCastling<Us, KING_SIDE>::right))
+  if (pos.can_castle(Us | KING_SIDE))
       bonus = std::max(bonus, evaluate_shelter<Us>(pos, relative_square(Us, SQ_G1)));
 
-  if (pos.can_castle(MakeCastling<Us, QUEEN_SIDE>::right))
+  if (pos.can_castle(Us | QUEEN_SIDE))
       bonus = std::max(bonus, evaluate_shelter<Us>(pos, relative_square(Us, SQ_C1)));
 
 #ifdef CRAZYHOUSE
@@ -527,7 +520,7 @@ Score Entry::do_king_safety(const Position& pos, Square ksq) {
 }
 
 // Explicit template instantiation
-template Score Entry::do_king_safety<WHITE>(const Position& pos, Square ksq);
-template Score Entry::do_king_safety<BLACK>(const Position& pos, Square ksq);
+template Score Entry::do_king_safety<WHITE>(const Position& pos);
+template Score Entry::do_king_safety<BLACK>(const Position& pos);
 
 } // namespace Pawns
