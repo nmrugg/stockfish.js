@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,7 +32,43 @@ namespace {
 
   enum TimeType { OptimumTime, MaxTime };
 
-  constexpr int MoveHorizon   = 50;   // Plan time management at most this many moves ahead
+  constexpr int MoveHorizon[VARIANT_NB] = { // Plan time management at most this many moves ahead
+  50,
+#ifdef ANTI
+  29,
+#endif
+#ifdef ATOMIC
+  29,
+#endif
+#ifdef CRAZYHOUSE
+  50,
+#endif
+#ifdef EXTINCTION
+  50,
+#endif
+#ifdef GRID
+  50,
+#endif
+#ifdef HORDE
+  50,
+#endif
+#ifdef KOTH
+  50,
+#endif
+#ifdef LOSERS
+  50,
+#endif
+#ifdef RACE
+  20,
+#endif
+#ifdef THREECHECK
+  50,
+#endif
+#ifdef TWOKINGS
+  50,
+#endif
+};
+
   constexpr double MaxRatio   = 7.3;  // When in trouble, we can step over reserved time with this ratio
   constexpr double StealRatio = 0.34; // However we must not steal time from remaining moves over this ratio
 
@@ -81,7 +117,7 @@ namespace {
 ///  inc >  0 && movestogo == 0 means: x basetime + z increment
 ///  inc >  0 && movestogo != 0 means: x moves in y minutes + z increment
 
-void TimeManagement::init(Search::LimitsType& limits, Color us, int ply) {
+void TimeManagement::init(Variant var, Search::LimitsType& limits, Color us, int ply) {
 
   TimePoint minThinkingTime = Options["Minimum Thinking Time"];
   TimePoint moveOverhead    = Options["Move Overhead"];
@@ -107,7 +143,7 @@ void TimeManagement::init(Search::LimitsType& limits, Color us, int ply) {
   startTime = limits.startTime;
   optimumTime = maximumTime = std::max(limits.time[us], minThinkingTime);
 
-  const int maxMTG = limits.movestogo ? std::min(limits.movestogo, MoveHorizon) : MoveHorizon;
+  const int maxMTG = limits.movestogo ? std::min(limits.movestogo, MoveHorizon[var]) : MoveHorizon[var];
 
   // We calculate optimum time usage for different hypothetical "moves to go" values
   // and choose the minimum of calculated search time values. Usually the greatest

@@ -1,8 +1,6 @@
 
 ///NOTE: Without the new line above, it may be joined to a line comment above.
 
-/** Async Only START **/
-
 /// Make Stockfish use setImmediate() (rather than setTimeout() or requestAnimationFrame()) if possible.
 ///
 /// Based on setImmediate polyfill: https://github.com/YuzuJS/setImmediate
@@ -186,7 +184,6 @@ var ourSetImmediate = (function (global, undefined)
 
 ///NOTE: Emscripten does not use cancelAnimationFrame() or clearTimeout().
 Browser.requestAnimationFrame = ourSetImmediate;
-/** Async Only END **/
 
 return Module;
 } /// End of load_stockfish() from pre.js

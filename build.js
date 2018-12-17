@@ -6,7 +6,7 @@
 
 var spawnSync = require("child_process").spawnSync;
 var execFileSync = require("child_process").execFileSync;
-var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "sync", "b", "bin", "no-skill", "colors"]});
+var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "b", "bin", "colors"]});
 var args = ["build", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
@@ -20,7 +20,7 @@ var buildToWASM;
 var buildToASMJS;
 var buildToAnyJS;
 var child;
-var stockfishVersion = "9";
+var stockfishVersion = "10";
 var postFilePath;
 var postFile;
 var fistRun;
@@ -226,9 +226,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log(                     "                  this includes showing SAN moves, fixing three-fold repetition,");
     console.log(                     "                  addition of mindepth, maxdepth, and shallow options to the go command,");
     console.log(                     "                  and Skill Level Maximum Error and Skill Level Probability uci options");
-    console.log("  " + highlight("--sync") + "          Compile Stockfish to run searches synchronously (JS only)");
     console.log("  " + highlight("--static") + "        Link libaries statically (not JS)");
-    console.log("  " + highlight("--no-skill") + "      Disable skill levels (always plays strongest moves)");
     console.log("  " + highlight("--debug-js") + "      Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
     console.log("  " + highlight("--arch") + "          Architecture to build to (default: " + note("js") + ")");
     console.log(                     "                  If the arch is set to " + note("js") + ", it will compile both an asm.js version");
@@ -317,27 +315,11 @@ if (params.static) {
     }
 }
 
-if (params.sync) {
-    if (buildToAnyJS) {
-        args.push("SYNC=1");
-        /// Remove code that breaks sync mode
-        postFilePath = p.join(__dirname, "src", "post.js");
-        postFile = fs.readFileSync(postFilePath, "utf8");
-        fs.writeFileSync(postFilePath, postFile.replace(/\/\*\* Async Only START \*\*\/[\s\S]*?\/\*\* Async Only END \*\*\//, ""));
-    } else {
-        warn("Ignoring --sync");
-    }
-}
-
 if (params.comp) {
     args.push("COMP=" + params.comp);
 }
 if (params.compcxx) {
     args.push("COMPCXX=" + params.compcxx);
-}
-
-if (!params["no-skill"]) {
-    args.push("SKILL=1");
 }
 
 if (String(params.version).toLowerCase() === "timestamp") {
@@ -373,11 +355,6 @@ if (buildToWASM && buildToASMJS) {
 /// Reset version string.
 if (String(params.version).toLowerCase() !== "date") {
     changeVersion("");
-}
-
-if (buildToAnyJS && params.sync) {
-    /// Revert the post file changes from above.
-    fs.writeFileSync(postFilePath, postFile);
 }
 
 /// `make` does not throw an error when encountering errors, so we need to do that manually.

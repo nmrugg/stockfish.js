@@ -2,7 +2,7 @@
 
 <a href="https://github.com/nmrugg/stockfish.js">Stockfish.js</a> is a pure JavaScript implementation of <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a>, the world's strongest chess engine.
 
-Stockfish.js is currently synced with Stockfish 9.
+Stockfish.js is currently synced with Stockfish 10.
 
 ### API
 

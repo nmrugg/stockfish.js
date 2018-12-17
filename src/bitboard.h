@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -112,14 +112,17 @@ extern Magic BishopMagics[SQUARE_NB];
 /// whether a given bit is set in a bitboard, and for setting and clearing bits.
 
 inline Bitboard operator&(Bitboard b, Square s) {
+  assert(s >= SQ_A1 && s <= SQ_H8);
   return b & SquareBB[s];
 }
 
 inline Bitboard operator|(Bitboard b, Square s) {
+  assert(s >= SQ_A1 && s <= SQ_H8);
   return b | SquareBB[s];
 }
 
 inline Bitboard operator^(Bitboard b, Square s) {
+  assert(s >= SQ_A1 && s <= SQ_H8);
   return b ^ SquareBB[s];
 }
 
@@ -128,10 +131,12 @@ inline Bitboard operator-(Bitboard b, Square s) {
 }
 
 inline Bitboard& operator|=(Bitboard& b, Square s) {
+  assert(s >= SQ_A1 && s <= SQ_H8);
   return b |= SquareBB[s];
 }
 
 inline Bitboard& operator^=(Bitboard& b, Square s) {
+  assert(s >= SQ_A1 && s <= SQ_H8);
   return b ^= SquareBB[s];
 }
 
@@ -169,16 +174,6 @@ inline Bitboard grid_layout_bb(GridLayout l, Square s) {
 #endif
 
 
-/// make_bitboard() returns a bitboard from a list of squares
-
-constexpr Bitboard make_bitboard() { return 0; }
-
-template<typename ...Squares>
-constexpr Bitboard make_bitboard(Square s, Squares... squares) {
-  return (1ULL << s) | make_bitboard(squares...);
-}
-
-
 /// shift() moves a bitboard one step along direction D (mainly for pawns)
 
 template<Direction D>
@@ -198,6 +193,16 @@ template<Color C>
 constexpr Bitboard pawn_attacks_bb(Bitboard b) {
   return C == WHITE ? shift<NORTH_WEST>(b) | shift<NORTH_EAST>(b)
                     : shift<SOUTH_WEST>(b) | shift<SOUTH_EAST>(b);
+}
+
+
+/// double_pawn_attacks_bb() returns the pawn attacks for the given color
+/// from the squares in the given bitboard.
+
+template<Color C>
+constexpr Bitboard double_pawn_attacks_bb(Bitboard b) {
+  return C == WHITE ? shift<NORTH_WEST>(b) & shift<NORTH_EAST>(b)
+                    : shift<SOUTH_WEST>(b) & shift<SOUTH_EAST>(b);
 }
 
 

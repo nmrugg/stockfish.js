@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -65,8 +65,8 @@ void init(OptionsMap& o) {
 #endif
 
   o["Debug Log File"]        << Option("", on_logger);
-  o["Contempt"]              << Option(12, -100, 100);
-  o["Analysis Contempt"]     << Option("Both var Off var White var Black var Both", "Both");
+  o["Contempt"]              << Option(24, -100, 100);
+  o["Analysis Contempt"]     << Option("Both", {"Both", "Off", "White", "Black"});
 #ifndef __EMSCRIPTEN__
   o["Threads"]               << Option(1, 1, 512, on_threads);
   o["Hash"]                  << Option(16, 1, MaxHashMB, on_hash_size);
@@ -77,9 +77,7 @@ void init(OptionsMap& o) {
   o["Clear Hash"]            << Option(on_clear_hash);
   o["Ponder"]                << Option(false);
   o["MultiPV"]               << Option(1, 1, 500);
-#ifdef SKILL
   o["Skill Level"]           << Option(20, 0, 20);
-#endif
   o["Move Overhead"]         << Option(30, 0, 5000);
   o["Minimum Thinking Time"] << Option(20, 0, 5000);
   o["Slow Mover"]            << Option(84, 10, 1000);
@@ -91,7 +89,7 @@ void init(OptionsMap& o) {
   o["SyzygyPath"]            << Option("<empty>", on_tb_path);
   o["SyzygyProbeDepth"]      << Option(1, 1, 100);
   o["Syzygy50MoveRule"]      << Option(true);
-  o["SyzygyProbeLimit"]      << Option(6, 0, 6);
+  o["SyzygyProbeLimit"]      << Option(7, 0, 7);
 #endif  // #ifndef __EMSCRIPTEN__
 #ifdef CHESSCOM
   o["Skill Level Maximum Error"] << Option(200, 0, 5000); /// In centipawns
@@ -112,7 +110,7 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
               const Option& o = it.second;
               os << "\noption name " << it.first << " type " << o.type;
 
-              if (o.type != "button")
+              if (o.type == "string" || o.type == "check" || o.type == "combo")
                   os << " default " << o.defaultValue;
 
               if (o.type == "combo")
@@ -120,7 +118,9 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
                       os << " var " << value;
 
               if (o.type == "spin")
-                  os << " min " << o.min << " max " << o.max;
+                  os << " default " << int(stof(o.defaultValue))
+                     << " min "     << o.min
+                     << " max "     << o.max;
 
               break;
           }
@@ -143,15 +143,12 @@ Option::Option(bool v, OnChange f) : type("check"), min(0), max(0), on_change(f)
 Option::Option(OnChange f) : type("button"), min(0), max(0), on_change(f)
 {}
 
-Option::Option(int v, int minv, int maxv, OnChange f) : type("spin"), min(minv), max(maxv), on_change(f)
+Option::Option(double v, int minv, int maxv, OnChange f) : type("spin"), min(minv), max(maxv), on_change(f)
 { defaultValue = currentValue = std::to_string(v); }
 
-Option::Option(const char* v, const char* cur, OnChange f) : type("combo"), min(0), max(0), on_change(f)
-{ defaultValue = v; currentValue = cur; }
-
-Option::operator int() const {
+Option::operator double() const {
   assert(type == "check" || type == "spin");
-  return (type == "spin" ? stoi(currentValue) : currentValue == "true");
+  return (type == "spin" ? stof(currentValue) : currentValue == "true");
 }
 
 Option::operator std::string() const {
@@ -159,7 +156,7 @@ Option::operator std::string() const {
   return currentValue;
 }
 
-bool Option::operator==(const char* s) {
+bool Option::operator==(const char* s) const {
   assert(type == "combo");
   return    !CaseInsensitiveLess()(currentValue, s)
          && !CaseInsensitiveLess()(s, currentValue);
@@ -188,7 +185,7 @@ Option& Option::operator=(const string& v) {
   if (   (type != "button" && v.empty())
       || (type == "check" && v != "true" && v != "false")
       || (type == "combo" && (std::find(comboValues.begin(), comboValues.end(), v) == comboValues.end()))
-      || (type == "spin" && (stoi(v) < min || stoi(v) > max)))
+      || (type == "spin" && (stof(v) < min || stof(v) > max)))
       return *this;
 
   if (type != "button")

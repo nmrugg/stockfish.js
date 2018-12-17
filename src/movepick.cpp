@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ namespace {
 /// MovePicker constructor for the main search
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
                        const CapturePieceToHistory* cph, const PieceToHistory** ch, Move cm, Move* killers)
-           : pos(p), mainHistory(mh), captureHistory(cph), contHistory(ch),
+           : pos(p), mainHistory(mh), captureHistory(cph), continuationHistory(ch),
              refutations{{killers[0], 0}, {killers[1], 0}, {cm, 0}}, depth(d) {
 
   assert(d > DEPTH_ZERO);
@@ -73,8 +73,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 
 /// MovePicker constructor for quiescence search
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
-                       const CapturePieceToHistory* cph, Square rs)
-           : pos(p), mainHistory(mh), captureHistory(cph), recaptureSquare(rs), depth(d) {
+                       const CapturePieceToHistory* cph, const PieceToHistory** ch, Square rs)
+           : pos(p), mainHistory(mh), captureHistory(cph), continuationHistory(ch), recaptureSquare(rs), depth(d) {
 
   assert(d <= DEPTH_ZERO);
 
@@ -116,31 +116,22 @@ void MovePicker::score() {
               m.value = pos.see<ATOMIC_VARIANT>(m);
           else
 #endif
-#ifdef CRAZYHOUSE
-          if (pos.is_house())
-              m.value =  PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
-                       - Value(200 * std::min(distance(to_sq(m), pos.square<KING>(~pos.side_to_move())),
-                                              distance(to_sq(m), pos.square<KING>( pos.side_to_move()))))
-                       + (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))];
-          else
-#endif
 #ifdef RACE
           if (pos.is_race())
               m.value =  PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
                        - Value(200 * relative_rank(BLACK, to_sq(m)))
-                       + (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))];
+                       + (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))] / 8;
           else
 #endif
           m.value =  PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
-                   + (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))];
+                   + (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))] / 8;
       }
-
       else if (Type == QUIETS)
       {
           m.value =  (*mainHistory)[pos.side_to_move()][from_to(m)]
-                   + (*contHistory[0])[pos.moved_piece(m)][to_sq(m)]
-                   + (*contHistory[1])[pos.moved_piece(m)][to_sq(m)]
-                   + (*contHistory[3])[pos.moved_piece(m)][to_sq(m)];
+                   + (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)]
+                   + (*continuationHistory[1])[pos.moved_piece(m)][to_sq(m)]
+                   + (*continuationHistory[3])[pos.moved_piece(m)][to_sq(m)];
 #ifdef ANTI
           if (pos.is_anti() && pos.attackers_to(to_sq(m), pos.pieces() ^ from_sq(m)) & pos.pieces(~pos.side_to_move()))
           {
@@ -150,14 +141,15 @@ void MovePicker::score() {
           }
 #endif
       }
-
       else // Type == EVASIONS
       {
           if (pos.capture(m))
               m.value =  PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
                        - Value(type_of(pos.moved_piece(m)));
           else
-              m.value = (*mainHistory)[pos.side_to_move()][from_to(m)] - (1 << 28);
+              m.value =  (*mainHistory)[pos.side_to_move()][from_to(m)]
+                       + (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)]
+                       - (1 << 28);
       }
 }
 

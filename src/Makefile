@@ -1,7 +1,7 @@
 # Stockfish, a UCI chess playing engine derived from Glaurung 2.1
 # Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
 # Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-# Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+# Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 #
 # Stockfish is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,11 @@
 ### ==========================================================================
 
 ### Executable name
+ifeq ($(COMP),mingw)
+EXE = stockfish.exe
+else
 EXE = stockfish
+endif
 
 ### Installation dir definitions
 PREFIX = /usr/local
@@ -286,8 +290,11 @@ endif
 
 ifeq ($(COMP),emscripten)
     ifeq ($(ARCH),wasm)
-    	CXXFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
-    	LDFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
+        CXXFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
+        LDFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
+    else
+        CXXFLAGS += -s WASM=0
+        LDFLAGS += -s WASM=0
 	endif
 	CXXFLAGS += -s TOTAL_MEMORY=67108864 -s NO_FILESYSTEM=1
 	#NOTE: --closure 1 breaks the code
@@ -298,9 +305,6 @@ ifeq ($(CHESSCOM),1)
 	CXXFLAGS += -DCHESSCOM
 	#NOTE: uci.cpp uses shadowing for simplicity.
 	CXXFLAGS:=$(filter-out -Wshadow,$(CXXFLAGS))
-endif
-ifeq ($(SYNC),1)
-	CXXFLAGS += -DSYNC
 endif
 
 ### Allow overwriting CXX from command line
@@ -325,6 +329,7 @@ endif # end if for JS.
 ifneq ($(VARIANTS),NONE)
 	ifeq ($(VARIANTS),)
 		CXXFLAGS += -DANTI -DATOMIC -DCRAZYHOUSE -DHORDE -DKOTH -DRACE -DRELAY -DTHREECHECK
+		#CXXFLAGS += -DANTI -DATOMIC -DBUGHOUSE -DCRAZYHOUSE -DDISPLACEDGRID -DEXTINCTION -DGRID -DHORDE -DKOTH -DLOOP -DLOSERS -DPLACEMENT -DRACE -DSLIPPEDGRID -DSUICIDE -DTHREECHECK -DTWOKINGS -DTWOKINGSSYMMETRIC
 	else
 		ifeq ($(findstring ANTI,$(VARIANTS)), ANTI)
 			CXXFLAGS += -DANTI
@@ -358,6 +363,37 @@ ifneq ($(VARIANTS),NONE)
 		ifeq ($(findstring 3CHECK,$(VARIANTS)), 3CHECK)
 			CXXFLAGS += -DTHREECHECK
 		endif
+		
+		ifneq (,$(filter -DBUGHOUSE,$(CXXFLAGS)))
+			ifeq (,$(filter -DCRAZYHOUSE,$(CXXFLAGS)))
+				$(error Crazyhouse (-DCRAZYHOUSE) is required for subvariant bughouse chess)
+			endif
+		endif
+		ifneq (,$(filter -DDISPLACEDGRID,$(CXXFLAGS)))
+			ifeq (,$(filter -DGRID,$(CXXFLAGS)))
+				$(error Grid (-GRID) is required for subvariant displaced grid)
+			endif
+		endif
+		ifneq (,$(filter -DLOOP,$(CXXFLAGS)))
+			ifeq (,$(filter -DCRAZYHOUSE,$(CXXFLAGS)))
+				$(error Crazyhouse (-DCRAZYHOUSE) is required for subvariant loop chess)
+			endif
+		endif
+		ifneq (,$(filter -DPLACEMENT,$(CXXFLAGS)))
+			ifeq (,$(filter -DCRAZYHOUSE,$(CXXFLAGS)))
+				$(error Crazyhouse (-DCRAZYHOUSE) is required for subvariant placement chess)
+			endif
+		endif
+		ifneq (,$(filter -DSLIPPEDGRID,$(CXXFLAGS)))
+			ifeq (,$(filter -DGRID,$(CXXFLAGS)))
+				$(error Grid (-GRID) is required for subvariant slipped grid)
+			endif
+		endif
+		ifneq (,$(filter -DSUICIDE,$(CXXFLAGS)))
+			ifeq (,$(filter -DANTI,$(CXXFLAGS)))
+				$(error Giveaway (-DANTI) is required for subvariant suicide chess)
+			endif
+		endif
 	endif
 endif
 
@@ -383,8 +419,8 @@ endif
 
 ### 3.3 Optimization
 ifeq ($(DEBUGJS),1)
-	CXXFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1
-	LDFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1
+	CXXFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1 -s DEMANGLE_SUPPORT=1
+	LDFLAGS += -s ASSERTIONS=2 -s SAFE_HEAP=1 -s DEMANGLE_SUPPORT=1
 else
 ifeq ($(optimize),yes)
 
@@ -556,7 +592,7 @@ clean: objclean profileclean
 
 # clean binaries and objects
 objclean:
-	@rm -f $(EXE) $(EXE).exe stockfish.js stockfish.wasm *.o ./syzygy/*.o
+	@rm -f $(EXE) stockfish.js stockfish.asm.js stockfish.wasm *.o ./syzygy/*.o
 
 # clean auxiliary profiling files
 profileclean:

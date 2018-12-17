@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -127,7 +127,7 @@ const vector<string> Defaults[SUBVARIANT_NB] = {
   {
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
     "rnb1k1nr/pppp1ppp/4pq2/2b5/3P4/2P1PN2/PP3PPP/RNBQKB1R b KQkq - 0 1",
-    "r1bqkbnr/pp1p3p/1Qn1ppp1/8/8/4P3/PPPP1PPP/RNB1KB1R b KQkq - 0 1",
+    "rnbqkbnr/pp1pp1pp/2p2p2/8/4P3/2N4N/PPPP1PPP/R1BQKB1R b KQkq - 0 1",
     "r2qk2r/ppQ1p2p/2p1bn2/2np4/8/2N1PP2/PPPP2PP/R1B1K2R b KQkq - 0 1",
     "2k5/p6p/8/1p2p3/PP1p4/4P3/2P2rPP/K3R3 b - - 0 1",
     "5r2/p6k/6p1/1p1p2Bp/8/7P/PPP3P1/5R1K w - - 1 1",
@@ -340,6 +340,11 @@ const vector<string> Defaults[SUBVARIANT_NB] = {
 
     // Stalemate
     "2R5/3Q2pk/2p1p3/1pP1P1Qp/1P3P1P/p1P1B3/P7/1R2K3[RRBBBNNNNPPP] b - - 98 55",
+  },
+#endif
+#ifdef PLACEMENT
+  {
+    "8/pppppppp/8/8/8/8/PPPPPPPP/8[KQRRBBNNkqrrbbnn] w - -",
   },
 #endif
 #ifdef SLIPPEDGRID
