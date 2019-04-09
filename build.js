@@ -15,7 +15,7 @@ var stockfishJSPath = p.join(__dirname, "src", "stockfish.asm.js");
 var stockfishWASMPath = p.join(__dirname, "src", "stockfish.wasm");
 var stockfishWASMLoaderPath = p.join(__dirname, "src", "stockfish.js");
 var data;
-var license = fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
+var license;
 var buildToWASM;
 var buildToASMJS;
 var buildToAnyJS;
@@ -370,6 +370,7 @@ if (buildToASMJS) {
     data = fs.readFileSync(stockfishJSPath, "utf8");
     
     /// Add the license if it's not there (emscripten removes all comments).
+    license = license || fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
     if (data.indexOf(license) !== 0) {
         fs.writeFileSync(stockfishJSPath, license + data);
     }
@@ -390,6 +391,7 @@ if (buildToWASM) {
     }
     
     /// Add the license if it's not there (emscripten removes all comments).
+    license = license || fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
     if (data.indexOf(license) !== 0) {
         fs.writeFileSync(stockfishWASMLoaderPath, license + data);
     }
