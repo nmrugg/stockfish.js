@@ -274,7 +274,7 @@ var load_engine = (function ()
             
             /// Only add a que for commands that always print.
             ///NOTE: setoption may or may not print a statement.
-            if (cmd !== "ucinewgame" && cmd !== "flip" && cmd !== "stop" && cmd !== "ponderhit" && cmd.substr(0, 8) !== "position"  && cmd.substr(0, 9) !== "setoption" && cmd !== "stop") {
+            if (cmd !== "ucinewgame" && cmd !== "flip" && cmd !== "stop" && cmd !== "ponderhit" && cmd.substr(0, 8) !== "position"  && cmd.substr(0, 9) !== "setoption") {
                 que[que.length] = {
                     cmd: cmd,
                     cb: cb,
