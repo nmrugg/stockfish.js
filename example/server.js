@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /*jslint onevar: true, undef: true, newcap: true, nomen: true, regexp: true, plusplus: true, bitwise: true, node: true, indent: 4, white: false */
 
 /// Usage: node static_server.js PORT

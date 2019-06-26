@@ -1,16 +1,8 @@
 src/stockfish
-src/stockfish.js
-src/stockfish.wasm
-stockfish.js
-stockfish.wasm
-stockfish.wasm.js
 src/.depend
 *.o
 
 # Stockfish.js
-stockfish
-src/stockfish.js.map
-src/stockfish.js.mem
 *~
 etc/
 merged_data.json
