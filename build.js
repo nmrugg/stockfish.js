@@ -390,6 +390,9 @@ if (buildToWASM) {
         data = data.replace(/stockfish\.wasm/g, params.basename + ".wasm");
     }
     
+    /// Fix issues with locating the WASM file
+    data = data.replace(/wasmBinaryFile=/g, "wasmBinaryFile=Module.wasmBinaryFile||");
+    
     /// Add the license if it's not there (emscripten removes all comments).
     license = license || fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
     if (data.indexOf(license) !== 0) {
