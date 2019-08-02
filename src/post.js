@@ -390,7 +390,10 @@ return function (WasmPath)
             });
         /// Is this a node module?
         } else {
-            module.exports = STOCKFISH;
+            module.exports = function SF(WasmPath)
+            {
+                return STOCKFISH(WasmPath || require("path").join(__dirname, "stockfish.wasm"));
+            };
         }
         
     /// Is it a web worker?
