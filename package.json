@@ -1,7 +1,7 @@
 {
   "name": "stockfish",
   "description": "The world's strongest chess engine in pure JavaScript.",
-  "version": "10.0.1",
+  "version": "10.0.2",
   "author": {
     "name": "Nathan Rugg",
     "email": "nmrugg@gmail.com"
