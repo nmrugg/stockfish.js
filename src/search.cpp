@@ -502,6 +502,7 @@ void MainThread::after_search() {
 /// consumed, the user stops the search, or the maximum search depth is reached.
 
 Stack stack_[MAX_PLY+7], *ss_ = stack_ + 4; // To reference from (ss-4) and (ss+2)
+Move pv_[MAX_PLY+1];
 Value bestValue_, alpha_, beta_, delta_;
 Move lastBestMove_;
 Depth lastBestMoveDepth_;
@@ -535,6 +536,8 @@ void Thread::search() {
   std::memset(ss_-4, 0, 7 * sizeof(Stack));
   for (int i = 4; i > 0; i--)
      (ss_-i)->continuationHistory = &this->continuationHistory[NO_PIECE][0]; // Use as sentinel
+
+  ss_->pv = pv_;
 
   bestValue_ = delta_ = alpha_ = -VALUE_INFINITE;
   beta_ = VALUE_INFINITE;
@@ -1100,7 +1103,8 @@ namespace {
 #endif
 
     // Step 7. Razoring (~2 Elo)
-    if (   depth < 2 * ONE_PLY
+    if (  !rootNode
+        && depth < 2 * ONE_PLY
         && eval <= alpha - RazorMargin[pos.variant()])
         return qsearch<NT>(pos, ss, alpha, beta);
 

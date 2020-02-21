@@ -643,7 +643,7 @@ config-sanity:
 	@test "$(pext)" = "yes" || test "$(pext)" = "no"
 	@test "$(comp)" = "gcc" || test "$(comp)" = "icc" || test "$(comp)" = "mingw" || test "$(comp)" = "clang"
 
-$(EXE): $(OBJS) pre.js post.js
+$(EXE): $(OBJS) pre.js
 	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
 
 clang-profile-make:
