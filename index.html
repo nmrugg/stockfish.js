@@ -4,10 +4,15 @@ Stockfish().then(sf => {
   window.sf = sf;
 
   var depth = 5;
+  var start;
   var listener = function (line) {
-    console.log('>', line);
+    //console.log('>', line);
+    if (line.includes('bestmove')) {
+        console.log(depth, line, Date.now() - start);
+    }
     if (line.includes('bestmove') && depth < 25) {
       depth++;
+      start = Date.now();
       console.log('============ DEPTH ' + depth + ' ============');
       sf.postMessage('go depth ' + depth);
     }
@@ -21,10 +26,11 @@ Stockfish().then(sf => {
   sf.postMessage('setoption name Analysis Contempt value Off');
   setTimeout(() => {
     console.log('============ START ============');
-    sf.postMessage('setoption name Threads value 16');
-    sf.postMessage('setoption name Hash value 1024');
+    sf.postMessage('setoption name Threads value 4');
+    //sf.postMessage('setoption name Hash value 64');
     sf.postMessage('position fen 4r1k1/r1q2ppp/ppp2n2/4P3/5Rb1/1N1BQ3/PPP3PP/R5K1 w - - 1 17');
     sf.postMessage('go depth ' + depth);
+    start = Date.now();
   }, 3000);
 });
 </script>
