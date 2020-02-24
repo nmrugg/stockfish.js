@@ -376,6 +376,11 @@ ifeq ($(OS), Android)
 endif
 
 
+ifeq ($(COMP),emscripten)
+	CXXFLAGS:=$(filter-out -msse3,$(CXXFLAGS))
+	CXXFLAGS:=$(filter-out -mpopcnt,$(CXXFLAGS))
+endif
+
 ### ==========================================================================
 ### Section 4. Public targets
 ### ==========================================================================
