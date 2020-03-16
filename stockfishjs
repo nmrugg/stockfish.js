@@ -1,0 +1,2 @@
+#node $(dirname "$(readlink -f "$0")")/src/stockfish.js
+node --experimental-wasm-threads --experimental-wasm-bulk-memory $(dirname "$(readlink -f "$0")")/src/stockfish.js

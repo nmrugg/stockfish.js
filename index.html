@@ -6,7 +6,7 @@ Stockfish().then(sf => {
   var depth = 5;
   var start;
   var listener = function (line) {
-    //console.log('>', line);
+    console.info('>', line);
     if (line.includes('bestmove')) {
         console.log(depth, line, Date.now() - start);
     }

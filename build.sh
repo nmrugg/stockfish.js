@@ -4,6 +4,6 @@ cd src
 #make clean
 make ARCH=wasm build -j
 cd .. 
-cat preamble.js src/stockfish.js > stockfish.js
+cat preface.js src/stockfish.js postscript.js > stockfish.js
 cp src/stockfish.worker.js src/stockfish.wasm .
-chmod +x stockfish.js
+#chmod +x stockfish.js
