@@ -160,16 +160,36 @@ return Stockfish;
             Stockfish = STOCKFISH(myConsole);
         }
         
+        var myEngine;
+        var queue = [];
+        
+        /// Make sure that this is only added once.
+        if (!onmessage) {
+            onmessage = function(event) {
+                if (myEngine) {
+                    myEngine.postMessage(event.data, true);
+                } else {
+                    queue.push(event.data);
+                }
+            };
+        }
+        
         Stockfish().then(function (sf)
         {
-            onmessage = function(event) {
-                sf.postMessage(event.data, true);
-            };
+            myEngine = sf;
             
             sf.addMessageListener(function onlog(line)
             {
                 postMessage(line);
             });
+            
+            if (queue.length) {
+                queue.forEach(function(line) {
+                    console.log("-->", line);
+                    sf.postMessage(line, true);
+                });
+            }
+            queue = null;
         });
     }
     ///NOTE: If it's a normal browser, we don't need to do anything. The client can use the STOCKFISH() function directly.

@@ -1,7 +1,8 @@
 (function () {
     /// Message listeners
-
     var listeners = [];
+    /// Command queue
+    var queue = [];
     
     /// Fix setting _scriptDir in a Web Worker.
     if (typeof importScripts === "function") {
@@ -12,47 +13,59 @@
     Module.wasmBinaryFile = wasmPath;
     
 
-    Module.print = function(line) {
-        if (listeners.length === 0) console.log(line);
-        else setTimeout(function() {
-                for (var i in listeners) {
-                        listeners[i](line);
-                }
-        }, 1);
+    Module.print = function (line)
+    {
+        if (listeners.length === 0) {
+            console.log(line);
+        } else {
+            for (var i in listeners) {
+                listeners[i](line);
+            }
+        }
     };
 
-    Module.addMessageListener = function(listener) {
+    Module.addMessageListener = function (listener)
+    {
         listeners.push(listener);
     };
 
-    Module.removeMessageListener = function(listener) {
+    Module.removeMessageListener = function (listener)
+    {
         var idx = listeners.indexOf(listener);
         if (idx >= 0) listeners.splice(idx, 1);
     };
 
-    /// Command queue
-
-    var queue = [];
-    var backoff = 1;
-
-    function poll() {
+    function poll()
+    {
         var command = queue.shift();
-        if (!command) return;
-
-        var tryLater = Module.ccall("uci_command", "number", ["string"], [command]);
-        if (tryLater) queue.unshift(command);
-        backoff = tryLater ? (backoff * 2) : 1;
-        setTimeout(poll, backoff);
+        
+        if (!command) {
+            return;
+        }
+        
+        /// If it returns true, it is not ready yet.
+        if (Module.ccall("uci_command", "number", ["string"], [command])) {
+            queue.unshift(command);
+        }
+        
+        if (queue.length) {
+            setTimeout(poll, 10);
+        }
     }
 
-    Module.postMessage = function(command) {
+    Module.postMessage = function (command)
+    {
         queue.push(command);
     };
 
-    Module.postRun = function() {
-        Module.postMessage = function(command) {
+    Module.postRun = function()
+    {
+        Module.postMessage = function (command)
+        {
             queue.push(command);
-            if (queue.length == 1) poll();
+            if (queue.length === 1) {
+                poll();
+            }
         };
 
         poll();
