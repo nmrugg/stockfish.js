@@ -113,6 +113,13 @@ function bold(str)
     return color(1, str);
 }
 
+function beep()
+{
+    if (process.stdout.isTTY && !params.s && !params.silent) {
+        process.stdout.write("\u0007");
+    }
+}
+
 function changeVersion(version)
 {
     var filePath = p.join(__dirname, "src", "misc.cpp");
@@ -393,6 +400,8 @@ if (buildToWASM) {
     }
     /// Fix the initializer in a Web Worker.
     data = data.replace(/__register_pthread_ptr\s*\(\s*PThread\s*\.\s*mainThreadBlock\s*,\s*!\s*ENVIRONMENT_IS_WORKER/, "__register_pthread_ptr(PThread.mainThreadBlock,isInitializer||!ENVIRONMENT_IS_WORKER");
+    // /// Throw errors if files do not load. This catches Firefox header issues.
+    data = data.replace(/(function instantiateAsync.*?fetch\(.*?\));?\s*(}\s*else)/, "$1.catch(function (e){setTimeout(function (){throw e},0);console.error(e)})$2");
     
     // /// Fix issues with locating the WASM file
     //data = data.replace(/wasmBinaryFile=/g, "wasmBinaryFile=Module.wasmBinaryFile||");
@@ -415,3 +424,5 @@ if (buildToWASM) {
         ///fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
     }
 }
+
+beep();

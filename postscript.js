@@ -154,7 +154,7 @@ return Stockfish;
     /// Is it a web worker?
     } else if (typeof onmessage !== "undefined" && (typeof window === "undefined" || typeof window.document === "undefined")) {
         if (self && self.location && self.location.hash) {
-            args = self.location.hash.split(",");
+            args = self.location.hash.substr(1).split(",");
             Stockfish = STOCKFISH(myConsole, args[0], Boolean(args[1]));
         } else {
             Stockfish = STOCKFISH(myConsole);
@@ -165,7 +165,8 @@ return Stockfish;
         
         /// Make sure that this is only added once.
         if (!onmessage) {
-            onmessage = function(event) {
+            onmessage = function(event)
+            {
                 if (myEngine) {
                     myEngine.postMessage(event.data, true);
                 } else {
@@ -176,6 +177,8 @@ return Stockfish;
         
         Stockfish().then(function (sf)
         {
+            ///NOTE: To get the number of loaded threads loop through the sf.PThread.runningWorkers array and check for .loaded.
+            
             myEngine = sf;
             
             sf.addMessageListener(function onlog(line)
@@ -184,8 +187,8 @@ return Stockfish;
             });
             
             if (queue.length) {
-                queue.forEach(function(line) {
-                    console.log("-->", line);
+                queue.forEach(function (line)
+                {
                     sf.postMessage(line, true);
                 });
             }

@@ -12,7 +12,6 @@
     /// Created in preface.js
     Module.wasmBinaryFile = wasmPath;
     
-
     Module.print = function (line)
     {
         if (listeners.length === 0) {
