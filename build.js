@@ -408,6 +408,8 @@ if (buildToWASM) {
     /// Load the embeded worker.
     data = data.replace(/var pthreadMainJs=locateFile\(\".*?.worker.js\"\)/, "var pthreadMainJs;if(ENVIRONMENT_IS_NODE)pthreadMainJs=__filename;else pthreadMainJs=self.location.origin+self.location.pathname+\"#\"+wasmPath+\",0,1\"");
     
+    data = data.replace(/(wasmBinaryFile\s*=\s*locateFile\(wasmBinaryFile\);?\s*\}?)/, "$1wasmBinaryFile=Module.wasmBinaryFile||wasmBinaryFile;");
+    
     /// Embed stockfish.worker.js
     /*data = data.replace(/locateFile\(["']stockfish.worker.js["']\)/, "\"data:application/javascript," + encodeURIComponent(fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim()) + "\"");
     try {
