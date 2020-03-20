@@ -3,5 +3,7 @@
  * License: GPL
  */
 var Stockfish;
+function INIT_ENGINE()
+{
 var STOCKFISH = function (console, wasmPath, isInitializer)
 {

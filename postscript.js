@@ -195,6 +195,17 @@ return Stockfish;
             queue = null;
         });
     }
-    ///NOTE: If it's a normal browser, we don't need to do anything. The client can use the STOCKFISH() function directly.
+    ///NOTE: If it's a normal browser, we don't need to do anything. The client can use the INIT_ENGINE() function directly.
 }());
 
+/// End of init();
+}
+
+if ((typeof self !== "undefined" && self.location.hash.split(",")[2] === "1") || (typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]" && !require("worker_threads").isMainThread)) {
+    (function ()
+    {
+        /// Insert worker here
+    }());
+} else {
+    INIT_ENGINE();
+}

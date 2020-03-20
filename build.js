@@ -14,7 +14,9 @@ var stockfishPath = p.join(__dirname, "src", "stockfish");
 var stockfishJSPath = p.join(__dirname, "src", "stockfish.asm.js");
 var stockfishWASMPath = p.join(__dirname, "src", "stockfish.wasm");
 var stockfishWASMLoaderPath = p.join(__dirname, "src", "stockfish.js");
+var stockfishWorkerThreadPath = p.join(__dirname, "src", "stockfish.worker.js");
 var data;
+var workerData;
 var preface;
 var postscript;
 var buildToWASM;
@@ -400,8 +402,38 @@ if (buildToWASM) {
     }
     /// Fix the initializer in a Web Worker.
     data = data.replace(/__register_pthread_ptr\s*\(\s*PThread\s*\.\s*mainThreadBlock\s*,\s*!\s*ENVIRONMENT_IS_WORKER/, "__register_pthread_ptr(PThread.mainThreadBlock,isInitializer||!ENVIRONMENT_IS_WORKER");
-    // /// Throw errors if files do not load. This catches Firefox header issues.
+    /// Throw errors if files do not load. This catches Firefox header issues.
     data = data.replace(/(function instantiateAsync.*?fetch\(.*?\));?\s*(}\s*else)/, "$1.catch(function (e){setTimeout(function (){throw e},0);console.error(e)})$2");
+    
+    /// Load the embeded worker.
+    data = data.replace(/var pthreadMainJs=locateFile\(\".*?.worker.js\"\)/, "var pthreadMainJs;if(ENVIRONMENT_IS_NODE)pthreadMainJs=__filename;else pthreadMainJs=self.location.origin+self.location.pathname+\"#\"+wasmPath+\",0,1\"");
+    
+    /// Embed stockfish.worker.js
+    /*data = data.replace(/locateFile\(["']stockfish.worker.js["']\)/, "\"data:application/javascript," + encodeURIComponent(fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim()) + "\"");
+    try {
+        fs.unlinkSync(stockfishWorkerThreadPath);
+    } catch (e) {};
+    */
+    /// Firefox sometimes triggers this. Closing the bad Web Worker seems to avoid the problem.
+    workerData = fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim();
+    workerData = workerData.replace(/Module\s*=\s*Stockfish\(Module\)/, "if(typeof Stockfish===\"undefined\")return self.close();Module=Stockfish(Module);");
+    //fs.writeFileSync(stockfishWorkerThreadPath, workerData);
+    /// Run the init function instead of using the importScripts hack.
+    workerData = workerData.replace(/if\s*\([^)]+urlOrBlob.*?else\s*\{[^}]+\}/, "INIT_ENGINE();");
+    
+    try {
+        fs.unlinkSync(stockfishWorkerThreadPath);
+    } catch (e) {};
+    
+    /*
+    /// Firefox sometimes triggers this. Closing the bad Web Worker seems to avoid the problem.
+            if (typeof Stockfish === "undefined") {
+                return self.close();
+                //console.log("waiting")
+                //return setTimeout(this.onmessage, 100, e);
+            }
+            */
+    //Module = Stockfish(Module);
     
     // /// Fix issues with locating the WASM file
     //data = data.replace(/wasmBinaryFile=/g, "wasmBinaryFile=Module.wasmBinaryFile||");
@@ -410,12 +442,14 @@ if (buildToWASM) {
     postscript = postscript || fs.readFileSync(p.join(__dirname, "postscript.js"), "utf8");
     if (data.indexOf(preface) !== 0) {
         data = preface + data;
-        fs.writeFileSync(stockfishWASMLoaderPath, data);
     }
     if (data.indexOf(postscript) === -1) {
         data = data + postscript;
-        fs.writeFileSync(stockfishWASMLoaderPath, data);
     }
+    
+    data = data.replace("/// Insert worker here", workerData);
+    
+    fs.writeFileSync(stockfishWASMLoaderPath, data);
     
     if (params.basename) {
         fs.renameSync(stockfishWASMLoaderPath, p.join(__dirname, "src", params.basename + ".js"));
