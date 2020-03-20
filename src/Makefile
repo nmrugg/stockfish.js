@@ -241,7 +241,7 @@ ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
 	#EMFLAGS += -s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s NO_EXIT_RUNTIME=1 -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=1 -s TOTAL_MEMORY=134217728 -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" -s "INCOMING_MODULE_JS_API=['print', 'postRun', 'onAbort', 'onRuntimeInitialized']" -s ASSERTIONS=0 -s ALLOW_MEMORY_GROWTH=0 -s WASM_MEM_MAX=2147483648 --pre-js pre.js
-	EMFLAGS += -s ENVIRONMENT=web,worker,node -s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=1 -s TOTAL_MEMORY=134217728 -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" -s "INCOMING_MODULE_JS_API=['print', 'postRun', 'onAbort', 'onRuntimeInitialized']" -s ASSERTIONS=0 -s ALLOW_MEMORY_GROWTH=0 -s WASM_MEM_MAX=2147483648 --pre-js pre.js
+	EMFLAGS += -s FILESYSTEM=0 -s ENVIRONMENT=web,worker,node -s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=1 -s TOTAL_MEMORY=134217728 -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" -s "INCOMING_MODULE_JS_API=['print', 'postRun', 'onAbort', 'onRuntimeInitialized']" -s ASSERTIONS=0 -s ALLOW_MEMORY_GROWTH=0 -s WASM_MEM_MAX=2147483648 --pre-js pre.js
 	# 167772160 ? 6 cores?
 	# 100663296 ? 4 cores?
 	CXXFLAGS += $(EMFLAGS)
