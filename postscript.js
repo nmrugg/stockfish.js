@@ -16,7 +16,8 @@ return Stockfish;
     
     function log(line)
     {
-        console.log("------>", line)
+        /// Uncomment for debugging
+        //console.log("-->", line);
     }
     
     function completer(line)
@@ -109,47 +110,47 @@ return Stockfish;
     isNode = typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]";
     
     if (isNode) {
-            /// Is it a pThread or was it called directly?
-            if (typeof module === "undefined" || require.main === module) {
-                Stockfish = STOCKFISH(myConsole/*, require("path").join(__dirname, "stockfish.wasm")*/);
-                //console.log(Stockfish)
-                Stockfish().then(function (sf)
+        /// Is it a pThread or was it called directly?
+        if (typeof module === "undefined" || require.main === module) {
+            Stockfish = STOCKFISH(myConsole, require("path").join(__dirname, "stockfish.wasm"));
+            
+            Stockfish().then(function (sf)
+            {
+                function exit()
                 {
-                    function exit()
-                    {
-                        sf.PThread.terminateAllThreads();
-                        process.exit();
-                    }
-                    
-                    sf.addMessageListener(function onlog(line)
-                    {
-                        console.log(line);
-                    });
-                    
-                    require("readline").createInterface({
-                        input: process.stdin,
-                        output: process.stdout,
-                        completer: completer,
-                        historySize: 100,
-                    }).on("line", function online(line)
-                    {
-                        if (line) {
-                            if (line === "quit" || line === "exit") {
-                                exit();
-                            }
-                            sf.postMessage(line, true);
-                        }
-                    }).on("SIGINT", exit).on("close", exit).setPrompt("");
-                    
-                    process.stdin.on("end", function onend()
-                    {
-                        process.exit();
-                    });
+                    sf.PThread.terminateAllThreads();
+                    process.exit();
+                }
+                
+                sf.addMessageListener(function onlog(line)
+                {
+                    console.log(line);
                 });
-            /// Is this a node module?
-            } else {
-                module.exports = STOCKFISH;
-            }
+                
+                require("readline").createInterface({
+                    input: process.stdin,
+                    output: process.stdout,
+                    completer: completer,
+                    historySize: 100,
+                }).on("line", function online(line)
+                {
+                    if (line) {
+                        if (line === "quit" || line === "exit") {
+                            exit();
+                        }
+                        sf.postMessage(line, true);
+                    }
+                }).on("SIGINT", exit).on("close", exit).setPrompt("");
+                
+                process.stdin.on("end", function onend()
+                {
+                    process.exit();
+                });
+            });
+        /// Is this a node module?
+        } else {
+            module.exports = STOCKFISH;
+        }
         
     /// Is it a web worker?
     } else if (typeof onmessage !== "undefined" && (typeof window === "undefined" || typeof window.document === "undefined")) {

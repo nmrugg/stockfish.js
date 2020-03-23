@@ -45,9 +45,7 @@ if (typeof exports === 'object' && typeof module === 'object')
     }
     
     function log(line)
-    {
-        console.log("------>", line)
-    }
+    {}
     
     function completer(line)
     {
@@ -141,8 +139,8 @@ if (typeof exports === 'object' && typeof module === 'object')
     if (isNode) {
             /// Is it a pThread or was it called directly?
             if (typeof module === "undefined" || require.main === module) {
-                Stockfish = STOCKFISH(myConsole/*, require("path").join(__dirname, "stockfish.wasm")*/);
-                //console.log(Stockfish)
+                Stockfish = STOCKFISH(myConsole, require("path").join(__dirname, "stockfish.wasm"));
+                
                 Stockfish().then(function (sf)
                 {
                     function exit()

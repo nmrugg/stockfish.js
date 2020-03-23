@@ -451,6 +451,9 @@ if (buildToWASM) {
     
     data = data.replace("/// Insert worker here", workerData);
     
+    /// Remove debugging code.
+    data = data.replace(/\s*\/\/\/ Uncomment for debugging\s*\/\/console\.log\("-->",\s*line\);?\s*/, "");
+    
     fs.writeFileSync(stockfishWASMLoaderPath, data);
     
     if (params.basename) {
