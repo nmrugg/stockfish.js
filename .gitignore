@@ -3,6 +3,9 @@ src/.depend
 *.o
 
 # Stockfish.js
+stockfish
+src/stockfish.js.map
+src/stockfish.js.mem
 *~
 etc/
 merged_data.json

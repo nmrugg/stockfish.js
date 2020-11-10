@@ -290,16 +290,18 @@ endif
 
 ifeq ($(COMP),emscripten)
     ifeq ($(ARCH),wasm)
-        CXXFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
-        LDFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=0
+        CXXFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=1
+        LDFLAGS += -s WASM=1 -s BINARYEN_ASYNC_COMPILATION=1
+        CXXFLAGS += -DWASM
     else
         CXXFLAGS += -s WASM=0
         LDFLAGS += -s WASM=0 -s LEGACY_VM_SUPPORT=1
+        CXXFLAGS += -DASMJS
 	endif
-	CXXFLAGS += -s TOTAL_MEMORY=67108864 -s NO_FILESYSTEM=1
+	CXXFLAGS += -s TOTAL_MEMORY=67108864 -s NO_FILESYSTEM=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s LINKABLE=1 -s EXPORT_ALL=1
 	#NOTE: --closure 1 breaks the code
 	#TODO: File bug report for --closure 1.
-	LDFLAGS += -s TOTAL_MEMORY=67108864 -s NO_FILESYSTEM=1 -s EXPORTED_FUNCTIONS="['_init', '_uci_command']" -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" --memory-init-file 0 -s NO_EXIT_RUNTIME=1 --pre-js pre.js --post-js post.js -s ERROR_ON_UNDEFINED_SYMBOLS=0
+	LDFLAGS += -s TOTAL_MEMORY=67108864 -s NO_FILESYSTEM=1 -s EXPORTED_FUNCTIONS="['_init', '_uci_command', '_main']" -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" --memory-init-file 0 -s NO_EXIT_RUNTIME=1 --pre-js pre.js --post-js post.js -s LINKABLE=1 -s EXPORT_ALL=1
 endif
 ifeq ($(CHESSCOM),1)
 	CXXFLAGS += -DCHESSCOM
@@ -643,7 +645,7 @@ config-sanity:
 	@test "$(pext)" = "yes" || test "$(pext)" = "no"
 	@test "$(comp)" = "gcc" || test "$(comp)" = "icc" || test "$(comp)" = "mingw" || test "$(comp)" = "clang"
 
-$(EXE): $(OBJS) pre.js post.js
+$(EXE): $(OBJS) pre.js
 	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
 
 clang-profile-make:

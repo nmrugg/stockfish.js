@@ -1,10 +1,22 @@
 var load_engine = require("./load_engine");
-//var stockfish = load_engine();
-var stockfish = load_engine("stockfish");
+///load_engine.log = 1; /// For debugging
+var stockfish = load_engine("stockfishjs");
 
-stockfish.send("uci", function ()
+stockfish.send("uci", function (uciData)
 {
-    stockfish.send("isready");
+    if (!/option name/.test(uciData)) {
+        throw new Error("UCI data is bad:\n" + uciData);
+    } else {
+        console.log("UCI passes");
+    }
+    stockfish.send("isready", function (readyok)
+    {
+        if (readyok === "readyok") {
+            console.log("isready passes");
+        } else {
+            throw new Error("isReady failed:\n" + readyok);
+        }
+    });
     stockfish.send("d", function (str)
     {
         console.log(str);
@@ -23,6 +35,7 @@ stockfish.send("uci", function ()
         });
     });
 });
+
 /*
 var fruit = load_engine("fruit");
 fruit.send("uci");
@@ -34,7 +47,8 @@ fruit.send("go depth 7", function ongo(str)
 {
     //console.log("thinking: " + str);
 });
-
+*/
+/*
 
 stockfish.send("uci", function ()
 {

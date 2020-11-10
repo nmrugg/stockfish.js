@@ -196,6 +196,7 @@ return function (WasmPath)
         Module,
         workerObj,
         cmds = [],
+        loaded,
         wait = typeof setImmediate === "function" ? setImmediate : setTimeout;
     
     myConsole = {
@@ -226,10 +227,10 @@ return function (WasmPath)
         {
             function ccall()
             {
-                if (Module) {
+                if (loaded) {
                     Module.ccall("uci_command", "number", ["string"], [cmds.shift()]);
                 } else {
-                    setTimeout(ccall, 100);
+                    setTimeout(ccall, 20);
                 }
             }
             
@@ -248,15 +249,17 @@ return function (WasmPath)
     {
         Module = load_stockfish(myConsole, WasmPath);
         
+        Module.onRuntimeInitialized = function ()
+        {
+            loaded = true;
+        };
+        
         if (Module.print) {
             Module.print = myConsole.log;
         }
         if (Module.printErr) {
             Module.printErr = myConsole.log;
         }
-        
-        /// Initialize.
-        Module.ccall("init", "number", [], []);
     }, 1);
     
     return workerObj;
@@ -362,7 +365,7 @@ return function (WasmPath)
     if (isNode) {
         /// Was it called directly?
         if (require.main === module) {
-            stockfish = STOCKFISH(require("path").join(__dirname, "stockfish.wasm"));
+            stockfish = STOCKFISH(require("path").join(__dirname, "stockfish-single.wasm"));
             
             stockfish.onmessage = function onlog(line)
             {
@@ -390,10 +393,7 @@ return function (WasmPath)
             });
         /// Is this a node module?
         } else {
-            module.exports = function SF(WasmPath)
-            {
-                return STOCKFISH(WasmPath || require("path").join(__dirname, "stockfish.wasm"));
-            };
+            module.exports = STOCKFISH;
         }
         
     /// Is it a web worker?

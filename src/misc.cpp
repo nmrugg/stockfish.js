@@ -129,7 +129,7 @@ const string engine_info(bool to_uci) {
 #endif
   stringstream ss, date(__DATE__); // From compiler, format is "Sep 21 2008"
 
-#ifdef __EMSCRIPTEN__
+#ifdef ASMJS
   ss << "Stockfish.js " << Version << setfill('0');
 #else
   ss << "Stockfish " << Version << setfill('0');
@@ -147,8 +147,11 @@ const string engine_info(bool to_uci) {
 
   ss << (Is64Bit ? " 64" : "")
      << (HasPext ? " BMI2" : (HasPopCnt ? " POPCNT" : ""))
+#ifdef WASM
+     << " WASM"
+#endif
 #ifdef CHESSCOM
-     << " by T. Romstad, M. Costalba, J. Kiiski, G. Linscott, D. Dugovic, F. Fichter, N. Fiekas, et al.";
+     << " by T. Romstad, M. Costalba, J. Kiiski, G. Linscott, D. Dugovic, F. Fichter, N. Fiekas, Chess.com, et al.";
 #else
      << " Multi-Variant"
      << (to_uci  ? "\nid author ": " by ")

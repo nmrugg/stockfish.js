@@ -2,8 +2,6 @@ var load_engine = (function ()
 {
     "use strict";
     
-    var debugging = false;
-    
     function array_remove(arr, i, order_irrelevant)
     {
         var len = arr.length;
@@ -50,7 +48,7 @@ var load_engine = (function ()
         function echo(data)
         {
             var str;
-            if (debugging) {
+            if (load_engine.log) {
                 console.log("echo: ",  data.toString())
             }
             if (worker.onmessage) {
@@ -86,7 +84,7 @@ var load_engine = (function ()
         
         worker.postMessage = function onin(str)
         {
-            if (debugging) {
+            if (load_engine.log) {
                 console.log("stdin: " + str)
             }
             engine.stdin.write(str + "\n");
@@ -120,12 +118,13 @@ var load_engine = (function ()
         return line.substr(0, space_index);
     }
     
-    return function load_engine(path)
+    return function load_engine(path, wasmPath, cb)
     {
-        var worker = new_worker(path),
+        ///NOTE: We can set the path of the WASM file with the URL hash.
+        var worker = new_worker(path + (wasmPath ? "#" + wasmPath : "")),
             engine = {started: Date.now()},
             que = [],
-            eval_regex = /Total Evaluation[\s\S]+\n$/;
+            eval_regex = /Total Evaluation[\s\S]+\n$/i;
         
         function determine_que_num(line, que)
         {
@@ -180,7 +179,7 @@ var load_engine = (function ()
                 return;
             }
             
-            if (debugging) {
+            if (load_engine.log) {
                 console.log("debug (onmessage): " + line)
             }
             
@@ -268,13 +267,13 @@ var load_engine = (function ()
             
             cmd = String(cmd).trim();
             
-            if (debugging) {
+            if (load_engine.log) {
                 console.log("debug (send): " + cmd);
             }
             
             /// Only add a que for commands that always print.
             ///NOTE: setoption may or may not print a statement.
-            if (cmd !== "ucinewgame" && cmd !== "flip" && cmd !== "stop" && cmd !== "ponderhit" && cmd.substr(0, 8) !== "position"  && cmd.substr(0, 9) !== "setoption") {
+            if (cmd !== "ucinewgame" && cmd !== "flip" && cmd !== "stop" && cmd !== "ponderhit" && cmd.substr(0, 8) !== "position"  && cmd.substr(0, 9) !== "setoption" && cmd !== "stop") {
                 que[que.length] = {
                     cmd: cmd,
                     cb: cb,
@@ -297,7 +296,7 @@ var load_engine = (function ()
                 len = que.length;
             
             for (i = 0; i < len; i += 1) {
-                if (debugging) {
+                if (load_engine.log) {
                     console.log("debug (stop_moves): " + i, get_first_word(que[i].cmd))
                 }
                 /// We found a move that has not been stopped yet.
@@ -312,6 +311,23 @@ var load_engine = (function ()
         {
             return que.length;
         };
+        
+        engine.quit = function ()
+        {
+            if (worker && worker.terminate) {
+                worker.terminate();
+                worker = null;
+                engine.ready = undefined;
+            }
+        }
+        
+        if (cb) {
+            engine.send("isready", function ()
+            {
+                engine.ready = true;
+                cb(engine);
+            });
+        }
         
         return engine;
     };

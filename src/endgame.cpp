@@ -942,3 +942,19 @@ Value Endgame<ATOMIC_VARIANT, KQK>::operator()(const Position& pos) const {
 
 template<> Value Endgame<ATOMIC_VARIANT, KNNK>::operator()(const Position&) const { return VALUE_DRAW; }
 #endif
+
+#ifdef CHESSCOM
+/// Add some trivially draw endgames to ensure proper eval
+template<>
+Value Endgame<CHESS_VARIANT, KK>::operator()(const Position& pos) const {
+    return VALUE_DRAW;
+}
+template<>
+Value Endgame<CHESS_VARIANT, KBK>::operator()(const Position& pos) const {
+    return VALUE_DRAW;
+}
+template<>
+Value Endgame<CHESS_VARIANT, KNK>::operator()(const Position& pos) const {
+    return VALUE_DRAW;
+}
+#endif

@@ -47,6 +47,13 @@ enum EndgameCode {
   KBK,
   KNK,
 #endif
+
+#ifdef CHESSCOM
+  KK,    // K vs K
+  KBK,   // KB vs K
+  KNK,   // KN vs K
+#endif
+
   KNNK,  // KNN vs K
   KXK,   // Generic "mate lone king" eval
   KBNK,  // KBN vs K
@@ -158,6 +165,12 @@ public:
     add<ATOMIC_VARIANT, KRK>("KRvK");
     add<ATOMIC_VARIANT, KQK>("KQvK");
     add<ATOMIC_VARIANT, KNNK>("KNNvK");
+#endif
+
+#ifdef CHESSCOM
+    add<CHESS_VARIANT, KK>("KK");
+    add<CHESS_VARIANT, KBK>("KBK");
+    add<CHESS_VARIANT, KNK>("KNK");
 #endif
   }
 

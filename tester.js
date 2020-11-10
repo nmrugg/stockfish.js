@@ -1,4 +1,5 @@
 var spawn = require("child_process").spawn;
+var found_san_moves;
 
 var stockfish = spawn(require("path").join(__dirname, "stockfishjs"));
 
@@ -46,6 +47,13 @@ stockfish.stdout.on("data", function onstdout(data)
         write("d");
     }
     
+    if (data.indexOf("Legal moves") > -1) {
+        if (/Legal moves\: [a-hBKNQRO0]/.test(data)) {
+            good("**Found valid legal san moves**");
+            found_san_moves = true;
+        }
+    }
+    
     if (data.indexOf("Legal uci moves") > -1) {
         if (/Legal uci moves\: [a-h][1-8][a-h][1-8]/.test(data)) {
             good("**Found valid legal uci moves**");
@@ -64,7 +72,12 @@ stockfish.stdout.on("data", function onstdout(data)
     if (data.indexOf("bestmove") > -1) {
         good("**Found bestmove**");
         
-        write("quit");
+        if (found_san_moves) {
+            write("quit");
+        } else {
+            error("Did not find valid legal san moves.");
+            throw new Error("Did not find valid legal san moves.");
+        }
     }
 });
 
