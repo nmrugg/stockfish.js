@@ -8,6 +8,7 @@ var movesToPlay = Number(params.movesToPlay) || 3;
 var depth = Number(params.depth) || 15;
 var delay = Number(params.delay) || 500;
 var fen;
+var useASM = params.useASM === "true";
 
 /// See console
 load_engine.log = 1;
@@ -48,7 +49,7 @@ function get_params()
 function loadEngine(engineOptions, cb)
 {
     if (!stockfish) {
-        stockfish = load_engine(engineOptions.enginePath, engineOptions.pathToWasmEngine, cb);
+        stockfish = load_engine(engineOptions, cb);
     } else {
         setTimeout(cb, 0);
     }
@@ -103,10 +104,19 @@ function runEngine(name, engineOptions, cmd, cb)
 
 function run()
 {
-    runEngine("Stockfish WASM", {
-        enginePath: "./stockfish.js",
-        pathToWasmEngine: "./stockfish.wasm",
-    },  "go depth " + depth, function ondone()
+    var engineOptions = {
+        engine: "./stockfish.js",
+        wasm: "./stockfish.wasm",
+        asm: "./stockfish.asm.js",
+    };
+    var name = "Stockfish WASM";
+    if (useASM) {
+        engineOptions = {
+            engine: engineOptions.asm,
+        };
+        name = "Stockfish ASM.JS";
+    }
+    runEngine(name, engineOptions,  "go depth " + depth, function ondone()
     {
         if (++times < movesToPlay) {
             setTimeout(run, delay);

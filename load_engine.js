@@ -118,10 +118,12 @@ var load_engine = (function ()
         return line.substr(0, space_index);
     }
     
-    return function load_engine(path, wasmPath, cb)
+    return function load_engine(engineOptions, cb)
     {
         ///NOTE: We can set the path of the WASM file with the URL hash.
-        var worker = new_worker(path + (wasmPath ? "#" + wasmPath : "")),
+        ///      If WebAssembly is not avaiable, use the ASM.JS version.
+        var path = typeof WebAssembly === "undefined" ? engineOptions.asm || engineOptions.engine : engineOptions.engine + (engineOptions.wasm ? "#" + engineOptions.wasm : "");
+        var worker = new_worker(path),
             engine = {started: Date.now()},
             que = [],
             eval_regex = /Total Evaluation[\s\S]+\n$/i;
