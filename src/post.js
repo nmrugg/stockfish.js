@@ -365,7 +365,7 @@ return function (WasmPath)
     if (isNode) {
         /// Was it called directly?
         if (require.main === module) {
-            stockfish = STOCKFISH(require("path").join(__dirname, "stockfish-single.wasm"));
+            stockfish = STOCKFISH(require("path").join(__dirname, "stockfish.wasm"));
             
             stockfish.onmessage = function onlog(line)
             {
