@@ -1,35 +1,45 @@
 ### Stockfish.js
 
-<a href="https://github.com/nmrugg/stockfish.js">Stockfish.js</a> is a pure JavaScript implementation of <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a>, the world's strongest chess engine.
+<a href="https://github.com/nmrugg/stockfish.js">Stockfish.js</a> is a WASM implementation of <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> chess engine.
 
-Stockfish.js is currently updated to Stockfish 11.
+Stockfish.js is currently updated to Stockfish 12.
+
+This is a multi-threaded engine, and will only run in newer browsers and node.js versions. For an older JS and WASM version, see the <a href=../../tree/Stockfish11>Stockfish.js 11 branch</a>.
 
 ### API
 
-You can run Stockfish.js directly from the command line with Node.js.
+You can run Stockfish.js directly from the command line with Node.js. You may need to add some command line flags to get it to run:
+
+```shell
+node --experimental-wasm-bulk-memory --experimental-wasm-threads stockfish.js
+```
 
 In a web browser, Stockfish.js can be run in a web-worker, which can be created like this:
 
-    var stockfish = new Worker("stockfish.js");
-
-If you don't want to use Web Workers, simply add a script tag, like this:
-
-    <script src="stockfish.js"></script>
+```js
+var stockfish = new Worker("stockfish.js");
+```
 
 Then you can create a new instance by calling the `STOCKFISH()` function.
 
-    var stockfish = STOCKFISH();
+```js
+var stockfish = STOCKFISH();
+```
 
 Input (standard UCI commands) to the engine is posted as a message to the worker:
 
-    stockfish.postMessage("go depth 15");
+```js
+stockfish.postMessage("go depth 15");
+js
 
 The output of the engine is again posted as a message. To receive it, you need to add a message handler:
 
-    stockfish.onmessage = function(event) {
-        //NOTE: Web Workers wrap the response in an object.
-        console.log(event.data ? event.data : event);
-    };
+```js
+stockfish.onmessage = function(event) {
+    //NOTE: Web Workers wrap the response in an object.
+    console.log(event.data ? event.data : event);
+};
+```
 
 Stockfish.js can be found in the npm repository and installed like this: `npm install stockfish`.
 
@@ -37,34 +47,22 @@ If you want to use it from the command line, you may want to simply install it g
 
 In Node.js, you can either run it directly from the command line (i.e., `node src/stockfish.js`) or require() it as a module (i.e., `var stockfish = require("stockfish");`).
 
-### Note about pondering
-
-The code has been refactored to allow for pondering. However, it can take a long time for Stockfish.js to process the "stop" or "ponderhit" commands. So it could be dangerous to use in a timed game.
-
-In the future, it may be improved upon.
-
 ### Compiling
 
-You need to have the <a href="http://kripken.github.io/emscripten-site/docs/getting_started/downloads.html">emscripten</a> compiler installed and in your path. Then you can compile Stockfish.js with the build script: `./build.js`. See `./build.js --help` for details.
+You need to have the <a href="http://kripken.github.io/emscripten-site/docs/getting_started/downloads.html">emscripten</a> compiler installed and in your path (tested with `2.0.12`). Then you can compile Stockfish.js with the build script: `./build.js`. See `./build.js --help` for details.
 
 ### Example
 
-You can try out Stockfish.js online <a href="https://nmrugg.github.io/kingdom/">here</a>.
+There are examples in the example folder. You will need to run the example/server.js server to veiw the client-side examples.
 
-There are also examples in the example folder. You can either open the example/index.html directly in a web browser or run a small static server to try it out.
-If you have Node.js, you can start a simple web server in that directory
-like this: `node server.js`.
-
-There is also a simple example using Node.js (example/simple_node.js).
-
-Alternatively, you can also run Stockfish.js from the command line via `./stockfish.js` or `node src/stockfish.js`.
+There are also example using Node.js.
 
 ### Thanks
 
 - <a href="https://github.com/mcostalba/Stockfish">The Stockfish team</a>
 - <a href="https://github.com/exoticorn/stockfish-js">exoticorn</a>
 - <a href="https://github.com/ddugovic/Stockfish">ddugovic</a>
-- <a href="https://github.com/niklasf/stockfish.js">niklasf</a>
+- <a href="https://github.com/niklasf/">niklasf</a> <a href="https://github.com/niklasf/stockfish.js">stockfish.js</a> & <a href="https://github.com/niklasf/stockfish.wasm">stockfish.wasm</a>
 
 ### License
 

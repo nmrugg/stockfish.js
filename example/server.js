@@ -1,102 +1,171 @@
 #!/usr/bin/env node
 
-/*jslint onevar: true, undef: true, newcap: true, nomen: true, regexp: true, plusplus: true, bitwise: true, node: true, indent: 4, white: false */
+"use strict";
 
-/// Usage: node static_server.js PORT
+// jshint maxlen: false
+// jshint maxlen: false, forin:false, noarg:true, noempty:true, eqeqeq:true, bitwise:false, strict:true, undef:true, unused:strict, curly:true, browser:false, evil:false, node:true, camelcase:true, quotmark:double, latedef:nofunc, +W081, -W064, -W038
 
-var http = require("http"),
-    url  = require("url"),
-    path = require("path"),
-    fs   = require("fs"),
-    port = process.argv[2] || 8080; /// Defaults to port 8080
+var p = require("path");
+var fs = require("fs");
+var dir = p.join(__dirname);
+var port = Number(process.argv[2]) || 8080;
+var execFile;
 
-function get_mime(filename)
+var mimeData = {
+    ".html": "text/html; charset=utf-8",
+    ".htm":  "text/html; charset=utf-8",
+    ".css":  "text/css; charset=utf-8",
+    ".js":   "application/javascript; charset=utf-8",
+    ".png":  "image/png",
+    ".jpeg": "image/jpeg",
+    ".jpg":  "image/jpeg",
+    ".gif":  "image/gif",
+    ".webp": "image/webp",
+    ".pdf":  "application/pdf",
+    ".txt":  "text/plain",
+    ".svg":  "image/svg+xml; charset=utf-8",
+    ".xml":  "application/xml",
+    ".ttf":  "application/x-font-ttf",
+    ".woff": "application/x-font-woff",
+    ".mp3":  "audio/mpeg",
+    ".mp4":  "video/mp4",
+    ".ogg":  "application/ogg",
+    ".ogv":  "video/ogg",
+    ".oga":  "audio/ogg",
+    ".avi":  "video/avi",
+    ".wav":  "audio/x-wav",
+    ".webm": "video/webm",
+    ".zip":  "application/x-compressed",
+    ".bin":  "application/octet-stream",
+    ".json": "application/json; charset=utf-8",
+    ".wasm": "application/wasm",
+};
+
+function getMime(filename)
 {
-    var ext = path.extname(filename);
-    
-    if (ext === ".html" || ext === ".htm") {
-        return "text/html";
-    } else if (ext === ".css") {
-        return "text/css";
-    } else if (ext === ".js") {
-        return "application/javascript";
-    } else if (ext === ".png") {
-        return "image/png";
-    } else if (ext === ".jpg" || ext === ".jpeg") {
-        return "image/jpeg";
-    } else if (ext === ".gif") {
-        return "image/gif";
-    } else if (ext === ".pdf") {
-        return "application/pdf";
-    } else if (ext === ".webp") {
-        return "image/webp";
-    } else if (ext === ".txt") {
-        return "text/plain";
-    } else if (ext === ".svg") {
-        return "image/svg+xml";
-    } else if (ext === ".xml") {
-        return "application/xml";
-    } else if (ext === ".bin") {
-        return "application/octet-stream";
-    } else if (ext === ".ttf") {
-        return "application/x-font-ttf";
-    } else if (ext === ".woff") {
-        return "application/font-woff";
+    return mimeData[p.extname(filename)] /* istanbul ignore next */ || "application/octet-stream";
+}
+
+function parseRange(headers, total)
+{
+    var match;
+    var start;
+    var end;
+    if (headers && headers.range && typeof headers.range === "string" && total) {
+        match = headers.range.match(/bytes=(\d+)(?:-(\d+))?/) /* istanbul ignore next */ || [];
+        start = match[1] && match[1] >= 0 ? Number(match[1]) /* istanbul ignore next */ : 0;
+        end = match[2] && match[2] > start && match[2] < total ? Number(match[2]) : total - 1;
+        return {
+            start: start,
+            end: end
+        };
     }
 }
 
-/// Start the server.
-http.createServer(function (request, response)
+function badRequest(res, mes)
 {
-    var cwd = process.cwd(),
-        filename,
-        uri = url.parse(request.url).pathname;
+    res.writeHead(400, {"Content-Type": "application/json"});
+    res.write(mes || "{\"err\":1,\"message\":\"Bad length\"}");
+    res.end();
+}
+
+function handleCache(req, res, stats)
+{
+    var mtime;
+    var clientMTime;
     
-    filename = path.join(cwd, uri);
+    if (req.headers["if-modified-since"]) {
+        /// Since the "Last-Modified" and "if-modified-since" headers cannot handle miliseconds, we need to remove them from the time values.
+        mtime = Math.floor(stats.mtime.getTime() / 1000);
+        clientMTime = Math.floor(Date.parse(req.headers["if-modified-since"]) / 1000);
+        if (clientMTime >= mtime) {
+            res.status = 304;
+            res.writeHead(res.status, res.headers);
+            res.end();
+            return true;
+        }
+    }
+}
+function serve(req, res)
+{
+    var filename;
+    var url = req.url;
+    var endOfPath = url.indexOf("?");
     
-    /// Make sure the URI is valid and withing the current working directory.
-    if (uri.indexOf("/../") !== -1 || uri[0] !== "/" || path.relative(cwd, filename).substr(0, 3) === "../") {
-        response.writeHead(404, {"Content-Type": "text/plain"});
-        response.write("404 Not Found\n");
-        response.end();
-        return;
+    if (endOfPath > -1) {
+        url = url.substr(0, endOfPath);
     }
     
-    fs.exists(filename, function (exists)
+    url = decodeURI(url);
+    
+    /// Redirect dirs to index.html.
+    url = url.replace(/(.*\/)$/, "$1index.html");
+    
+    filename = p.join(dir, url);
+    
+    /// Make sure that the request within the allowed directory.
+    if (url.indexOf("..") !== -1 || url.substr(0, 1) !== "/" || p.relative(dir, filename).indexOf("..") !== -1) {
+        return false;
+    }
+    
+    fs.stat(filename, function (err, stats)
     {
-        /// If the URI does not exist, display a 404 error.
-        if (!exists) {
-            response.writeHead(404, {"Content-Type": "text/plain"});
-            response.write("404 Not Found\n");
-            response.end();
-            return;
-        }
+        var resHeaders = {};
+        var range;
+        var streamOptions = {"bufferSize": 4096};
+        var code = 200;
+        var stream;
         
-        /// If the URI is a directory, try to load index.html.
-        if (fs.statSync(filename).isDirectory()) {
-            filename += "/index.html";
-        }
-        
-        fs.readFile(filename, "binary", function (err, file)
-        {
-            var mime;
-            
-            /// If the file cannot be loaded, display a 500 error.
-            if (err) {
-                response.writeHead(500, {"Content-Type": "text/plain"});
-                response.write(err + "\n");
-                response.end();
-                return;
+        if (!err && !stats.isDirectory()) {
+            if (!handleCache(req, res, stats)) {
+                resHeaders["Content-Type"] = getMime(filename);
+                resHeaders["Content-Length"] = stats.size;
+                resHeaders["Accept-Ranges"] = "bytes";
+                resHeaders["Last-Modified"] = new Date(stats.mtime).toUTCString();
+                resHeaders.Expires = new Date().toUTCString(); /// Tell the client to check for changes every time.
+                
+                /// Firefox needs these headers in order to handle shared array buffers for multi-threaded WASM.
+                resHeaders["Cross-Origin-Embedder-Policy"] = "require-corp";
+                resHeaders["Cross-Origin-Opener-Policy"] = "same-origin";
+                
+                range = parseRange(req.headers, stats.size);
+                
+                if (range) {
+                    if (range.end <= range.start) {
+                        /// Range not satisfiable.
+                        res.writeHead(416);
+                        res.end();
+                        return;
+                    }
+                    streamOptions.start = range.start;
+                    streamOptions.end = range.end;
+                    resHeaders["Content-Range"] = "bytes " + range.start + "-" + range.end + "/" + stats.size;
+                    code = 206;
+                }
+                
+                res.writeHead(code, resHeaders);
+                
+                /// Stream the data out to prevent massive buffers on large files.
+                stream = fs.createReadStream(filename, streamOptions);
+                stream.on("close", function onclose()
+                {
+                    res.end();
+                });
+                stream.pipe(res);
             }
-            
-            mime = get_mime(filename);
-            
-            /// If the file loads correctly, write it to the client.
-            response.writeHead(200, mime ? {"Content-Type": mime} : undefined);
-            response.write(file, "binary");
-            response.end();
-        });
+        } else {
+            badRequest(res);
+        }
     });
-}).listen(parseInt(port, 10));
+    
+    return true;
+}
 
-console.log("Static file server running at\n  => http://localhost:" + port + "/\nCTRL + C to shutdown");
+function createServer(cb)
+{
+    return require("http").createServer(cb);
+}
+createServer(serve).listen(port, function onopen()
+{
+    console.log("Listening to http://127.0.0.1:" + port);
+});

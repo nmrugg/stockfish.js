@@ -1,17 +1,24 @@
-# List of authors for Multi-Variant Stockfish, updated for version 10
+# List of authors for Stockfish, as of August 4, 2020
 
+# Founders of the Stockfish project and fishtest infrastructure
 Tord Romstad (romstad)
 Marco Costalba (mcostalba)
 Joona Kiiski (zamar)
 Gary Linscott (glinscott)
-Daniel Dugovic (ddugovic)
-Fabian Fichter (ianfab)
-Niklas Fiekas (niklasf)
 
+# Authors and inventors of NNUE, training, NNUE port
+Yu Nasu (ynasu87)
+Motohiro Isozaki (yaneurao)
+Hisayori Noda (nodchip)
+
+# all other authors of the code in alphabetical order
 Aditya (absimaldata)
+Adrian Petrescu (apetresc)
 Ajith Chandy Jose (ajithcj)
 Alain Savard (Rocky640)
+Alayan Feh (Alayan-stk-2)
 Alexander Kure
+Alexander Pagel (Lolligerhans)
 Ali AlZhrani (Cooffe)
 Andrew Grant (AndyGrant)
 Andrey Neporada (nepal)
@@ -22,24 +29,36 @@ Auguste Pop
 Balint Pfliegel
 Ben Koshy (BKSpurgeon)
 Bill Henry (VoyagerOne)
+Bojun Guo (noobpwnftw, Nooby)
 braich
-Bojun Guo (noobpwnftw)
-Brian Sheppard (SapphireBrand)
+Brian Sheppard (SapphireBrand, briansheppard-toast)
 Bryan Cross (crossbr)
+candirufish
+Chess13234
 Chris Cain (ceebo)
-Dan Schmidt
+Dan Schmidt (dfannius)
+Daniel Axtens (daxtens)
+Daniel Dugovic (ddugovic)
 Dariusz Orzechowski
 David Zar
 Daylen Yang (daylen)
 DiscanX
-Eelco de Groot
+Dominik Schlösser (domschl)
+double-beep
+Eduardo Cáceres (eduherminio)
+Eelco de Groot (KingDefender)
+Elvin Liu (solarlight2)
 erbsenzaehler
 Ernesto Gatti
+Linmiao Xu (linrock)
 Fabian Beuke (madnight)
+Fabian Fichter (ianfab)
+Fanael Linithien (Fanael)
 fanon
 Fauzi Akram Dabat (FauziAkram)
 Felix Wittmann
 gamander
+Gary Heckman (gheckman)
 gguliash
 Gian-Carlo Pascutto (gcp)
 Gontran Lemaire (gonlem)
@@ -57,16 +76,19 @@ Jacques B. (Timshel)
 Jan Ondruš (hxim)
 Jared Kish (Kurtbusch)
 Jarrod Torriero (DU-jdto)
+Jean Gauthier (OuaisBla)
 Jean-Francois Romang (jromang)
+Jekaa
 Jerry Donald Watson (jerrydonaldwatson)
+jjoshua2
 Jonathan Calovski (Mysseno)
-Jonathan D. (SFisGOD)
+Jonathan Dumale (SFisGOD)
 Joost VandeVondele (vondele)
 Jörg Oster (joergoster)
 Joseph Ellis (jhellis3)
 Joseph R. Prostko
 jundery
-Justin Blanchard
+Justin Blanchard (UncombedCoconut)
 Kelly Wilson
 Ken Takusagawa
 kinderchocolate
@@ -74,35 +96,48 @@ Kiran Panditrao (Krgp)
 Kojirion
 Leonardo Ljubičić (ICCF World Champion)
 Leonid Pechenik (lp--)
-Linus Arver
+Linus Arver (listx)
 loco-loco
 Lub van den Berg (ElbertoOne)
 Luca Brivio (lucabrivio)
 Lucas Braesch (lucasart)
 Lyudmil Antonov (lantonov)
-Matthew Lai (matthewlai)
-Matthew Sullivan
+Maciej Żenczykowski (zenczykowski)
+Malcolm Campbell (xoto10)
 Mark Tenzer (31m059)
+marotear
+Matthew Lai (matthewlai)
+Matthew Sullivan (Matt14916)
+Michael An (man)
 Michael Byrne (MichaelB7)
-Michael Stembera (mstembera)
 Michael Chaly (Vizvezdenec)
+Michael Stembera (mstembera)
+Michael Whiteley (protonspring)
 Michel Van den Bergh (vdbergh)
 Miguel Lahoz (miguel-l)
 Mikael Bäckman (mbootsector)
-Mike Whiteley (protonspring)
+Mira
 Miroslav Fontán (Hexik)
 Moez Jellouli (MJZ1977)
 Mohammed Li (tthsqe12)
 Nathan Rugg (nmrugg)
+Nick Pelling (nickpelling)
 Nicklas Persson (NicklasPersson)
+Niklas Fiekas (niklasf)
+Nikolay Kostov (NikolayIT)
+Nguyen Pham (nguyenpham)
+Norman Schmidt (FireFather)
 Ondrej Mosnáček (WOnder93)
 Oskar Werkelin Ahlin
 Pablo Vazquez
+Panthee
 Pascal Romaret
 Pasquale Pigazzini (ppigazzini)
 Patrick Jansen (mibere)
 pellanda
 Peter Zsifkovits (CoffeeOne)
+Praveen Kumar Tummala (praveentml)
+Rahul Dsilva (silversolver1)
 Ralph Stößer (Ralph Stoesser)
 Raminder Singh
 renouve
@@ -110,20 +145,38 @@ Reuven Peleg
 Richard Lloyd
 Rodrigo Exterckötter Tjäder
 Ron Britvich (Britvich)
-Ronald de Man (syzygy1)
+Ronald de Man (syzygy1, syzygy)
+rqs
 Ryan Schmitt
 Ryan Takker
+Sami Kiminki (skiminki)
 Sebastian Buchwald (UniQP)
 Sergei Antonov (saproj)
+Sergei Ivanov (svivanov72)
+Sergio Vieri (sergiovieri)
 sf-x
-shane31
-Steinar Gunderson (sesse)
+Shane Booth (shane31)
+Shawn Varghese (xXH4CKST3RXx)
 Stefan Geschwentner (locutus2)
 Stefano Cardanobile (Stefano80)
+Steinar Gunderson (sesse)
 Stéphane Nicolet (snicolet)
 Thanar2
 thaspel
+theo77186
+Tom Truscott
 Tom Vijlbrief (tomtor)
-Torsten Franz (torfranz)
+Tomasz Sobczyk (Sopel97)
+Torsten Franz (torfranz, tfranzer)
+Tracey Emery (basepr1me)
+tttak
+Unai Corzo (unaiic)
 Uri Blass (uriblass)
-Vince Negri
+Vince Negri (cuddlestmonkey)
+zz4032
+
+
+# Additionally, we acknowledge the authors and maintainers of fishtest,
+# an amazing and essential framework for the development of Stockfish!
+#
+# https://github.com/glinscott/fishtest/blob/master/AUTHORS

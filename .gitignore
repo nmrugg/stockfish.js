@@ -1,9 +1,9 @@
-src/stockfish
-src/.depend
 *.o
+src/.depend
+stockfish.worker.js
+src/stockfish
 
 # Stockfish.js
-stockfish
 src/stockfish.js.map
 src/stockfish.js.mem
 *~

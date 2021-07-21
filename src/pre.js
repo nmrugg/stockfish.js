@@ -1,35 +1,73 @@
-/**
- * Copyright (C) Tord Romstad (Glaurung author)
- * Copyright (C) Marco Costalba, Joona Kiiski, Tord Romstad (Stockfish authors)
- * Copyright (C) Chess.com
- * Copyright (C) Nathan Rugg (Stockfish.js)
- * Copyright (C) Phillip Albanese - https://github.com/philososaur
- *
- * Stockfish is free, and distributed under the GNU General Public License
- * (GPL). Essentially, this means that you are free to do almost exactly
- * what you want with the program, including distributing it among your
- * friends, making it available for download from your web site, selling
- * it (either by itself or as part of some bigger software package), or
- * using it as the starting point for a software project of your own.
- *
- * The only real limitation is that whenever you distribute Stockfish in
- * some way, you must always include the full source code, or a pointer
- * to where the source code can be found. If you make any changes to the
- * source code, these changes must also be made available under the GPL.
- *
- * The source code for this emscripten port of stockfish can be found
- * at http://github.com/nmrugg/stockfish.js.
- */
-var STOCKFISH = (function ()
-{
-    function load_stockfish(console, WasmPath)
+
+(function () {
+    /// Message listeners
+    var listeners = [];
+    /// Command queue
+    var queue = [];
+    
+    /// Fix setting _scriptDir in a Web Worker.
+    if (typeof importScripts === "function") {
+        _scriptDir = self.location.origin + self.location.pathname;
+    }
+    
+    /// Created in preface.js
+    Module.wasmBinaryFile = wasmPath;
+    
+    Module.print = function (line)
     {
-        /// Fake timer for Safari and IE/Edge.
-        ///NOTE: Both Chrome and Edge have "Safari" in it.
-        if (typeof navigator !== "undefined" && (/MSIE|Trident|Edge/i.test(navigator.userAgent) || (/Safari/i.test(navigator.userAgent) && !/Chrome|CriOS/i.test(navigator.userAgent)))) {
-            var dateNow = Date.now;
+        if (listeners.length === 0) {
+            console.log(line);
+        } else {
+            for (var i in listeners) {
+                listeners[i](line);
+            }
         }
-        var Module = {
-            wasmBinaryFile: WasmPath
-        };
+    };
+
+    Module.addMessageListener = function (listener)
+    {
+        listeners.push(listener);
+    };
+
+    Module.removeMessageListener = function (listener)
+    {
+        var idx = listeners.indexOf(listener);
+        if (idx >= 0) listeners.splice(idx, 1);
+    };
+
+    function poll()
+    {
+        var command = queue.shift();
         
+        if (!command) {
+            return;
+        }
+        
+        /// If it returns true, it is not ready yet.
+        if (Module.ccall("uci_command", "number", ["string"], [command])) {
+            queue.unshift(command);
+        }
+        
+        if (queue.length) {
+            setTimeout(poll, 10);
+        }
+    }
+
+    Module.postMessage = function (command)
+    {
+        queue.push(command);
+    };
+
+    Module.postRun = function()
+    {
+        Module.postMessage = function (command)
+        {
+            queue.push(command);
+            if (queue.length === 1) {
+                poll();
+            }
+        };
+
+        poll();
+    };
+})();

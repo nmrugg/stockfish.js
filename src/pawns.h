@@ -1,8 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,21 +35,12 @@ struct Entry {
   Bitboard pawn_attacks(Color c) const { return pawnAttacks[c]; }
   Bitboard passed_pawns(Color c) const { return passedPawns[c]; }
   Bitboard pawn_attacks_span(Color c) const { return pawnAttacksSpan[c]; }
-  int weak_unopposed(Color c) const { return weakUnopposed[c]; }
-  int pawn_asymmetry() const { return asymmetry; }
-  int open_files() const { return openFiles; }
-
-  int semiopen_file(Color c, File f) const {
-    return semiopenFiles[c] & (1 << f);
-  }
-
-  int pawns_on_same_color_squares(Color c, Square s) const {
-    return pawnsOnSquares[c][bool(DarkSquares & s)];
-  }
+  int passed_count() const { return popcount(passedPawns[WHITE] | passedPawns[BLACK]); }
+  int blocked_count() const { return blockedCount; }
 
   template<Color Us>
   Score king_safety(const Position& pos) {
-    return  kingSquares[Us] == pos.square<KING>(Us) && castlingRights[Us] == pos.can_castle(Us)
+    return  kingSquares[Us] == pos.square<KING>(Us) && castlingRights[Us] == pos.castling_rights(Us)
           ? kingSafety[Us] : (kingSafety[Us] = do_king_safety<Us>(pos));
   }
 
@@ -59,7 +48,7 @@ struct Entry {
   Score do_king_safety(const Position& pos);
 
   template<Color Us>
-  Value evaluate_shelter(const Position& pos, Square ksq);
+  Score evaluate_shelter(const Position& pos, Square ksq) const;
 
   Key key;
   Score scores[COLOR_NB];
@@ -68,17 +57,12 @@ struct Entry {
   Bitboard pawnAttacksSpan[COLOR_NB];
   Square kingSquares[COLOR_NB];
   Score kingSafety[COLOR_NB];
-  int weakUnopposed[COLOR_NB];
   int castlingRights[COLOR_NB];
-  int semiopenFiles[COLOR_NB];
-  int pawnsOnSquares[COLOR_NB][COLOR_NB]; // [color][light/dark squares]
-  int asymmetry;
-  int openFiles;
+  int blockedCount;
 };
 
-typedef HashTable<Entry, 16384> Table;
+typedef HashTable<Entry, 131072> Table;
 
-void init();
 Entry* probe(const Position& pos);
 
 } // namespace Pawns

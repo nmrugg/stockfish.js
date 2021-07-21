@@ -1,28 +1,26 @@
 #!/usr/bin/env node
 
-//! Chess.com (c) 2020
+//! Chess.com (c) 2021
 
 "use strict";
 
 var spawnSync = require("child_process").spawnSync;
 var execFileSync = require("child_process").execFileSync;
-var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "b", "bin", "colors", "no-color"]});
+var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "b", "bin", "colors", "no-color", "no-embed-worker", "simd"]});
 var args = ["build", "-j", require("os").cpus().length];
 var fs = require("fs");
 var p = require("path");
 var stockfishPath = p.join(__dirname, "src", "stockfish");
-var stockfishJSPath = p.join(__dirname, "src", "stockfish.asm.js");
 var stockfishWASMPath = p.join(__dirname, "src", "stockfish.wasm");
 var stockfishWASMLoaderPath = p.join(__dirname, "src", "stockfish.js");
+var stockfishWorkerThreadPath = p.join(__dirname, "src", "stockfish.worker.js");
 var data;
-var license;
+var workerData;
+var preface;
+var postscript;
 var buildToWASM;
-var buildToASMJS;
-var buildToAnyJS;
 var child;
-var stockfishVersion = "11";
-var postFilePath;
-var postFile;
+var stockfishVersion = "12";
 var fistRun;
 
 function get_params(options, argv)
@@ -114,6 +112,13 @@ function bold(str)
     return color(1, str);
 }
 
+function beep()
+{
+    if (process.stdout.isTTY && !params.s && !params.silent) {
+        process.stdout.write("\u0007");
+    }
+}
+
 function changeVersion(version)
 {
     var filePath = p.join(__dirname, "src", "misc.cpp");
@@ -192,25 +197,19 @@ if (params.arch) {
         process.exit(1);
     }
     
-    if (params.arch === "js") {
-        buildToWASM = true;
+    args.push("ARCH=" + params.arch);
+    if (params.arch === "asmjs") {
         buildToASMJS = true;
-    } else {
-        args.push("ARCH=" + params.arch);
-        if (params.arch === "asmjs") {
-            buildToASMJS = true;
-        } else if (params.arch === "wasm") {
-            buildToWASM = true;
-        }
+    } else if (params.arch === "wasm") {
+        buildToWASM = true;
     }
 } else if (params.b || params.bin) {
     determineBestArch()
 } else {
     buildToWASM = true;
-    buildToASMJS = true;
+    params.arch = "wasm";
+    args.push("ARCH=wasm");
 }
-
-buildToAnyJS = buildToWASM || buildToASMJS;
 
 if (params.help || params["help-all"] || params.h) {
     console.log("");
@@ -228,14 +227,12 @@ if (params.help || params["help-all"] || params.h) {
     console.log(                     "                  and Skill Level Maximum Error and Skill Level Probability uci options");
     console.log("  " + highlight("--static") + "        Link libaries statically (not JS)");
     console.log("  " + highlight("--debug-js") + "      Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
-    console.log("  " + highlight("--arch") + "          Architecture to build to (default: " + note("js") + ")");
-    console.log(                     "                  If the arch is set to " + note("js") + ", it will compile both an asm.js version");
-    console.log(                     "                  and a WASM version. Set to " + note("asmjs") + " or " + note("wasm") + " for just one.");
+    console.log("  " + highlight("--arch") + "          Architecture to build to (default: " + note("wasm") + ")");
     console.log(                     "                  " + note("x86-64-bmi2") + " is likely the fastest binary version");
     console.log(                     "                  See " + highlight("--help-all") + " for more options, or use " + highlight("--bin") + " instead");
     console.log("  " + highlight("--basename") + "      The filename for the engine (default: " + note ("stockfish") + ")");
     console.log(                     "                  This will not only rename the files, it will also rewrite the base JS file");
-    console.log(                     "                  to load the correct WASM and ASM engines");
+    console.log(                     "                  to load the correct WASM engine");
     console.log("  " + highlight("-b --bin") + "        Attempt to build a binary engine that is the most suitable for this system");
     console.log("  " + highlight("--make") + "          Path to program used to make Stockfish (default: " + note("make") + ")");
     console.log("  " + highlight("--comp") + "          Compiler to build C code with");
@@ -251,7 +248,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log("");
     console.log("Examples:");
     console.log("");
-    console.log("  Default: include all modifications and variants, compile to ASM.js and WASM");
+    console.log("  Default: include all modifications and variants, compile to WASM");
     console.log("    ./build.js");
     console.log("");
     console.log("  Vanilla Stockfish: no modifications, no variants, 64-bit native binary");
@@ -272,13 +269,9 @@ if (params.help || params["help-all"] || params.h) {
 } else if (params["force-linking"]) {
     ///NOTE: --force will also link as well, so both are not needed.
     try {
-        if (buildToAnyJS) {
-            if (buildToASMJS) {
-                fs.unlinkSync(stockfishJSPath);
-            } else {
-                fs.unlinkSync(stockfishJSWASMPath);
-                fs.unlinkSync(stockfishJSWASMLoaderPath);
-            }
+        if (buildToWASM) {
+            fs.unlinkSync(stockfishJSWASMPath);
+            fs.unlinkSync(stockfishJSWASMLoaderPath);
         } else {
             fs.unlinkSync(stockfishPath);
         }
@@ -301,11 +294,15 @@ if (!params["no-chesscom"]) {
 }
 
 if (params["debug-js"]) {
-    if (buildToAnyJS) {
+    if (buildToWASM) {
         args.push("DEBUGJS=1");
     } else {
         warn("Ignoring --debug-js");
     }
+}
+
+if (params.simd) {
+    args.push("SIMD=1");
 }
 
 if (params.static) {
@@ -336,22 +333,7 @@ if (String(params.version).toLowerCase() !== "date") {
     changeVersion(params.version === true || !params.version ? stockfishVersion : params.version);
 }
 
-
-
-if (buildToWASM && buildToASMJS) {
-    console.log("\n" + note("Building ASM.js") + "\n");
-    args.push("ARCH=asmjs");
-    child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
-    args.pop();
-    if (Number(child.status) !== 0) {
-        process.exit(Number(child.status));
-    }
-    console.log("\n" + note("Building WASM") + "\n");
-    args.push("ARCH=wasm");
-    child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
-} else {
-    child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
-}
+child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
 
 /// Reset version string.
 if (String(params.version).toLowerCase() !== "date") {
@@ -363,45 +345,86 @@ if (Number(child.status) !== 0) {
     process.exit(Number(child.status));
 }
 
-if (!buildToAnyJS && params.basename) {
+if (!buildToWASM && params.basename) {
     fs.renameSync(stockfishPath, p.join(__dirname, "src", params.basename));
 }
 
-if (buildToASMJS) {
-    data = fs.readFileSync(stockfishJSPath, "utf8");
-    
-    /// Add the license if it's not there (emscripten removes all comments).
-    license = license || fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
-    if (data.indexOf(license) !== 0) {
-        fs.writeFileSync(stockfishJSPath, license + data);
-    }
-    
-    if (params.basename) {
-        fs.renameSync(stockfishJSPath, p.join(__dirname, "src", params.basename + ".asm.js"));
-    }
-}
 
 if (buildToWASM) {
     data = fs.readFileSync(stockfishWASMLoaderPath, "utf8");
     
     /// Remove "var Module" so that it does not overwrite our custom module.
-    data = data.replace("var Module;", "");
+    //data = data.replace("var Module;", "");
     
     if (params.basename) {
         data = data.replace(/stockfish\.wasm/g, params.basename + ".wasm");
     }
+    /// Fix the initializer in a Web Worker.
+    data = data.replace(/__register_pthread_ptr\s*\(\s*PThread\s*\.\s*mainThreadBlock\s*,\s*!\s*ENVIRONMENT_IS_WORKER/, "__register_pthread_ptr(PThread.mainThreadBlock,isInitializer||!ENVIRONMENT_IS_WORKER");
+    /// Throw errors if files do not load. This catches Firefox header issues.
+    data = data.replace(/(function instantiateAsync.*?fetch\(.*?\));?\s*(}\s*else)/, "$1.catch(function (e){setTimeout(function (){throw e},0);console.error(e)})$2");
     
-    /// Fix issues with locating the WASM file
-    data = data.replace(/wasmBinaryFile=/g, "wasmBinaryFile=Module.wasmBinaryFile||");
+    /// Load the embeded worker.
+    data = data.replace(/var pthreadMainJs\s*=\s*locateFile\(["'].*?.worker.js["']\)/, "var pthreadMainJs;if(ENVIRONMENT_IS_NODE)pthreadMainJs=__filename;else pthreadMainJs=self.location.origin+self.location.pathname+\"#\"+(wasmPath||wasmBinaryFile)+\",1\"");
     
-    /// Add the license if it's not there (emscripten removes all comments).
-    license = license || fs.readFileSync(p.join(__dirname, "src", "license.js"), "utf8");
-    if (data.indexOf(license) !== 0) {
-        fs.writeFileSync(stockfishWASMLoaderPath, license + data);
+    data = data.replace(/(wasmBinaryFile\s*=\s*locateFile\(wasmBinaryFile\);?\s*\}?)/, "$1wasmBinaryFile=Module.wasmBinaryFile||wasmBinaryFile;");
+    
+    /// Embed stockfish.worker.js
+    /*data = data.replace(/locateFile\(["']stockfish.worker.js["']\)/, "\"data:application/javascript," + encodeURIComponent(fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim()) + "\"");
+    try {
+        fs.unlinkSync(stockfishWorkerThreadPath);
+    } catch (e) {};
+    */
+    /// Firefox sometimes triggers this. Closing the bad Web Worker seems to avoid the problem.
+    workerData = fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim();
+    workerData = workerData.replace(/Module\s*=\s*Stockfish\(Module\)/, "if(typeof Stockfish===\"undefined\")return self.close();Module=Stockfish(Module);");
+    //fs.writeFileSync(stockfishWorkerThreadPath, workerData);
+    /// Run the init function instead of using the importScripts hack.
+    workerData = workerData.replace(/if\s*\([^)]+urlOrBlob.*?else\s*\{[^}]+\}/, "INIT_ENGINE();");
+    
+    try {
+        fs.unlinkSync(stockfishWorkerThreadPath);
+    } catch (e) {};
+    
+    /// Fix bad emscripten path finding
+    data = data.replace(/scriptDirectory\s*=\s*scriptDirectory\s*\.\s*substr\s*\(0\s*,\s*scriptDirectory\s*\.\s*lastIndexOf\s*\(\s*["']\/["']\s*\)\s*\+\s*1\s*\);?/, "scriptDirectory=scriptDirectory.substr(0,scriptDirectory.replace(/[?#].*/,\"\").lastIndexOf('/')+1);");
+ 
+    
+    /*
+    /// Firefox sometimes triggers this. Closing the bad Web Worker seems to avoid the problem.
+            if (typeof Stockfish === "undefined") {
+                return self.close();
+                //console.log("waiting")
+                //return setTimeout(this.onmessage, 100, e);
+            }
+            */
+    //Module = Stockfish(Module);
+    
+    // /// Fix issues with locating the WASM file
+    //data = data.replace(/wasmBinaryFile=/g, "wasmBinaryFile=Module.wasmBinaryFile||");
+    
+    preface = preface || fs.readFileSync(p.join(__dirname, "preface.js"), "utf8");
+    postscript = postscript || fs.readFileSync(p.join(__dirname, "postscript.js"), "utf8");
+    if (data.indexOf(preface) !== 0) {
+        data = preface + data;
     }
+    if (data.indexOf(postscript) === -1) {
+        data = data + postscript;
+    }
+    
+    data = data.replace("/// Insert worker here", workerData);
+    
+    /// Remove debugging code.
+    data = data.replace(/\s*\/\/\/ Uncomment for debugging\s*\/\/console\.log\("-->",\s*line\);?\s*/, "");
+    
+    fs.writeFileSync(stockfishWASMLoaderPath, data);
     
     if (params.basename) {
         fs.renameSync(stockfishWASMLoaderPath, p.join(__dirname, "src", params.basename + ".js"));
         fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
+        ///TODO: EMBED WORKER
+        ///fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
     }
 }
+
+beep();

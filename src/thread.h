@@ -1,8 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,11 +22,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
-#ifdef _WIN32
 #include <thread>
-#else
-#include <pthread.h>
-#endif
 #include <vector>
 
 #include "material.h"
@@ -36,7 +30,7 @@
 #include "pawns.h"
 #include "position.h"
 #include "search.h"
-#include "thread_win32.h"
+#include "thread_win32_osx.h"
 
 
 /// Thread class keeps together all the thread-related stuff. We use
@@ -46,43 +40,40 @@
 
 class Thread {
 
-  Mutex mutex;
-  ConditionVariable cv;
+  std::mutex mutex;
+  std::condition_variable cv;
   size_t idx;
   bool exit = false, searching = true; // Set before starting std::thread
-#ifdef _WIN32
-  std::thread stdThread;
-#else
-  pthread_t nativeThread;
-#endif
+  NativeThread stdThread;
 
 public:
   explicit Thread(size_t);
   virtual ~Thread();
   virtual void search();
-  /* <REFACTORED FOR EMSCRIPTEN> */
-  void search_iteration();
-  /* </REFACTORED FOR EMSCRIPTEN> */
   void clear();
   void idle_loop();
   void start_searching();
   void wait_for_search_finished();
+  int best_move_count(Move move) const;
 
   Pawns::Table pawnsTable;
   Material::Table materialTable;
-  Endgames endgames;
   size_t pvIdx, pvLast;
+  uint64_t ttHitAverage;
   int selDepth, nmpMinPly;
   Color nmpColor;
-  std::atomic<uint64_t> nodes, tbHits;
+  std::atomic_bool threadStarted;
+  std::atomic<uint64_t> nodes, bestMoveChanges;
 
   Position rootPos;
+  StateInfo rootState;
   Search::RootMoves rootMoves;
   Depth rootDepth, completedDepth;
   CounterMoveHistory counterMoves;
   ButterflyHistory mainHistory;
+  LowPlyHistory lowPlyHistory;
   CapturePieceToHistory captureHistory;
-  ContinuationHistory continuationHistory;
+  ContinuationHistory continuationHistory[2][2];
   Score contempt;
 };
 
@@ -96,13 +87,12 @@ struct MainThread : public Thread {
   void search() override;
   void check_time();
 
-/* <REFACTORED FOR EMSCRIPTEN> */
-  void after_search();
-/* </REFACTORED FOR EMSCRIPTEN> */
-
-  double bestMoveChanges, previousTimeReduction;
-  Value previousScore;
+  double previousTimeReduction;
+  Value bestPreviousScore;
+  Value iterValue[4];
   int callsCnt;
+  bool stopOnPonderhit;
+  std::atomic_bool ponder;
 };
 
 
@@ -118,9 +108,11 @@ struct ThreadPool : public std::vector<Thread*> {
 
   MainThread* main()        const { return static_cast<MainThread*>(front()); }
   uint64_t nodes_searched() const { return accumulate(&Thread::nodes); }
-  uint64_t tb_hits()        const { return accumulate(&Thread::tbHits); }
+  Thread* get_best_thread() const;
+  void start_searching();
+  void wait_for_search_finished() const;
 
-  std::atomic_bool stop, ponder, stopOnPonderhit;
+  std::atomic_bool stop, increaseDepth;
 
 private:
   StateListPtr setupStates;

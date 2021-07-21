@@ -1,8 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,6 +47,7 @@ struct Stack {
   Value staticEval;
   int statScore;
   int moveCount;
+  bool inCheck;
 };
 
 
@@ -69,8 +68,7 @@ struct RootMove {
   Value score = -VALUE_INFINITE;
   Value previousScore = -VALUE_INFINITE;
   int selDepth = 0;
-  int tbRank = 0;
-  Value tbScore;
+  int bestMoveCount = 0;
   std::vector<Move> pv;
 };
 
@@ -87,13 +85,13 @@ struct LimitsType {
     movestogo = depth = mate = perft = infinite = 0;
     nodes = 0;
 #ifdef CHESSCOM
-    mindepth = smartdepth = mintime = maxtime = confidence = 0;
+    mindepth = smartdepth = mintime = maxtime = 0;
     maxdepth = shallow = MAX_PLY;
 #endif
   }
 
   bool use_time_management() const {
-    return !(mate | movetime | depth | nodes | perft | infinite);
+    return time[WHITE] || time[BLACK];
   }
 
   std::vector<Move> searchmoves;
@@ -102,7 +100,7 @@ struct LimitsType {
   int64_t nodes;
 #ifdef CHESSCOM
   int mindepth, maxdepth, shallow, smartdepth;
-  double maxtime, mintime, confidence;
+  double maxtime, mintime;
 #endif
 };
 

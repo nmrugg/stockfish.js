@@ -1,1 +1,0 @@
-../src/stockfish.asm.js
