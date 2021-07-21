@@ -30,7 +30,7 @@ Input (standard UCI commands) to the engine is posted as a message to the worker
 
 ```js
 stockfish.postMessage("go depth 15");
-js
+```
 
 The output of the engine is again posted as a message. To receive it, you need to add a message handler:
 
