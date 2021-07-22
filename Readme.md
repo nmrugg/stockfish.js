@@ -4,6 +4,10 @@
 
 Stockfish.js is currently updated to Stockfish 12.
 
+```
+NOTE: Stockfish.js 12 is not backward-compatible with previous versions.
+```
+
 This is a multi-threaded engine, and will only run in newer browsers and node.js versions. For an older JS and WASM version, see the <a href=../../tree/Stockfish11>Stockfish.js 11 branch</a>.
 
 ### API
