@@ -26,6 +26,17 @@ EM_LDFLAGS += \
 	-s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] \
 	-s ALLOW_UNIMPLEMENTED_SYSCALLS
 
+
+
+ifeq ($(CHESSCOM),1)
+	CXXFLAGS += -DCHESSCOM
+endif
+ifeq ($(EMBED_NNUE),yes)
+	embedded_nnue = yes
+else
+	embedded_nnue = no
+endif
+
 ifeq ($(minify_js),yes)
 	EM_LDFLAGS += --closure 1
 else
