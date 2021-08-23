@@ -37,6 +37,10 @@
 #include "uci.h"
 #include "incbin/incbin.h"
 
+///TODO: check NNUE_EMBEDDING_OFF
+#if defined(CHESSCOM) && defined(__EMSCRIPTEN__)
+    #include <emscripten/fetch.h>
+#else
 
 // Macro to embed the default efficiently updatable neural network (NNUE) file
 // data in the engine binary (using incbin.h, by Dale Weiler).
@@ -57,6 +61,8 @@
   const unsigned int         gEmbeddedNNUESize = 1;
 #endif
 
+#endif // defined(CHESSCOM)
+
 
 using namespace std;
 
@@ -64,6 +70,69 @@ namespace Stockfish {
 
 namespace Eval {
 
+#if defined(CHESSCOM) && defined(__EMSCRIPTEN__)
+  bool useNNUE;
+  bool evalFileLoaded;
+  bool evalFileLoading;
+
+  void download_success(emscripten_fetch_t *fetch) {
+      std::stringstream ss;
+      ss << "Downloaded eval file (" << fetch->totalBytes << " bytes)." << sync_endl;
+      std::cout << ss.str();
+      std::string evalFileContents((const char *) fetch->data, fetch->totalBytes);
+      const std::string evalFile = "nn-26abeed38351.nnue";
+      evalFileLoaded = NNUE::load_eval_file(evalFile, evalFileContents);
+      std::stringstream ss2;
+      ss2 << "Load eval file success: " << evalFileLoaded << sync_endl;
+      std::cout << ss2.str();
+  }
+
+  void download_error(emscripten_fetch_t *fetch) {
+      std::cerr << "Failed to download eval file." << std::endl;
+      emscripten_fetch_close(fetch);
+      evalFileLoading = false;
+  }
+
+
+  void NNUE::init() {
+
+    useNNUE = Options["Use NNUE"];
+    if (!useNNUE || evalFileLoaded)
+        return;
+    
+
+    if (!evalFileLoading) {
+        evalFileLoading = true;
+
+        emscripten_fetch_attr_t attr;
+        emscripten_fetch_attr_init(&attr);
+        strcpy(attr.requestMethod, "GET");
+        attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
+        attr.onsuccess = download_success;
+        attr.onerror = download_error;
+        emscripten_fetch(&attr, "nn-26abeed38351.nnue");
+    }
+
+//    readEmbededFile();
+    
+    return;
+  }
+
+  void NNUE::verify() {
+
+    if (useNNUE && !evalFileLoaded)
+    {
+        std::cerr << "NNUE evaluation used, but the network file was not loaded successfully." << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    std::stringstream ss;
+    if (useNNUE)
+        ss << "info string NNUE evaluation enabled." << sync_endl;
+    else
+        ss << "info string classical evaluation enabled." << sync_endl;
+    std::cout << ss.str();
+  }
+#else // CHESSCOM
   bool useNNUE;
   string eval_file_loaded = "None";
 
@@ -156,6 +225,7 @@ namespace Eval {
     else
         sync_cout << "info string classical evaluation enabled" << sync_endl;
   }
+#endif // CHESSCOM
 }
 
 namespace Trace {

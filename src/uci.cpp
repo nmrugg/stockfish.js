@@ -294,6 +294,7 @@ void UCI::loop(int argc, char* argv[]) {
       else if (token == "d")        sync_cout << pos << sync_endl;
       else if (token == "eval")     trace_eval(pos);
       else if (token == "compiler") sync_cout << compiler_info() << sync_endl;
+#if !defined(CHESSCOM) || !defined(__EMSCRIPTEN__)
       else if (token == "export_net")
       {
           std::optional<std::string> filename;
@@ -302,6 +303,7 @@ void UCI::loop(int argc, char* argv[]) {
               filename = f;
           Eval::NNUE::save_eval(filename);
       }
+#endif // CHESSCOM
       #ifdef __EMSCRIPTEN__
       else if (token == "bench_eval") bench_eval(pos);
       #endif

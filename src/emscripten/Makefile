@@ -35,6 +35,7 @@ ifeq ($(EMBED_NNUE),yes)
 	embedded_nnue = yes
 else
 	embedded_nnue = no
+	EM_LDFLAGS += -s FETCH=1
 endif
 
 ifeq ($(minify_js),yes)

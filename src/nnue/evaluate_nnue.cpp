@@ -368,7 +368,20 @@ namespace Stockfish::Eval::NNUE {
     return ss.str();
   }
 
+#if defined(CHESSCOM) && defined(__EMSCRIPTEN__)
+  // Load the evaluation function file
+  bool load_eval_file(const std::string& evalFile, const std::string& evalFileContents) {
 
+    initialize();
+    fileName = evalFile;
+
+    std::stringstream stream(evalFileContents);
+
+    const bool result = read_parameters(stream);
+
+    return result;
+  }
+#else // CHESSCOM
   // Load eval, from a file stream or a memory stream
   bool load_eval(std::string name, std::istream& stream) {
 
@@ -415,6 +428,6 @@ namespace Stockfish::Eval::NNUE {
     sync_cout << msg << sync_endl;
     return saved;
   }
-
+#endif // CHESSCOM
 
 } // namespace Stockfish::Eval::NNUE

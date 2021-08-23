@@ -34,7 +34,9 @@ namespace Eval {
   Value evaluate(const Position& pos);
 
   extern bool useNNUE;
+#if !defined(CHESSCOM) || !defined(__EMSCRIPTEN__)
   extern std::string eval_file_loaded;
+#endif
 
   // The default net name MUST follow the format nn-[SHA256 first 12 digits].nnue
   // for the build process (profile-build and fishtest) to work. Do not change the
@@ -48,10 +50,15 @@ namespace Eval {
 
     void init();
     void verify();
-
+    
+#if defined(CHESSCOM) && defined(__EMSCRIPTEN__)
+    bool load_eval_file(const std::string& evalFile, const std::string &evalFileContents);
+#else
     bool load_eval(std::string name, std::istream& stream);
     bool save_eval(std::ostream& stream);
     bool save_eval(const std::optional<std::string>& filename);
+#endif
+    
 
   } // namespace NNUE
 
