@@ -150,6 +150,8 @@ const App = () => {
   const examples = [
     'uci',
     'go',
+    'go depth 20',
+    'go depth 25',
     'stop',
     'd',
     'eval',
@@ -162,6 +164,9 @@ const App = () => {
     'bench 16 1 20 current depth NNUE',
     'bench 16 1 20 current depth classical',
     'bench_eval',
+    'setoption name EvalFile value old-nn/nn-76a8a7ffb820.nnue',
+    'setoption name EvalFile value http://127.0.0.1:8080/old-nn/nn-76a8a7ffb820.nnue',
+    'position fen 8/7p/6p1/5p2/Q4P2/2p3P1/3r3P/2K1k3 w - - 2 44 moves a4a7',
   ];
 
   const sendCommand = () => {
