@@ -75,6 +75,7 @@ Module["terminate"] = () => {
 //   stockfish.postMessage("eval");
 //   cleanup();
 //
+/*
 Module["setEvalFile"] = (buffer, filename) => {
   const file = FS.open(filename, "w");
   FS.write(file, buffer, 0, buffer.length);
@@ -83,3 +84,4 @@ Module["setEvalFile"] = (buffer, filename) => {
   // Returns callback to cleanup resource after it's verified that data are loaded correctly e.g. by "eval" command.
   return () => FS.unlink(filename);
 };
+*/
