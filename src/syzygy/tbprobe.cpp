@@ -224,7 +224,9 @@ public:
         *mapping = statbuf.st_size;
         *baseAddress = mmap(nullptr, statbuf.st_size, PROT_READ, MAP_SHARED, fd, 0);
 #if defined(MADV_RANDOM)
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
         madvise(*baseAddress, statbuf.st_size, MADV_RANDOM);
+#endif
 #endif
         ::close(fd);
 

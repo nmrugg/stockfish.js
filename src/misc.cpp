@@ -455,7 +455,9 @@ void* aligned_large_pages_alloc(size_t allocSize) {
   size_t size = ((allocSize + alignment - 1) / alignment) * alignment;
   void *mem = std_aligned_alloc(alignment, size);
 #if defined(MADV_HUGEPAGE)
+#if defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
   madvise(mem, size, MADV_HUGEPAGE);
+#endif
 #endif
   return mem;
 }

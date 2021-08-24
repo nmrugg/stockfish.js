@@ -13,22 +13,36 @@ assertion = no
 embedded_nnue = yes
 
 VPATH := $(VPATH):emscripten
-EM_CXXFLAGS +=
-EM_LDFLAGS += \
-	--pre-js emscripten/preamble.js \
-	-s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s ENVIRONMENT=web,worker,node \
-	-s STRICT=1 \
-	-s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=["emscripten_utils_getline_impl"]' \
-	-s USE_PTHREADS=1 \
-	-s PROXY_TO_PTHREAD=1 \
-	-s ALLOW_MEMORY_GROWTH=0 -s INITIAL_MEMORY=1073741824 \
-	-s FILESYSTEM=0 \
-	-s EXTRA_EXPORTED_RUNTIME_METHODS=[] \
-	-s ALLOW_UNIMPLEMENTED_SYSCALLS
+
 
 ifeq ($(CHESSCOM),1)
 	CXXFLAGS += -DCHESSCOM
+	EM_CXXFLAGS +=
+	EM_LDFLAGS += \
+		--pre-js emscripten/preamble.js \
+		-s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s ENVIRONMENT=web,worker,node \
+		-s STRICT=1 \
+		-s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=["emscripten_utils_getline_impl"]' \
+		-s USE_PTHREADS=1 \
+		-s PROXY_TO_PTHREAD=1 \
+		-s ALLOW_MEMORY_GROWTH=0 -s INITIAL_MEMORY=1073741824 \
+		-s FILESYSTEM=0 \
+		-s EXPORTED_RUNTIME_METHODS=[]
+else
+	EM_CXXFLAGS +=
+	EM_LDFLAGS += \
+		--pre-js emscripten/preamble.js \
+		-s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s ENVIRONMENT=web,worker,node \
+		-s STRICT=1 \
+		-s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=["emscripten_utils_getline_impl"]' \
+		-s USE_PTHREADS=1 \
+		-s PROXY_TO_PTHREAD=1 \
+		-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=$$((1 << 27)) -s MAXIMUM_MEMORY=$$((1 << 31)) \
+		-s FILESYSTEM=0 \
+		-s EXTRA_EXPORTED_RUNTIME_METHODS=[] \
+		-s ALLOW_UNIMPLEMENTED_SYSCALLS
 endif
+
 ifeq ($(EMBED_NNUE),yes)
 	embedded_nnue = yes
 else
