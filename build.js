@@ -6,7 +6,7 @@
 
 var runSpawnSync = require("child_process").spawnSync;
 var runExecFileSync = require("child_process").execFileSync;
-var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "b", "bin", "colors", "no-color", "no-embed-worker", "-v", "--verbose"]});
+var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "bin", "colors", "no-color", "no-embed-worker", "-v", "--verbose"]});
 //var args = ["build", "-j", require("os").cpus().length];
 //var args = ["-j", require("os").cpus().length];
 var args = []; ///NOTE: Can't use multi-threading with emscripten_copy_files
@@ -241,19 +241,15 @@ if (params.help || params["help-all"] || params.h) {
 //    console.log("  " + highlight("--variants") + "      Comma separated list of variants to include (default: " + note("none") + ")");
 //    console.log(                     "                  Possible values are " + note("all") + ", " + note("none") + " (no variants, except for Chess960),");
 //    console.log(                     "                  " + note("anti") + ", " + note("atomic") + ", " + note("crazyhouse") + ", " + note("horde") + ", " + note("kingofthehill") + ", " + note("race") + ", " + note("relay") + ", or " + note("3check"));
-    console.log("  " + highlight("--no-chesscom") + "   Disable changes made specifically for chess.com;");
-    console.log(                     "                  this includes showing SAN moves, fixing three-fold repetition,");
-    console.log(                     "                  addition of mindepth, maxdepth, and shallow options to the go command,");
-    console.log(                     "                  and Skill Level Maximum Error and Skill Level Probability uci options");
-    console.log("  " + highlight("--static") + "        Link libaries statically (not JS)");
-    console.log("  " + highlight("--debug-js") + "      Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
+    console.log("  " + highlight("--no-chesscom") + "   Disable changes made specifically for Chess.com");
+    console.log("  " + highlight("--static") + "        Link libaries statically (not avaiable for WASM)");
+    console.log("  " + highlight("--debug-wasm") + "    Compile WASM in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
     console.log("  " + highlight("--arch") + "          Architecture to build to (default: " + note("wasm") + ")");
-    console.log(                     "                  " + note("x86-64-avx512") + " is likely the fastest binary version");
     console.log(                     "                  See " + highlight("--help-all") + " for more options, or use " + highlight("--bin") + " instead");
     console.log("  " + highlight("--basename") + "      The filename for the engine (default: " + note ("stockfish") + ")");
     console.log(                     "                  This will not only rename the files, it will also rewrite the base JS file");
     console.log(                     "                  to load the correct WASM engine");
-    console.log("  " + highlight("-b --bin") + "        Attempt to build a binary engine that is the most suitable for this system");
+    console.log("  " + highlight("--bin") + "           Attempt to build a binary engine that is the most suitable for this system");
     console.log("  " + highlight("--make") + "          Path to program used to make Stockfish (default: " + note("make") + ")");
     console.log("  " + highlight("--comp") + "          Compiler to build C code with");
     console.log("  " + highlight("--compcxx") + "       Compiler to build C++ code with");
@@ -268,14 +264,11 @@ if (params.help || params["help-all"] || params.h) {
     console.log("");
     console.log("Examples:");
     console.log("");
-    console.log("  Default: include all modifications and variants, compile to WASM");
+    console.log("  Default: include Chess.com modifications and compile to WASM");
     console.log("    ./build.js");
     console.log("");
-    console.log("  Vanilla Stockfish: no modifications, no variants, 64-bit native binary");
-    console.log("    ./build.js " + highlight("--no-chesscom") + " " + highlight("--variants=") + note("none") + " " + highlight("--arch=") + note("x86-64-avx512"));
-    console.log("");
-    console.log("  Build Chess.com engine");
-    console.log("    ./build.js " + highlight("-f") + " " + highlight("--variants") + " " +  note("crazyhouse,3check,koth"));
+    console.log("  Vanilla Stockfish: no modifications, no variants, native binary");
+    console.log("    ./build.js " + highlight("--no-chesscom") + " " + highlight("--bin"));
     console.log("");
     if (params["help-all"]) {
         console.log("");
@@ -315,11 +308,11 @@ if (!params["no-chesscom"]) {
     args.push("CHESSCOM=1");
 }
 
-if (params["debug-js"]) {
+if (params["debug-wasm"]) {
     if (buildToWASM) {
-        args.push("DEBUGJS=1");
+        args.push("DEBUGWASM=1");
     } else {
-        warn("Ignoring --debug-js");
+        warn("Ignoring --debug-wasm");
     }
 }
 

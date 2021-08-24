@@ -42,10 +42,15 @@ else
 	EM_LDFLAGS += --closure 0 --minify 0
 endif
 
-ifeq ($(assertion),yes)
-	EM_LDFLAGS += -s ASSERTIONS=1
+ifeq ($(DEBUGWASM),1)
+	EM_LDFLAGS += -s ASSERTIONS=2
+	EM_LDFLAGS += -s SAFE_HEAP=1
 else
-	EM_LDFLAGS += -s ASSERTIONS=0
+	ifeq ($(assertion),yes)
+		EM_LDFLAGS += -s ASSERTIONS=1
+	else
+		EM_LDFLAGS += -s ASSERTIONS=0
+	endif
 endif
 
 ifeq ($(wasm_simd_post_mvp),yes)
