@@ -80,7 +80,7 @@ namespace Eval {
       ss << "Downloaded eval file (" << fetch->totalBytes << " bytes)." << sync_endl;
       std::cout << ss.str();
       std::string evalFileContents((const char *) fetch->data, fetch->totalBytes);
-      const std::string evalFile = "nn-26abeed38351.nnue";
+      const std::string evalFile = std::string(Options["EvalFile"]);
       evalFileLoaded = NNUE::load_eval_file(evalFile, evalFileContents);
       std::stringstream ss2;
       ss2 << "Load eval file success: " << evalFileLoaded << sync_endl;
@@ -110,7 +110,7 @@ namespace Eval {
         attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
         attr.onsuccess = download_success;
         attr.onerror = download_error;
-        emscripten_fetch(&attr, "nn-26abeed38351.nnue");
+        emscripten_fetch(&attr, string(Options["EvalFile"]).c_str());
     }
 
 //    readEmbededFile();
