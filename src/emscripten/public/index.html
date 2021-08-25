@@ -179,11 +179,29 @@ const App = () => {
     $('#output').scrollTo({ top: $('#output').scrollHeight, behavior: 'smooth' });
   };
 
-  // Make error catchable
-  const loadStockfish = async (params) => {
-    return await Stockfish(params);
+  const loadStockfish = function ()
+  {
+    var mod = {
+        locateFile: function (path)
+        {
+            if (path.indexOf(".wasm") > -1) {
+                return "stockfish.wasm";
+            } else {
+                console.error("TODO: CONCAT worker");
+                return "stockfish.worker.js";
+            }
+        }
+    };
+    Stockfish(mod).then(_stockfish => {
+      stockfish = _stockfish;
+      stockfish_state = 'READY';
+      stockfish.addMessageListener((line) => {
+        output += line + '\n';
+        m.redraw();
+      });
+    })
   };
-
+/*
   const onFinishDownload = (data) => {
     if (!data) { stockfish_state = 'FAILED'; m.redraw(); return; }
 
@@ -199,14 +217,14 @@ const App = () => {
     .catch(e => { stockfish_state = 'FAILED'; throw e; })
     .finally(() => m.redraw());
   };
-
+*/
   const oninit = () => {
-    stockfish_state = 'LOADING';
+    stockfish_state = 'READY';
   };
-
+  
   const view = () => {
     const is_ready = stockfish_state == 'READY';
-
+    //
     return m("main", [
       m("div#input", [
         m("input#command", {
@@ -227,7 +245,7 @@ const App = () => {
         ])
       ]),
       m("div#misc", [
-        m("div", ['- download: ', m(RequestProgress, { url: './stockfish.wasm', onFinishDownload })]),
+        //m("div", ['- download: ', m(RequestProgress, { url: './stockfish.wasm', onFinishDownload })]),
         m("div", `- stockfish_state: ${stockfish_state}`),
         m("div", [
           m("span", { style: 'margin-right: 5px;' }, '- tail_mode:'),
@@ -239,6 +257,8 @@ const App = () => {
       m("div#output", { onupdate: scrollOutput }, m("pre", output))
     ]);
   };
+  
+  loadStockfish();
 
   return { oninit, view };
 };
