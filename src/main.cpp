@@ -23,7 +23,9 @@
 #include "position.h"
 #include "psqt.h"
 #include "search.h"
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
 #include "syzygy/tbprobe.h"
+#endif
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"

@@ -81,6 +81,14 @@ else
 	EM_CXXFLAGS += -DNNUE_EMBEDDING_OFF
 endif
 
+ifeq ($(CHESSCOM),1)
+	# Remove tablebase code
+	TMPVAR1 := $(SRCS)
+	SRCS = $(filter-out syzygy%, $(TMPVAR1))
+	TMPVAR2 := $(OBJS)
+	OBJS = $(filter-out tbprobe%, $(TMPVAR2))
+endif
+
 EXTRACXXFLAGS += -DUSE_POPCNT $(EM_CXXFLAGS)
 EXTRALDFLAGS += $(EM_LDFLAGS)
 
@@ -96,3 +104,8 @@ emscripten_copy_files:
 	cat stockfish.worker.js emscripten/worker-postamble.js > emscripten/public/stockfish.worker.js
 
 emscripten_build: build emscripten_copy_files
+#emscripten_build:
+#	@echo ""
+#	@echo $(OBJS)
+#	@echo ""
+#	@echo $(SRCS)

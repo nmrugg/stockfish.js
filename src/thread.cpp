@@ -23,7 +23,9 @@
 #include "search.h"
 #include "thread.h"
 #include "uci.h"
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
 #include "syzygy/tbprobe.h"
+#endif
 #include "tt.h"
 
 namespace Stockfish {
@@ -185,8 +187,10 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
           || std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
           rootMoves.emplace_back(m);
 
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
   if (!rootMoves.empty())
       Tablebases::rank_root_moves(pos, rootMoves);
+#endif
 
   // After ownership transfer 'states' becomes empty, so if we stop the search
   // and call 'go' again without setting a new position states.get() == NULL.

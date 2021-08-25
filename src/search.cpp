@@ -33,7 +33,9 @@
 #include "timeman.h"
 #include "tt.h"
 #include "uci.h"
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
 #include "syzygy/tbprobe.h"
+#endif
 
 namespace Stockfish {
 
@@ -42,6 +44,7 @@ namespace Search {
   LimitsType Limits;
 }
 
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
 namespace Tablebases {
 
   int Cardinality;
@@ -51,6 +54,7 @@ namespace Tablebases {
 }
 
 namespace TB = Tablebases;
+#endif // CHESSCOM
 
 using std::string;
 using Eval::evaluate;
@@ -165,7 +169,9 @@ void Search::clear() {
   Time.availableNodes = 0;
   TT.clear();
   Threads.clear();
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
   Tablebases::init(Options["SyzygyPath"]); // Free mapped files
+#endif
 }
 
 
@@ -672,6 +678,7 @@ namespace {
             return ttValue;
     }
 
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
     // Step 5. Tablebases probe
     if (!rootNode && TB::Cardinality)
     {
@@ -723,6 +730,7 @@ namespace {
             }
         }
     }
+#endif // CHESSCOM
 
     CapturePieceToHistory& captureHistory = thisThread->captureHistory;
 
@@ -1805,7 +1813,9 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
   size_t pvIdx = pos.this_thread()->pvIdx;
   size_t multiPV = std::min((size_t)Options["MultiPV"], rootMoves.size());
   uint64_t nodesSearched = Threads.nodes_searched();
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
   uint64_t tbHits = Threads.tb_hits() + (TB::RootInTB ? rootMoves.size() : 0);
+#endif
 
   for (size_t i = 0; i < multiPV; ++i)
   {
@@ -1820,8 +1830,10 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
       if (v == -VALUE_INFINITE)
           v = VALUE_ZERO;
 
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
       bool tb = TB::RootInTB && abs(v) < VALUE_MATE_IN_MAX_PLY;
       v = tb ? rootMoves[i].tbScore : v;
+#endif
 
       if (ss.rdbuf()->in_avail()) // Not at first line
           ss << "\n";
@@ -1835,7 +1847,11 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
       if (Options["UCI_ShowWDL"])
           ss << UCI::wdl(v, pos.game_ply());
 
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
       if (!tb && i == pvIdx)
+#else
+      if (i == pvIdx)
+#endif
           ss << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
 
       ss << " nodes "    << nodesSearched
@@ -1844,7 +1860,11 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
       if (elapsed > 1000) // Earlier makes little sense
           ss << " hashfull " << TT.hashfull();
 
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
       ss << " tbhits "   << tbHits
+#else
+      ss
+#endif
          << " time "     << elapsed
          << " pv";
 
@@ -1887,6 +1907,7 @@ bool RootMove::extract_ponder_from_tt(Position& pos) {
     return pv.size() > 1;
 }
 
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
 void Tablebases::rank_root_moves(Position& pos, Search::RootMoves& rootMoves) {
 
     RootInTB = false;
@@ -1933,5 +1954,6 @@ void Tablebases::rank_root_moves(Position& pos, Search::RootMoves& rootMoves) {
             m.tbRank = 0;
     }
 }
+#endif // CHESSCOM
 
 } // namespace Stockfish

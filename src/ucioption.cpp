@@ -27,7 +27,9 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
 #include "syzygy/tbprobe.h"
+#endif
 
 using std::string;
 
@@ -42,7 +44,9 @@ void on_clear_hash(const Option&) { Search::clear(); }
 void on_hash_size(const Option& o) { TT.resize(size_t(o)); }
 void on_logger(const Option& o) { start_logger(o); }
 void on_threads(const Option& o) { Threads.set(size_t(o)); }
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
 void on_tb_path(const Option& o) { Tablebases::init(o); }
+#endif
 void on_use_NNUE(const Option& ) { Eval::NNUE::init(); }
 void on_eval_file(const Option& ) { Eval::NNUE::init(); }
 
@@ -75,10 +79,12 @@ void init(OptionsMap& o) {
   o["UCI_LimitStrength"]     << Option(false);
   o["UCI_Elo"]               << Option(1350, 1350, 2850);
   o["UCI_ShowWDL"]           << Option(false);
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
   o["SyzygyPath"]            << Option("<empty>", on_tb_path);
   o["SyzygyProbeDepth"]      << Option(1, 1, 100);
   o["Syzygy50MoveRule"]      << Option(true);
   o["SyzygyProbeLimit"]      << Option(7, 0, 7);
+#endif
   o["Use NNUE"]              << Option(false, on_use_NNUE);
   o["EvalFile"]              << Option(EvalFileDefaultName, on_eval_file);
 }

@@ -30,7 +30,9 @@
 #include "timeman.h"
 #include "tt.h"
 #include "uci.h"
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
 #include "syzygy/tbprobe.h"
+#endif
 
 #ifdef __EMSCRIPTEN__
 #include "emscripten/utils.h"
