@@ -428,8 +428,8 @@ if (false && buildToWASM) {
     // /// Fix issues with locating the WASM file
     //data = data.replace(/wasmBinaryFile=/g, "wasmBinaryFile=Module.wasmBinaryFile||");
     
-    preface = preface || fs.readFileSync(p.join(__dirname, "preface.js"), "utf8");
-    postscript = postscript || fs.readFileSync(p.join(__dirname, "postscript.js"), "utf8");
+    preface = preface || fs.readFileSync(p.join(__dirname, "src", "emscripten", "preface.js"), "utf8");
+    postscript = postscript || fs.readFileSync(p.join(__dirname, "src", "emscripten", "postscript.js"), "utf8");
     if (data.indexOf(preface) !== 0) {
         data = preface + data;
     }

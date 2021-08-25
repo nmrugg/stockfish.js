@@ -8,7 +8,7 @@ bits = 64
 # Build options
 wasm_simd = no
 wasm_simd_post_mvp = no
-minify_js = yes
+minify_js = no
 assertion = no
 embedded_nnue = yes
 
@@ -50,7 +50,7 @@ else
 	EM_LDFLAGS += -s FETCH=1
 endif
 
-ifeq ($(minify_js),yes)
+ifeq ($(MINIFYJS),yes)
 	EM_LDFLAGS += --closure 1
 else
 	EM_LDFLAGS += --closure 0 --minify 0
