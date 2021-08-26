@@ -53,6 +53,7 @@ namespace Eval {
     
 #if defined(CHESSCOM) && defined(__EMSCRIPTEN__)
     bool load_eval_file(const std::string& evalFile, const std::string &evalFileContents);
+    bool isLoading();
 #else
     bool load_eval(std::string name, std::istream& stream);
     bool save_eval(std::ostream& stream);

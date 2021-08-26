@@ -262,6 +262,13 @@ void UCI::loop(int argc, char* argv[]) {
             cmd = "quit";
       #endif
 
+#if defined(CHESSCOM) && defined(__EMSCRIPTEN__)
+        // If the network file is downloading, wait.
+        if (Eval::NNUE::isLoading()) {
+            continue;
+        }
+#endif
+
       istringstream is(cmd);
 
       token.clear(); // Avoid a stale if getline() returns empty or blank line

@@ -82,6 +82,7 @@ namespace Eval {
       std::string evalFileContents((const char *) fetch->data, fetch->totalBytes);
       const std::string evalFile = std::string(Options["EvalFile"]);
       evalFileLoaded = NNUE::load_eval_file(evalFile, evalFileContents);
+      evalFileLoading = false;
       std::stringstream ss2;
       ss2 << "Load eval file success: " << evalFileLoaded << sync_endl;
       std::cout << ss2.str();
@@ -131,6 +132,10 @@ namespace Eval {
     else
         ss << "info string classical evaluation enabled." << sync_endl;
     std::cout << ss.str();
+  }
+  
+  bool NNUE::isLoading() {
+    return evalFileLoading;
   }
 #else // CHESSCOM
   bool useNNUE;
