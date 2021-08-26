@@ -187,7 +187,7 @@ const App = () => {
             if (path.indexOf(".wasm") > -1) {
                 return "stockfish.wasm";
             } else {
-                return "stockfish.js#worker";
+                return "stockfish.js#stockfish.wasm,worker";
                 //console.error("TODO: CONCAT worker");
                 //return "stockfish.worker.js";
                 

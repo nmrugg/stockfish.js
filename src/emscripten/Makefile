@@ -8,7 +8,7 @@ bits = 64
 # Build options
 wasm_simd = no
 wasm_simd_post_mvp = no
-minify_js = no
+minify_js = yes
 assertion = no
 embedded_nnue = yes
 
@@ -19,7 +19,9 @@ ifeq ($(CHESSCOM),1)
 	CXXFLAGS += -DCHESSCOM
 	EM_CXXFLAGS +=
 	EM_LDFLAGS += \
-		--pre-js emscripten/preamble.js \
+		--pre-js emscripten/pre.js \
+		--extern-pre-js emscripten/extern-pre.js \
+		--extern-post-js emscripten/extern-post.js \
 		-s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s ENVIRONMENT=web,worker,node \
 		-s STRICT=1 \
 		-s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=["emscripten_utils_getline_impl"]' \
@@ -50,21 +52,26 @@ else
 	EM_LDFLAGS += -s FETCH=1
 endif
 
-ifeq ($(MINIFYJS),yes)
-	EM_LDFLAGS += --closure 1
-else
-	EM_LDFLAGS += --closure 0 --minify 0
+ifeq ($(NOJSMINIFY),yes)
+	minify_js = no
 endif
 
 ifeq ($(DEBUGWASM),1)
 	EM_LDFLAGS += -s ASSERTIONS=2
 	EM_LDFLAGS += -s SAFE_HEAP=1
+	minify_js = no
+endif
+
+ifeq ($(minify_js),yes)
+	EM_LDFLAGS += --closure 1
 else
-	ifeq ($(assertion),yes)
-		EM_LDFLAGS += -s ASSERTIONS=1
-	else
-		EM_LDFLAGS += -s ASSERTIONS=0
-	endif
+	EM_LDFLAGS += --closure 0 --minify 0
+endif
+
+ifeq ($(assertion),yes)
+	EM_LDFLAGS += -s ASSERTIONS=1
+else
+	EM_LDFLAGS += -s ASSERTIONS=0
 endif
 
 ifeq ($(wasm_simd_post_mvp),yes)

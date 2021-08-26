@@ -6,10 +6,10 @@
 
 var runSpawnSync = require("child_process").spawnSync;
 var runExecFileSync = require("child_process").execFileSync;
-var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "bin", "colors", "no-color", "no-embed-worker", "-v", "--verbose"]});
-//var args = ["build", "-j", require("os").cpus().length];
+var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "bin", "colors", "no-color", "no-embed-worker", "no-minify", "-v", "--verbose"]});
+var args = ["build", "-j", require("os").cpus().length];
 //var args = ["-j", require("os").cpus().length];
-var args = []; ///NOTE: Can't use multi-threading with emscripten_copy_files
+//var args = []; ///NOTE: Can't use multi-threading with emscripten_copy_files
 var fs = require("fs");
 var p = require("path");
 var stockfishPath = p.join(__dirname, "src", "stockfish");
@@ -244,6 +244,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log("  " + highlight("--no-chesscom") + "   Disable changes made specifically for Chess.com");
     console.log("  " + highlight("--static") + "        Link libaries statically (not avaiable for WASM)");
     console.log("  " + highlight("--debug-wasm") + "    Compile WASM in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
+    console.log("  " + highlight("--no-minify") + "     This will disable closure compiler of JS code");
     console.log("  " + highlight("--arch") + "          Architecture to build to (default: " + note("wasm") + ")");
     console.log(                     "                  See " + highlight("--help-all") + " for more options, or use " + highlight("--bin") + " instead");
     console.log("  " + highlight("--basename") + "      The filename for the engine (default: " + note ("stockfish") + ")");
@@ -308,6 +309,11 @@ if (!params["no-chesscom"]) {
     args.push("CHESSCOM=1");
 }
 
+
+if (params["no-minify"]) {
+    args.push("NOJSMINIFY=yes");
+}
+
 if (params["debug-wasm"]) {
     if (buildToWASM) {
         args.push("DEBUGWASM=1");
@@ -352,12 +358,12 @@ if (String(params.version).toLowerCase() !== "date") {
 }
 
 if (buildToWASM) {
-    //child = spawnSync(params.make, ["-C", "..", "wasm_simd_post_mvp=yes"].concat(args), {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src", "emscripten")});
-    ///TODO: Just do "build"
-    child = spawnSync(params.make, ["-C", "..", "emscripten_build", "wasm_simd_post_mvp=yes"].concat(args), {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src", "emscripten")});
+    child = spawnSync(params.make, ["-C", "..", "wasm_simd_post_mvp=yes"].concat(args), {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src", "emscripten")});
+    // ///TODO: Just do "build"
+    //child = spawnSync(params.make, ["-C", "..", "emscripten_build", "wasm_simd_post_mvp=yes"].concat(args), {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src", "emscripten")});
 } else {
-    //child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
-    child = spawnSync(params.make, ["build"].concat(args), {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
+    child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
+    //child = spawnSync(params.make, ["build"].concat(args), {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
 }
 
 /// Reset version string.
@@ -375,6 +381,27 @@ if (!buildToWASM && params.basename) {
 }
 
 
+if (buildToWASM) {
+    data = fs.readFileSync(stockfishWASMLoaderPath, "utf8");
+    workerData = fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim();
+    try {
+        fs.unlinkSync(stockfishWorkerThreadPath);
+    } catch (e) {};
+    /// Append the hacky custom post message code for the asyncify.
+    workerData += "\n" + fs.readFileSync(p.join(__dirname, "src", "emscripten", "worker-postamble.js"), "utf8").trim();
+    /// Run the init function instead of using emscripten's ugly importScripts hack.
+    ///NOTE: Could remove other ugly hacks.
+    workerData = workerData.replace(/if\s*\([^)]+urlOrBlob.*?else\s*\{[^}]+\}/, "Stockfish=INIT_ENGINE();");
+    data = data.replace("/// Insert worker here", workerData).trim();
+    fs.writeFileSync(stockfishWASMLoaderPath, data);
+    
+    if (params.basename) {
+        fs.renameSync(stockfishWASMLoaderPath, p.join(__dirname, "src", params.basename + ".js"));
+        fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
+    }
+}
+
+///OLD
 if (false && buildToWASM) {
     data = fs.readFileSync(stockfishWASMLoaderPath, "utf8");
     
