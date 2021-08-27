@@ -76,20 +76,16 @@ namespace Eval {
   bool evalFileLoading;
 
   void download_success(emscripten_fetch_t *fetch) {
-      std::stringstream ss;
-      ss << "Downloaded eval file (" << fetch->totalBytes << " bytes)." << sync_endl;
-      std::cout << ss.str();
+      //sync_cout << "Downloaded eval file (" << fetch->totalBytes << " bytes)." << sync_endl;
       std::string evalFileContents((const char *) fetch->data, fetch->totalBytes);
       const std::string evalFile = std::string(Options["EvalFile"]);
       evalFileLoaded = NNUE::load_eval_file(evalFile, evalFileContents);
       evalFileLoading = false;
-      std::stringstream ss2;
-      ss2 << "Load eval file success: " << evalFileLoaded << sync_endl;
-      std::cout << ss2.str();
+      sync_cout << "Load eval file success: " << evalFileLoaded << sync_endl;
   }
 
   void download_error(emscripten_fetch_t *fetch) {
-      std::cerr << "Failed to download eval file." << std::endl;
+      cerr << "Failed to download eval file." << endl;
       emscripten_fetch_close(fetch);
       evalFileLoading = false;
   }
@@ -121,17 +117,16 @@ namespace Eval {
 
   void NNUE::verify() {
 
-    if (useNNUE && !evalFileLoaded)
-    {
-        std::cerr << "NNUE evaluation used, but the network file was not loaded successfully." << std::endl;
+    if (useNNUE && !evalFileLoaded) {
+        cerr << "NNUE evaluation used, but the network file was not loaded successfully." << endl;
         std::exit(EXIT_FAILURE);
     }
-    std::stringstream ss;
-    if (useNNUE)
-        ss << "info string NNUE evaluation enabled." << sync_endl;
-    else
-        ss << "info string classical evaluation enabled." << sync_endl;
-    std::cout << ss.str();
+
+    if (useNNUE) {
+        sync_cout << "info string NNUE evaluation enabled." << sync_endl;
+    } else {
+        sync_cout << "info string classical evaluation enabled." << sync_endl;
+    }
   }
   
   bool NNUE::isLoading() {
