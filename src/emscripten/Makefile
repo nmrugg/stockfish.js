@@ -17,6 +17,7 @@ VPATH := $(VPATH):emscripten
 
 ifeq ($(CHESSCOM),1)
 	CXXFLAGS += -DCHESSCOM
+	CXXFLAGS += -D__EMSCRIPTEN_PTHREADS__
 	EM_CXXFLAGS +=
 	EM_LDFLAGS += \
 		--pre-js emscripten/pre.js \
