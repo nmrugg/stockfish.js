@@ -32,9 +32,29 @@ class Queue {
 Module["queue"] = new Queue();
 
 Module["onCustomMessage"] = (data) => {
-  Module["queue"].put(data);
+    if (!queuePaused) {
+        Module["queue"].put(data);
+    } else {
+        waitingQueue.push(data);
+    }
 };
 
+var queuePaused;
+var waitingQueue = [];
+Module["pauseQueue"] = function ()
+{
+    queuePaused = true;
+}
+Module["unpauseQueue"] = function ()
+{
+    var oldQueue = waitingQueue;
+    waitingQueue = [];
+    queuePaused = false;
+    oldQueue.forEach(function (data)
+    {
+        Module["queue"].put(data);
+    });
+}
 //
 // API
 //

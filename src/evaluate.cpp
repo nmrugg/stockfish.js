@@ -39,6 +39,7 @@
 
 ///TODO: check NNUE_EMBEDDING_OFF
 #if defined(CHESSCOM) && defined(__EMSCRIPTEN__)
+    #include <emscripten.h>
     #include <emscripten/fetch.h>
 #else
 
@@ -74,6 +75,15 @@ namespace Eval {
   bool useNNUE;
   bool evalFileLoaded;
   bool evalFileLoading;
+  
+
+EM_JS(void, pauseQueue, (), {
+    Module["pauseQueue"]();
+});
+EM_JS(void, unpauseQueue, (), {
+    Module["unpauseQueue"]();
+});
+
 
   void download_success(emscripten_fetch_t *fetch) {
       //sync_cout << "Downloaded eval file (" << fetch->totalBytes << " bytes)." << sync_endl;
@@ -82,14 +92,15 @@ namespace Eval {
       evalFileLoaded = NNUE::load_eval_file(evalFile, evalFileContents);
       evalFileLoading = false;
       sync_cout << "Load eval file success: " << evalFileLoaded << sync_endl;
+      unpauseQueue();
   }
 
   void download_error(emscripten_fetch_t *fetch) {
       cerr << "Failed to download eval file." << endl;
       emscripten_fetch_close(fetch);
       evalFileLoading = false;
+      unpauseQueue();
   }
-
 
   void NNUE::init() {
 
@@ -100,6 +111,7 @@ namespace Eval {
 
     if (!evalFileLoading) {
         evalFileLoading = true;
+        pauseQueue();
 
         emscripten_fetch_attr_t attr;
         emscripten_fetch_attr_init(&attr);
