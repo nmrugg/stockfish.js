@@ -35,7 +35,7 @@ namespace Eval {
 
   extern bool useNNUE;
 #if !defined(CHESSCOM) || !defined(__EMSCRIPTEN__)
-  extern std::string eval_file_loaded;
+  extern std::string currentEvalFileName;
 #endif
 
   // The default net name MUST follow the format nn-[SHA256 first 12 digits].nnue
