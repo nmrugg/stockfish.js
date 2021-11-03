@@ -25,7 +25,13 @@
 #include <algorithm>
 #include <type_traits>
 #include "../nnue_common.h"
+
+
+#if defined(USE_WASM_SIMD)
+#include "../../emscripten/wasm_simd.h"
+#else
 #include "../../simd.h"
+#endif
 
 /*
   This file contains the definition for a fully connected layer (aka affine transform).
@@ -268,11 +274,10 @@ namespace Stockfish::Eval::NNUE::Layers {
       const auto input = previousLayer.propagate(
         transformedFeatures, buffer + SelfBufferSize);
       OutputType* output = reinterpret_cast<OutputType*>(buffer);
-/*
+
 #if defined(USE_WASM_SIMD)
       {
         // Simplify variable names (y = Ax + b)
-        static_assert(InputDimensions % 16 == 0);
         constexpr int n = InputDimensions;
         constexpr int m = OutputDimensions;
         constexpr int n_stride = PaddedInputDimensions;
@@ -284,7 +289,7 @@ namespace Stockfish::Eval::NNUE::Layers {
         return y;
       }
 #endif
-*/
+
 #if defined (USE_AVX512)
       using vec_t = __m512i;
       #define vec_setzero _mm512_setzero_si512
