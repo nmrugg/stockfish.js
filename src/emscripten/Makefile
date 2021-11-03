@@ -6,8 +6,8 @@ arch = wasm
 bits = 64
 
 # Build options
-wasm_simd = no
-wasm_simd_post_mvp = no
+wasm_simd = yes
+wasm_simd_post_mvp = yes
 minify_js = yes
 assertion = no
 embedded_nnue = yes
@@ -58,7 +58,7 @@ ifeq ($(NOJSMINIFY),yes)
 endif
 
 #HACK
-EM_LDFLAGS += -s ERROR_ON_UNDEFINED_SYMBOLS=0
+#EM_LDFLAGS += -s ERROR_ON_UNDEFINED_SYMBOLS=0
 
 ifeq ($(DEBUGWASM),1)
 	EM_LDFLAGS += -s ASSERTIONS=2
