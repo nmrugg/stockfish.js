@@ -144,7 +144,7 @@ EM_JS(void, unpauseQueue, (), {
   bool NNUE::isLoading() {
     return evalFileLoading;
   }
-#else // CHESSCOM
+#else // end of CHESSCOM
   bool useNNUE;
   string currentEvalFileName = "None";
 
