@@ -208,6 +208,19 @@ function execFileSync(command, args, options)
     return runExecFileSync(command, args, options);
 }
 
+function addNNSymLink()
+{
+    /// Adds NN symlink for testing code to use, if it doesn't exist already.
+    try {
+        var path = fs.readFileSync(p.join(__dirname, "src", "evaluate.h"), "utf8").match(/EvalFileDefaultName\s+["']([^"']+)/)[1];
+        execFileSync("ln", ["-s", "../../" + path], {cwd: p.join(__dirname, "src", "emscripten", "public"), stdio: "pipe"});
+    } catch (e) {
+        if (!e.message || e.message.indexOf("File exists") === -1) {
+            console.error("Creating symlink failed");
+            console.error(e);
+        }
+    }
+}
 
 if (!params.make) {
     params.make = "make";
@@ -400,6 +413,7 @@ if (buildToWASM) {
         fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
     }
     
+    addNNSymLink();
 }
 
 beep();
