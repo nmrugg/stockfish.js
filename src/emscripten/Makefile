@@ -6,7 +6,7 @@ arch = wasm
 bits = 64
 
 # Build options
-wasm_simd = yes
+wasm_simd = no
 wasm_simd_post_mvp = yes
 minify_js = yes
 assertion = no
@@ -57,9 +57,6 @@ ifeq ($(NOJSMINIFY),yes)
 	minify_js = no
 endif
 
-#HACK
-#EM_LDFLAGS += -s ERROR_ON_UNDEFINED_SYMBOLS=0
-
 ifeq ($(DEBUGWASM),1)
 	EM_LDFLAGS += -s ASSERTIONS=2
 	EM_LDFLAGS += -s SAFE_HEAP=1
@@ -81,6 +78,10 @@ endif
 ifeq ($(wasm_simd_post_mvp),yes)
 	EM_CXXFLAGS += -DUSE_WASM_SIMD -DUSE_WASM_SIMD_POST_MVP -msimd128
 	SRCS += emscripten/wasm_simd.cpp
+	sse = yes
+	sse2 = yes
+	ssse3 = yes
+	sse41 = yes
 else ifeq ($(wasm_simd),yes)
 	EM_CXXFLAGS += -DUSE_WASM_SIMD -msimd128
 	SRCS += emscripten/wasm_simd.cpp
