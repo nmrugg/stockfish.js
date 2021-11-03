@@ -57,6 +57,9 @@ ifeq ($(NOJSMINIFY),yes)
 	minify_js = no
 endif
 
+#HACK
+EM_LDFLAGS += -s ERROR_ON_UNDEFINED_SYMBOLS=0
+
 ifeq ($(DEBUGWASM),1)
 	EM_LDFLAGS += -s ASSERTIONS=2
 	EM_LDFLAGS += -s SAFE_HEAP=1
