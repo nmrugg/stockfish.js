@@ -37,6 +37,7 @@
 #elif defined(USE_NEON)
 # include <arm_neon.h>
 
+#endif
 
 // The inline asm is only safe for GCC, where it is necessary to get good codegen.
 // See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=101693
