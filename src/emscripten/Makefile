@@ -80,7 +80,7 @@ ifeq ($(wasm_simd_post_mvp),yes)
 	SRCS += emscripten/wasm_simd.cpp
 	sse = yes
 	sse2 = yes
-	#ssse3 = yes
+	ssse3 = yes
 	sse41 = yes
 else ifeq ($(wasm_simd),yes)
 	EM_CXXFLAGS += -DUSE_WASM_SIMD -msimd128

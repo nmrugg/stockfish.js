@@ -27,10 +27,12 @@
 #include "../nnue_common.h"
 
 
+#include "../../simd.h"
 #if defined(USE_WASM_SIMD)
 #include "../../emscripten/wasm_simd.h"
+#include "wasm_simd128.h"
 #else
-#include "../../simd.h"
+// #include "../../simd.h"
 #endif
 
 /*
@@ -181,6 +183,9 @@ namespace Stockfish::Eval::NNUE::Layers {
 #if defined (USE_AVX512)
     static constexpr const IndexType InputSimdWidth = 64;
     static constexpr const IndexType MaxNumOutputRegs = 16;
+#elif defined(USE_WASM_SIMD)
+    static constexpr const IndexType InputSimdWidth = 1;
+    static constexpr const IndexType MaxNumOutputRegs = 1;
 #elif defined (USE_AVX2)
     static constexpr const IndexType InputSimdWidth = 32;
     static constexpr const IndexType MaxNumOutputRegs = 8;
