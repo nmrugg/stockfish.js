@@ -404,7 +404,7 @@ if (buildToWASM) {
     workerData += "\n" + fs.readFileSync(p.join(__dirname, "src", "emscripten", "worker-postamble.js"), "utf8").trim();
     /// Run the init function instead of using emscripten's ugly importScripts hack.
     ///NOTE: Could remove other ugly hacks.
-    workerData = workerData.replace(/if\s*\([^)]+urlOrBlob.*?else\s*\{[^}]+\}/, "Stockfish=INIT_ENGINE();");
+    workerData = workerData.replace(/if\s*\([^)]+urlOrBlob[\s\S]*?else\s*\{[^}]+\}/, "Stockfish=INIT_ENGINE();");
     data = data.replace("/// Insert worker here", workerData).trim();
     fs.writeFileSync(stockfishWASMLoaderPath, data);
     
