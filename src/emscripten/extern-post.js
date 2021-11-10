@@ -33,9 +33,11 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                 }
             };
             Stockfish = INIT_ENGINE();
-            Stockfish(mod).then(sf => {
+            Stockfish(mod).then(function onCreate(sf)
+            {
                 myEngine = sf;
-                sf.addMessageListener((line) => {
+                sf.addMessageListener(function onMessage(line)
+                {
                     postMessage(line);
                 });
                 
@@ -46,6 +48,13 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                     });
                 }
                 queue = null;
+            }).catch(function (e)
+            {
+                /// Sadly, Web Workers will not trigger the error event when errors occur in promises, so we need to create a new context and throw an error there.
+                setTimeout(function throwError()
+                {
+                    throw e;
+                }, 1);
             });
             
             /// Make sure that this is only added once.
