@@ -154,8 +154,152 @@ onmessage = self.onmessage = new_onmessage;
         var args;
         var wasmPath;
         
-        ///TODO: Node.js support
-        if (!isNode) {
+        function completer(line)
+        {
+            var completions = [
+                "compiler",
+                "d",
+                "eval",
+                "exit",
+                "flip",
+                "go ",
+                "isready ",
+                "ponderhit ",
+                "position fen ",
+                "position startpos",
+                "position startpos moves",
+                "quit",
+                "setoption name Clear Hash value true",
+                "setoption name Contempt value ",
+                "setoption name Hash value ",
+                "setoption name Minimum Thinking Time value ",
+                "setoption name Move Overhead value ",
+                "setoption name MultiPV value ",
+                "setoption name Ponder value ",
+                //"setoption name Skill Level Maximum Error value ",
+                //"setoption name Skill Level Probability value ",
+                "setoption name Skill Level value ",
+                "setoption name Slow Mover value ",
+                "setoption name Threads value ",
+                "setoption name UCI_Chess960 value false",
+                "setoption name UCI_Chess960 value true",
+                "setoption name UCI_AnalyseMode value true",
+                "setoption name UCI_AnalyseMode value false",
+                "setoption name UCI_LimitStrength value true",
+                "setoption name UCI_LimitStrength value false",
+                "setoption name UCI_Elo value ",
+                "setoption name UCI_ShowWDL value true",
+                "setoption name UCI_ShowWDL value false",
+                "setoption name Use NNUE value true",
+                "setoption name Use NNUE value false",
+                "setoption name nodestime value ",
+                "setoption name EvalFile value ",
+                "stop",
+                "uci",
+                "ucinewgame"
+            ];
+            var completionsMid = [
+                "binc ",
+                "btime ",
+                "confidence ",
+                "depth ",
+                "infinite ",
+                "mate ",
+                "maxdepth ",
+                "maxtime ",
+                "mindepth ",
+                "mintime ",
+                "moves ", /// for position fen ... moves
+                "movestogo ",
+                "movetime ",
+                "ponder ",
+                "searchmoves ",
+                "shallow ",
+                "winc ",
+                "wtime "
+            ];
+            
+            function filter(c)
+            {
+                return c.indexOf(line) === 0;
+            }
+            
+            /// This looks for completions starting at the very beginning of the line.
+            /// If the user has typed nothing, it will match everything.
+            var hits = completions.filter(filter);
+            
+            if (!hits.length) {
+                /// Just get the last word.
+                line = line.replace(/^.*\s/, "");
+                if (line) {
+                    /// Find completion mid line too.
+                    hits = completionsMid.filter(filter);
+                } else {
+                    /// If no word has been typed, show all options.
+                    hits = completionsMid;
+                }
+            }
+            
+            return [hits, line];
+        }
+        
+        if (isNode) {
+            /// Was it called directly?
+            if (require.main === module) {
+                wasmPath = require("path").join(__dirname, "stockfish.wasm");
+                mod = {
+                    locateFile: function (path)
+                    {
+                        if (path.indexOf(".wasm") > -1) {
+                            /// Set the path to the wasm binary.
+                            return wasmPath;
+                        } else {
+                            /// Set path to worker (self + the worker hash)
+                            return __filename;
+                        }
+                    },
+                    print: console.log,
+                    printErr: console.error,
+                };
+                Stockfish = INIT_ENGINE();
+                Stockfish(mod).then(function (sf)
+                {
+                    myEngine = sf;
+                    sf.onmessage = function ()
+                    {
+                        console.log("sdfdsfsf")
+                    }
+                    sf.addMessageListener(function (line)
+                    {
+                        console.log(line);
+                    });
+                });
+                
+                process.stdin.on("end", function onend()
+                {
+                    process.exit();
+                });
+                
+                require("readline").createInterface({
+                    input: process.stdin,
+                    output: process.stdout,
+                    completer: completer,
+                    historySize: 100,
+                }).on("line", function online(line)
+                {
+                    if (line) {
+                        if (line === "quit" || line === "exit") {
+                            process.exit();
+                        }
+                        myEngine.postMessage(line, true);
+                    }
+                }).setPrompt("");
+                
+            /// Is this a node module?
+            } else {
+                module.exports = INIT_ENGINE;
+            }
+        } else {
             args = self.location.hash.substr(1).split(",");
             wasmPath = decodeURIComponent(args[0] || "stockfish.wasm");
             mod = {
