@@ -397,9 +397,15 @@ if (!buildToWASM && params.basename) {
 if (buildToWASM) {
     data = fs.readFileSync(stockfishWASMLoaderPath, "utf8");
     workerData = fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim();
+    
     try {
         fs.unlinkSync(stockfishWorkerThreadPath);
     } catch (e) {};
+    
+    if (params["debug-wasm"]) {
+        data = "//HACK: This build requires some hacks to run\nglobal.ENVIRONMENT_IS_FETCH_WORKER=true;global.indexedDB={open:function(){return{}}};\n" + data;
+    }
+    
     /// Append the hacky custom post message code for the asyncify.
     workerData += "\n" + fs.readFileSync(p.join(__dirname, "src", "emscripten", "worker-postamble.js"), "utf8").trim();
     /// Run the init function instead of using emscripten's ugly importScripts hack.

@@ -60,7 +60,8 @@ endif
 ifeq ($(DEBUGWASM),1)
 	EM_LDFLAGS += -s ASSERTIONS=2
 	EM_LDFLAGS += -s SAFE_HEAP=1
-	minify_js = no
+	assertion = yes
+	minify_js = yes
 endif
 
 ifeq ($(minify_js),yes)
