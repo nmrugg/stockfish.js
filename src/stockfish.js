@@ -269,6 +269,14 @@ onmessage = self.onmessage = new_onmessage;
                     {
                         console.log(line);
                     });
+                    
+                    if (queue.length) {
+                        queue.forEach(function (line)
+                        {
+                            sf.postMessage(line, true);
+                        });
+                    }
+                    queue = null;
                 });
                 
                 require("readline").createInterface({
@@ -282,7 +290,11 @@ onmessage = self.onmessage = new_onmessage;
                         if (line === "quit" || line === "exit") {
                             process.exit();
                         }
-                        myEngine.postMessage(line, true);
+                        if (myEngine) {
+                            myEngine.postMessage(line, true);
+                        } else {
+                            queue.push(line);
+                        }
                     }
                 }).on("close", function onend()
                 {
