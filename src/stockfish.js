@@ -275,11 +275,6 @@ onmessage = self.onmessage = new_onmessage;
                     });
                 });
                 
-                process.stdin.on("end", function onend()
-                {
-                    process.exit();
-                });
-                
                 require("readline").createInterface({
                     input: process.stdin,
                     output: process.stdout,
@@ -293,6 +288,9 @@ onmessage = self.onmessage = new_onmessage;
                         }
                         myEngine.postMessage(line, true);
                     }
+                }).on("close", function onend()
+                {
+                    process.exit();
                 }).setPrompt("");
                 
             /// Is this a node module?

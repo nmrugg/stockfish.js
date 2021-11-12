@@ -132,11 +132,6 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                     });
                 });
                 
-                process.stdin.on("end", function onend()
-                {
-                    process.exit();
-                });
-                
                 require("readline").createInterface({
                     input: process.stdin,
                     output: process.stdout,
@@ -148,9 +143,11 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                         if (line === "quit" || line === "exit") {
                             process.exit();
                         }
-
                         myEngine.postMessage(line, true);
                     }
+                }).on("close", function onend()
+                {
+                    process.exit();
                 }).setPrompt("");
                 
             /// Is this a node module?
