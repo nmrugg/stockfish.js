@@ -106,7 +106,7 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
         }
         
         if (isNode) {
-            /// v14+ needs --experimental-wasm-threads --experimental-wasm-simd
+            ///NOTE: Node.js v14+ needs --experimental-wasm-threads --experimental-wasm-simd
             /// Was it called directly?
             if (require.main === module) {
                 wasmPath = require("path").join(__dirname, "stockfish.wasm");
@@ -121,17 +121,11 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                             return __filename;
                         }
                     },
-                    print: console.log,
-                    printErr: console.error,
                 };
                 Stockfish = INIT_ENGINE();
                 Stockfish(mod).then(function (sf)
                 {
                     myEngine = sf;
-                    sf.onmessage = function ()
-                    {
-                        console.log("sdfdsfsf")
-                    }
                     sf.addMessageListener(function (line)
                     {
                         console.log(line);

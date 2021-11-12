@@ -1,3 +1,35 @@
+/// XMLHttpRequest polyfill for Node.js.
+if (typeof XMLHttpRequest === "undefined") {
+    global["XMLHttpRequest"] = function (a)
+    {
+        var url
+        var xhr = {
+            open: function (method, _url)
+            {
+                url = _url;
+            },
+            send: function ()
+            {
+                require("fs").readFile(url, function (err, data)
+                {
+                    xhr.readyState = 4; /// DONE
+                    if (err) {
+                        console.error(err);
+                        xhr.status = 404;
+                        xhr.onerror(err);
+                    } else {
+                        xhr.status = 200;
+                        xhr.response = data;
+                        xhr.onreadystatechange();
+                        xhr.onload();
+                    }
+                });
+            }
+        };
+        return xhr;
+    }
+}
+
 //
 // Post custom message to all workers (including main worker)
 //
