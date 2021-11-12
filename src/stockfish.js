@@ -24,9 +24,10 @@ function(Stockfish) {
   Stockfish = Stockfish || {};
 
 
-null;var d;d||(d=typeof Stockfish !== 'undefined' ? Stockfish : {});var aa,ba;d.ready=new Promise(function(a,b){aa=a;ba=b});d.postCustomMessage=function(a){for(var b of l.ya)b.postMessage({cmd:"custom",userData:a})};d.queue=function(){var a=[],b;return{get:async function(){return 0<a.length?a.shift():await new Promise(function(c){return b=c})},put:function(c){b?(b(c),b=null):a.push(c)}}}();d.onCustomMessage=function(a){ca?da.push(a):d.queue.put(a)};var ca,da=[];
-d.pauseQueue=function(){ca=!0};d.unpauseQueue=function(){var a=da;da=[];ca=!1;a.forEach(function(b){d.queue.put(b)})};d.postMessage=d.postCustomMessage;var ea=[];d.addMessageListener=function(a){ea.push(a)};d.removeMessageListener=function(a){a=ea.indexOf(a);0<=a&&ea.splice(a,1)};d.print=d.printErr=function(a){if(0===ea.length)return console.log(a);for(var b of ea)b(a)};d.terminate=function(){l.Ra()};var fa={},m;for(m in d)d.hasOwnProperty(m)&&(fa[m]=d[m]);var ha=[],ia="./this.program";
-function ja(a,b){throw b;}var ka="object"===typeof window,n="function"===typeof importScripts,q="object"===typeof process&&"object"===typeof process.versions&&"string"===typeof process.versions.node,z=d.ENVIRONMENT_IS_PTHREAD||!1,A="";function la(a){return d.locateFile?d.locateFile(a,A):A+a}var ma,na,oa,pa;
+null;var d;d||(d=typeof Stockfish !== 'undefined' ? Stockfish : {});var aa,ba;d.ready=new Promise(function(a,b){aa=a;ba=b});"undefined"===typeof XMLHttpRequest&&(global.XMLHttpRequest=function(){var a,b={open:function(c,e){a=e},send:function(){require("fs").readFile(a,function(c,e){b.readyState=4;c?(console.error(c),b.status=404,b.onerror(c)):(b.status=200,b.response=e,b.onreadystatechange(),b.onload())})}};return b});
+d.postCustomMessage=function(a){for(var b of l.ya)b.postMessage({cmd:"custom",userData:a})};d.queue=function(){var a=[],b;return{get:async function(){return 0<a.length?a.shift():await new Promise(function(c){return b=c})},put:function(c){b?(b(c),b=null):a.push(c)}}}();d.onCustomMessage=function(a){ca?da.push(a):d.queue.put(a)};var ca,da=[];d.pauseQueue=function(){ca=!0};d.unpauseQueue=function(){var a=da;da=[];ca=!1;a.forEach(function(b){d.queue.put(b)})};d.postMessage=d.postCustomMessage;
+var ea=[];d.addMessageListener=function(a){ea.push(a)};d.removeMessageListener=function(a){a=ea.indexOf(a);0<=a&&ea.splice(a,1)};d.print=d.printErr=function(a){if(0===ea.length)return console.log(a);for(var b of ea)b(a)};d.terminate=function(){l.Ra()};var fa={},m;for(m in d)d.hasOwnProperty(m)&&(fa[m]=d[m]);var ha=[],ia="./this.program";function ja(a,b){throw b;}
+var ka="object"===typeof window,n="function"===typeof importScripts,q="object"===typeof process&&"object"===typeof process.versions&&"string"===typeof process.versions.node,z=d.ENVIRONMENT_IS_PTHREAD||!1,A="";function la(a){return d.locateFile?d.locateFile(a,A):A+a}var ma,na,oa,pa;
 if(q){A=n?require("path").dirname(A)+"/":__dirname+"/";ma=function(a,b){oa||(oa=require("fs"));pa||(pa=require("path"));a=pa.normalize(a);return oa.readFileSync(a,b?null:"utf8")};na=function(a){a=ma(a,!0);a.buffer||(a=new Uint8Array(a));assert(a.buffer);return a};1<process.argv.length&&(ia=process.argv[1].replace(/\\/g,"/"));ha=process.argv.slice(2);process.on("uncaughtException",function(a){if(!(a instanceof qa))throw a;});process.on("unhandledRejection",B);ja=function(a,b){if(ra())throw process.exitCode=
 a,b;process.exit(a)};d.inspect=function(){return"[Emscripten Module object]"};var sa;try{sa=require("worker_threads")}catch(a){throw console.error('The "worker_threads" module is not supported in this node.js build - perhaps a newer version is needed?'),a;}global.Worker=sa.Worker}else if(ka||n)n?A=self.location.href:"undefined"!==typeof document&&document.currentScript&&(A=document.currentScript.src),_scriptDir&&(A=_scriptDir),0!==A.indexOf("blob:")?A=A.substr(0,A.lastIndexOf("/")+1):A="",q?(ma=function(a,
 b){oa||(oa=require("fs"));pa||(pa=require("path"));a=pa.normalize(a);return oa.readFileSync(a,b?null:"utf8")},na=function(a){a=ma(a,!0);a.buffer||(a=new Uint8Array(a));assert(a.buffer);return a}):(ma=function(a){var b=new XMLHttpRequest;b.open("GET",a,!1);b.send(null);return b.responseText},n&&(na=function(a){var b=new XMLHttpRequest;b.open("GET",a,!1);b.responseType="arraybuffer";b.send(null);return new Uint8Array(b.response)}));q&&"undefined"===typeof performance&&(global.performance=require("perf_hooks").performance);
@@ -244,6 +245,7 @@ onmessage = self.onmessage = new_onmessage;
         }
         
         if (isNode) {
+            ///NOTE: Node.js v14+ needs --experimental-wasm-threads --experimental-wasm-simd
             /// Was it called directly?
             if (require.main === module) {
                 wasmPath = require("path").join(__dirname, "stockfish.wasm");
@@ -258,17 +260,11 @@ onmessage = self.onmessage = new_onmessage;
                             return __filename;
                         }
                     },
-                    print: console.log,
-                    printErr: console.error,
                 };
                 Stockfish = INIT_ENGINE();
                 Stockfish(mod).then(function (sf)
                 {
                     myEngine = sf;
-                    sf.onmessage = function ()
-                    {
-                        console.log("sdfdsfsf")
-                    }
                     sf.addMessageListener(function (line)
                     {
                         console.log(line);
