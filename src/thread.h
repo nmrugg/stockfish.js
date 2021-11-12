@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "search.h"
 #include "thread_win32_osx.h"
 
+namespace Stockfish {
 
 /// Thread class keeps together all the thread-related stuff. We use
 /// per-thread pawn and material hash tables so that once we get a
@@ -54,7 +55,7 @@ public:
   void idle_loop();
   void start_searching();
   void wait_for_search_finished();
-  int best_move_count(Move move) const;
+  size_t id() const { return idx; }
 
   Pawns::Table pawnsTable;
   Material::Table materialTable;
@@ -62,8 +63,7 @@ public:
   uint64_t ttHitAverage;
   int selDepth, nmpMinPly;
   Color nmpColor;
-  std::atomic_bool threadStarted;
-  std::atomic<uint64_t> nodes, bestMoveChanges;
+  std::atomic<uint64_t> nodes, tbHits, bestMoveChanges;
 
   Position rootPos;
   StateInfo rootState;
@@ -74,7 +74,7 @@ public:
   LowPlyHistory lowPlyHistory;
   CapturePieceToHistory captureHistory;
   ContinuationHistory continuationHistory[2][2];
-  Score contempt;
+  Score trend;
 };
 
 
@@ -108,6 +108,7 @@ struct ThreadPool : public std::vector<Thread*> {
 
   MainThread* main()        const { return static_cast<MainThread*>(front()); }
   uint64_t nodes_searched() const { return accumulate(&Thread::nodes); }
+  uint64_t tb_hits()        const { return accumulate(&Thread::tbHits); }
   Thread* get_best_thread() const;
   void start_searching();
   void wait_for_search_finished() const;
@@ -127,5 +128,7 @@ private:
 };
 
 extern ThreadPool Threads;
+
+} // namespace Stockfish
 
 #endif // #ifndef THREAD_H_INCLUDED

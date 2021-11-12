@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,13 +21,19 @@
 #include <ostream>
 #include <sstream>
 
+#include "evaluate.h"
 #include "misc.h"
 #include "search.h"
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
+#include "syzygy/tbprobe.h"
+#endif
 
 using std::string;
+
+namespace Stockfish {
 
 UCI::OptionsMap Options; // Global object
 
@@ -38,7 +44,11 @@ void on_clear_hash(const Option&) { Search::clear(); }
 void on_hash_size(const Option& o) { TT.resize(size_t(o)); }
 void on_logger(const Option& o) { start_logger(o); }
 void on_threads(const Option& o) { Threads.set(size_t(o)); }
-void on_use_NNUE(const Option& ) { Eval::init_NNUE(); }
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
+void on_tb_path(const Option& o) { Tablebases::init(o); }
+#endif
+void on_use_NNUE(const Option& ) { Eval::NNUE::init(); }
+void on_eval_file(const Option& ) { Eval::NNUE::init(); }
 
 /// Our case insensitive less() function as required by UCI protocol
 bool CaseInsensitiveLess::operator() (const string& s1, const string& s2) const {
@@ -52,13 +62,10 @@ bool CaseInsensitiveLess::operator() (const string& s1, const string& s2) const 
 
 void init(OptionsMap& o) {
 
-  // Emscripten: Limited by WASM_MAX_MEMORY.
-  constexpr int MaxHashMB = 1024;
+  constexpr int MaxHashMB = Is64Bit ? 33554432 : 2048;
 
   o["Debug Log File"]        << Option("", on_logger);
-  o["Contempt"]              << Option(24, -100, 100);
-  o["Analysis Contempt"]     << Option("Both var Off var White var Black var Both", "Both");
-  o["Threads"]               << Option(1, 1, 16, on_threads);
+  o["Threads"]               << Option(1, 1, 512, on_threads);
   o["Hash"]                  << Option(16, 1, MaxHashMB, on_hash_size);
   o["Clear Hash"]            << Option(on_clear_hash);
   o["Ponder"]                << Option(false);
@@ -72,11 +79,14 @@ void init(OptionsMap& o) {
   o["UCI_LimitStrength"]     << Option(false);
   o["UCI_Elo"]               << Option(1350, 1350, 2850);
   o["UCI_ShowWDL"]           << Option(false);
-  o["Use NNUE"]              << Option(false, on_use_NNUE);
-#ifdef CHESSCOM
-  o["Skill Level Maximum Error"] << Option(200, 0, 5000); /// In centipawns
-  o["Skill Level Probability"]   << Option(128, 1, 1000); /// 1 is most frequent.
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
+  o["SyzygyPath"]            << Option("<empty>", on_tb_path);
+  o["SyzygyProbeDepth"]      << Option(1, 1, 100);
+  o["Syzygy50MoveRule"]      << Option(true);
+  o["SyzygyProbeLimit"]      << Option(7, 0, 7);
 #endif
+  o["Use NNUE"]              << Option(false, on_use_NNUE);
+  o["EvalFile"]              << Option(EvalFileDefaultName, on_eval_file);
 }
 
 
@@ -186,3 +196,5 @@ Option& Option::operator=(const string& v) {
 }
 
 } // namespace UCI
+
+} // namespace Stockfish

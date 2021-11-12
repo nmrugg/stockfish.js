@@ -72,12 +72,11 @@ var load_engine = (function ()
         if (path.slice(-3).toLowerCase() === ".js") {
             args.push(path);
             path = process.execPath;
-            ///NOTE: Node.js v12 & v13 support WASM threads and shared memory; however, they need to be activated with command line flags.
-            ///      On versions of Node.js below v12, adding these options will cause Node.js to error.
+            ///NOTE: Node.js v14+ needs these options.
             ///      At some point in the future, the V8 engine should not need these flags anymore.
-            if (process.version.substr(1, 2) > 11) {
-                args.unshift("--experimental-wasm-bulk-memory");
+            if (process.version.substr(1, 2) >= 14) {
                 args.unshift("--experimental-wasm-threads");
+                args.unshift("--experimental-wasm-simd");
             }
         }
         engine = require("child_process").spawn(path, args, {stdio: "pipe"});

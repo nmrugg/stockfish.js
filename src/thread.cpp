@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,7 +23,12 @@
 #include "search.h"
 #include "thread.h"
 #include "uci.h"
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
+#include "syzygy/tbprobe.h"
+#endif
 #include "tt.h"
+
+namespace Stockfish {
 
 ThreadPool Threads; // Global object
 
@@ -33,17 +38,7 @@ ThreadPool Threads; // Global object
 
 Thread::Thread(size_t n) : idx(n), stdThread(&Thread::idle_loop, this) {
 
-  // (A) Upstream does wait_for_search_finished() directly here.
-  //
-  // This deadlocks with emscripten: We are waiting for the newly created
-  // thread to set the condition variable before we yield to the browser. But
-  // we need to yield to the browser to create the worker for the newly created
-  // thread.
-  //
-  // https://bugzilla.mozilla.org/show_bug.cgi?id=1049079
-  //
-  // Instead we introduced threadStarted (B) and retry uci_command with
-  // exponential backoff until all threads have started.
+  wait_for_search_finished();
 }
 
 
@@ -57,17 +52,6 @@ Thread::~Thread() {
   exit = true;
   start_searching();
   stdThread.join();
-}
-
-
-/// Thread::bestMoveCount(Move move) return best move counter for the given root move
-
-int Thread::best_move_count(Move move) const {
-
-  auto rm = std::find(rootMoves.begin() + pvIdx,
-                      rootMoves.begin() + pvLast, move);
-
-  return rm != rootMoves.begin() + pvLast ? rm->bestMoveCount : 0;
 }
 
 
@@ -116,12 +100,18 @@ void Thread::wait_for_search_finished() {
 
 void Thread::idle_loop() {
 
+  // If OS already scheduled us on a different group than 0 then don't overwrite
+  // the choice, eventually we are one of many one-threaded processes running on
+  // some Windows NUMA hardware, for instance in fishtest. To make it simple,
+  // just check if running threads are below a threshold, in this case all this
+  // NUMA machinery is not needed.
+  if (Options["Threads"] > 8)
+      WinProcGroup::bindThisThread(idx);
+
   while (true)
   {
       std::unique_lock<std::mutex> lk(mutex);
       searching = false;
-      threadStarted = true; // (B)
-
       cv.notify_one(); // Wake up anyone waiting for search finished
       cv.wait(lk, [&]{ return searching; });
 
@@ -137,27 +127,27 @@ void Thread::idle_loop() {
 /// ThreadPool::set() creates/destroys threads to match the requested number.
 /// Created and launched threads will immediately go to sleep in idle_loop.
 /// Upon resizing, threads are recreated to allow for binding if necessary.
-///
-/// stockfish.wasm: Unlike upstream, we reuse existing threads, because
-/// we do not care about thread binding. For the same reason, we also do not
-/// reallocate the transposition table.
 
 void ThreadPool::set(size_t requested) {
 
-  if (size() == requested)
-      return;
-
-  if (size() > 0) {
+  if (size() > 0)   // destroy any existing thread(s)
+  {
       main()->wait_for_search_finished();
 
-      while (size() > requested)
+      while (size() > 0)
           delete back(), pop_back();
   }
 
-  if (requested > 0) {
+  if (requested > 0)   // create new thread(s)
+  {
+      push_back(new MainThread(0));
+
       while (size() < requested)
-          push_back(size() ? new Thread(size()) : new MainThread(0));
+          push_back(new Thread(size()));
       clear();
+
+      // Reallocate the hash with the new threadpool size
+      TT.resize(size_t(Options["Hash"]));
 
       // Init thread number dependent search params.
       Search::init();
@@ -197,6 +187,11 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
           || std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
           rootMoves.emplace_back(m);
 
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
+  if (!rootMoves.empty())
+      Tablebases::rank_root_moves(pos, rootMoves);
+#endif
+
   // After ownership transfer 'states' becomes empty, so if we stop the search
   // and call 'go' again without setting a new position states.get() == NULL.
   assert(states.get() || setupStates.get());
@@ -211,7 +206,7 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
   // since they are read-only.
   for (Thread* th : *this)
   {
-      th->nodes = th->nmpMinPly = th->bestMoveChanges = 0;
+      th->nodes = th->tbHits = th->nmpMinPly = th->bestMoveChanges = 0;
       th->rootDepth = th->completedDepth = 0;
       th->rootMoves = rootMoves;
       th->rootPos.set(pos.fen(), pos.is_chess960(), &th->rootState, th);
@@ -237,16 +232,16 @@ Thread* ThreadPool::get_best_thread() const {
         votes[th->rootMoves[0].pv[0]] +=
             (th->rootMoves[0].score - minScore + 14) * int(th->completedDepth);
 
-          if (abs(bestThread->rootMoves[0].score) >= VALUE_TB_WIN_IN_MAX_PLY)
-          {
-              // Make sure we pick the shortest mate / TB conversion or stave off mate the longest
-              if (th->rootMoves[0].score > bestThread->rootMoves[0].score)
-                  bestThread = th;
-          }
-          else if (   th->rootMoves[0].score >= VALUE_TB_WIN_IN_MAX_PLY
-                   || (   th->rootMoves[0].score > VALUE_TB_LOSS_IN_MAX_PLY
-                       && votes[th->rootMoves[0].pv[0]] > votes[bestThread->rootMoves[0].pv[0]]))
-              bestThread = th;
+        if (abs(bestThread->rootMoves[0].score) >= VALUE_TB_WIN_IN_MAX_PLY)
+        {
+            // Make sure we pick the shortest mate / TB conversion or stave off mate the longest
+            if (th->rootMoves[0].score > bestThread->rootMoves[0].score)
+                bestThread = th;
+        }
+        else if (   th->rootMoves[0].score >= VALUE_TB_WIN_IN_MAX_PLY
+                 || (   th->rootMoves[0].score > VALUE_TB_LOSS_IN_MAX_PLY
+                     && votes[th->rootMoves[0].pv[0]] > votes[bestThread->rootMoves[0].pv[0]]))
+            bestThread = th;
     }
 
     return bestThread;
@@ -271,3 +266,5 @@ void ThreadPool::wait_for_search_finished() const {
         if (th != front())
             th->wait_for_search_finished();
 }
+
+} // namespace Stockfish

@@ -4,10 +4,12 @@
 
 "use strict";
 
-var spawnSync = require("child_process").spawnSync;
-var execFileSync = require("child_process").execFileSync;
-var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "b", "bin", "colors", "no-color", "no-embed-worker", "simd"]});
+var runSpawnSync = require("child_process").spawnSync;
+var runExecFileSync = require("child_process").execFileSync;
+var params = get_params({booleans: ["no-chesscom", "debug-js", "h", "help", "help-all", "f", "force", "force-linking", "bin", "colors", "no-color", "no-embed-worker", "no-minify", "-v", "--verbose"]});
 var args = ["build", "-j", require("os").cpus().length];
+//var args = ["-j", require("os").cpus().length];
+//var args = []; ///NOTE: Can't use multi-threading with emscripten_copy_files
 var fs = require("fs");
 var p = require("path");
 var stockfishPath = p.join(__dirname, "src", "stockfish");
@@ -20,7 +22,7 @@ var preface;
 var postscript;
 var buildToWASM;
 var child;
-var stockfishVersion = "12";
+var stockfishVersion = "14";
 var fistRun;
 
 function get_params(options, argv)
@@ -173,8 +175,12 @@ function determineBestArch()
             } catch (e) {}
         }
         
-        if (/\bbmi2\b/i.test(cpuData)) {
+        if (/\bavx512\b/i.test(cpuData)) {
+            arch = "x86-64-avx512";
+        } else if (/\bbmi2\b/i.test(cpuData)) {
             arch = "x86-64-bmi2";
+        } else if (/\bavx2\b/i.test(cpuData)) {
+            arch = "x86-64-avx2";
         } else if (/\bpopcnt\b/i.test(cpuData)) {
             arch = "x86-64-modern";
         } else {
@@ -184,6 +190,22 @@ function determineBestArch()
     
     console.log(note("Building " + arch));
     args.push("ARCH=" + arch);
+}
+
+function spawnSync(command, args, options)
+{
+    if (params.v || params.verbose) {
+        console.log(highlight(" - Running command: " + command + " " + (args && args.length ? "\"" + args.join("\" \"") + "\"" : "")));
+    }
+    return runSpawnSync(command, args, options);
+}
+
+function execFileSync(command, args, options)
+{
+    if (params.v || params.verbose) {
+        console.log(highlight(" - Running command: " + command + " " + (args && args.length ? "\"" + args.join("\" \"") + "\"" : "")));
+    }
+    return runExecFileSync(command, args, options);
 }
 
 
@@ -198,9 +220,7 @@ if (params.arch) {
     }
     
     args.push("ARCH=" + params.arch);
-    if (params.arch === "asmjs") {
-        buildToASMJS = true;
-    } else if (params.arch === "wasm") {
+    if (params.arch === "wasm") {
         buildToWASM = true;
     }
 } else if (params.b || params.bin) {
@@ -218,22 +238,19 @@ if (params.help || params["help-all"] || params.h) {
     console.log("");
     console.log("  " + highlight("-f --force") + "      Always rebuild the entire project");
     console.log("  " + highlight("--force-linking") + " Always preforming the final linking step");
-    console.log("  " + highlight("--variants") + "      Comma separated list of variants to include (default: " + note("none") + ")");
-    console.log(                     "                  Possible values are " + note("all") + ", " + note("none") + " (no variants, except for Chess960),");
-    console.log(                     "                  " + note("anti") + ", " + note("atomic") + ", " + note("crazyhouse") + ", " + note("horde") + ", " + note("kingofthehill") + ", " + note("race") + ", " + note("relay") + ", or " + note("3check"));
-    console.log("  " + highlight("--no-chesscom") + "   Disable changes made specifically for chess.com;");
-    console.log(                     "                  this includes showing SAN moves, fixing three-fold repetition,");
-    console.log(                     "                  addition of mindepth, maxdepth, and shallow options to the go command,");
-    console.log(                     "                  and Skill Level Maximum Error and Skill Level Probability uci options");
-    console.log("  " + highlight("--static") + "        Link libaries statically (not JS)");
-    console.log("  " + highlight("--debug-js") + "      Compile JS in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
+//    console.log("  " + highlight("--variants") + "      Comma separated list of variants to include (default: " + note("none") + ")");
+//    console.log(                     "                  Possible values are " + note("all") + ", " + note("none") + " (no variants, except for Chess960),");
+//    console.log(                     "                  " + note("anti") + ", " + note("atomic") + ", " + note("crazyhouse") + ", " + note("horde") + ", " + note("kingofthehill") + ", " + note("race") + ", " + note("relay") + ", or " + note("3check"));
+    console.log("  " + highlight("--no-chesscom") + "   Disable changes made specifically for Chess.com");
+    console.log("  " + highlight("--static") + "        Link libaries statically (not avaiable for WASM)");
+    console.log("  " + highlight("--debug-wasm") + "    Compile WASM in debug mode (adds ASSERTIONS=2 and SAFE_HEAP=1)");
+    console.log("  " + highlight("--no-minify") + "     This will disable closure compiler of JS code");
     console.log("  " + highlight("--arch") + "          Architecture to build to (default: " + note("wasm") + ")");
-    console.log(                     "                  " + note("x86-64-bmi2") + " is likely the fastest binary version");
     console.log(                     "                  See " + highlight("--help-all") + " for more options, or use " + highlight("--bin") + " instead");
     console.log("  " + highlight("--basename") + "      The filename for the engine (default: " + note ("stockfish") + ")");
     console.log(                     "                  This will not only rename the files, it will also rewrite the base JS file");
     console.log(                     "                  to load the correct WASM engine");
-    console.log("  " + highlight("-b --bin") + "        Attempt to build a binary engine that is the most suitable for this system");
+    console.log("  " + highlight("--bin") + "           Attempt to build a binary engine that is the most suitable for this system");
     console.log("  " + highlight("--make") + "          Path to program used to make Stockfish (default: " + note("make") + ")");
     console.log("  " + highlight("--comp") + "          Compiler to build C code with");
     console.log("  " + highlight("--compcxx") + "       Compiler to build C++ code with");
@@ -248,14 +265,11 @@ if (params.help || params["help-all"] || params.h) {
     console.log("");
     console.log("Examples:");
     console.log("");
-    console.log("  Default: include all modifications and variants, compile to WASM");
+    console.log("  Default: include Chess.com modifications and compile to WASM");
     console.log("    ./build.js");
     console.log("");
-    console.log("  Vanilla Stockfish: no modifications, no variants, 64-bit native binary");
-    console.log("    ./build.js " + highlight("--no-chesscom") + " " + highlight("--variants=") + note("none") + " " + highlight("--arch=") + note("x86-64-bmi2"));
-    console.log("");
-    console.log("  Build Chess.com engine");
-    console.log("    ./build.js " + highlight("-f") + " " + highlight("--variants") + " " +  note("crazyhouse,3check,koth"));
+    console.log("  Vanilla Stockfish: no modifications, no variants, native binary");
+    console.log("    ./build.js " + highlight("--no-chesscom") + " " + highlight("--bin"));
     console.log("");
     if (params["help-all"]) {
         console.log("");
@@ -264,47 +278,56 @@ if (params.help || params["help-all"] || params.h) {
         spawnSync(params.make, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
     }
     process.exit();
-} else if (params.force || params.f) {
+}
+
+if (params.force || params.f) {
     args.push("--always-make");
 } else if (params["force-linking"]) {
     ///NOTE: --force will also link as well, so both are not needed.
-    try {
-        if (buildToWASM) {
+    if (buildToWASM) {
+        try {
             fs.unlinkSync(stockfishJSWASMPath);
+        } catch (e) {}
+        try {
             fs.unlinkSync(stockfishJSWASMLoaderPath);
-        } else {
+        } catch (e) {}
+    } else {
+        try {
             fs.unlinkSync(stockfishPath);
-        }
-    } catch (e) {
-        /// Don't throw if there is no file to delete.
-        if (e.code !== "ENOENT") {
-            throw e;
-        }
+        } catch (e) {}
     }
 }
-
+/*
 if (params.variants && params.variants.toLowerCase() !== "all") {
     args.push("VARIANTS=" + params.variants.toUpperCase());
 } else if (!params.variants) {
     args.push("VARIANTS=NONE");
 }
+*/
 
 if (!params["no-chesscom"]) {
     args.push("CHESSCOM=1");
 }
 
-if (params["debug-js"]) {
+
+if (params["no-minify"]) {
+    args.push("NOJSMINIFY=yes");
+}
+
+if (params["debug-wasm"]) {
     if (buildToWASM) {
-        args.push("DEBUGJS=1");
+        args.push("DEBUGWASM=1");
     } else {
-        warn("Ignoring --debug-js");
+        warn("Ignoring --debug-wasm");
     }
 }
 
+/*
 if (params.simd) {
     args.push("SIMD=1");
 }
-
+*/
+/*
 if (params.static) {
     if (buildToJs) {
         warn("Ignoring --static");
@@ -312,6 +335,7 @@ if (params.static) {
         args.push("STATIC=1");
     }
 }
+*/
 
 if (params.comp) {
     args.push("COMP=" + params.comp);
@@ -333,7 +357,14 @@ if (String(params.version).toLowerCase() !== "date") {
     changeVersion(params.version === true || !params.version ? stockfishVersion : params.version);
 }
 
-child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
+if (buildToWASM) {
+    child = spawnSync(params.make, ["-C", "..", "wasm_simd_post_mvp=yes"].concat(args), {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src", "emscripten")});
+    // ///TODO: Just do "build"
+    //child = spawnSync(params.make, ["-C", "..", "emscripten_build", "wasm_simd_post_mvp=yes"].concat(args), {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src", "emscripten")});
+} else {
+    child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
+    //child = spawnSync(params.make, ["build"].concat(args), {stdio: [0,1,2], env: process.env, cwd: p.join(__dirname, "src")});
+}
 
 /// Reset version string.
 if (String(params.version).toLowerCase() !== "date") {
@@ -351,6 +382,27 @@ if (!buildToWASM && params.basename) {
 
 
 if (buildToWASM) {
+    data = fs.readFileSync(stockfishWASMLoaderPath, "utf8");
+    workerData = fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim();
+    try {
+        fs.unlinkSync(stockfishWorkerThreadPath);
+    } catch (e) {};
+    /// Append the hacky custom post message code for the asyncify.
+    workerData += "\n" + fs.readFileSync(p.join(__dirname, "src", "emscripten", "worker-postamble.js"), "utf8").trim();
+    /// Run the init function instead of using emscripten's ugly importScripts hack.
+    ///NOTE: Could remove other ugly hacks.
+    workerData = workerData.replace(/if\s*\([^)]+urlOrBlob.*?else\s*\{[^}]+\}/, "Stockfish=INIT_ENGINE();");
+    data = data.replace("/// Insert worker here", workerData).trim();
+    fs.writeFileSync(stockfishWASMLoaderPath, data);
+    
+    if (params.basename) {
+        fs.renameSync(stockfishWASMLoaderPath, p.join(__dirname, "src", params.basename + ".js"));
+        fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
+    }
+}
+
+///OLD
+if (false && buildToWASM) {
     data = fs.readFileSync(stockfishWASMLoaderPath, "utf8");
     
     /// Remove "var Module" so that it does not overwrite our custom module.
@@ -403,8 +455,8 @@ if (buildToWASM) {
     // /// Fix issues with locating the WASM file
     //data = data.replace(/wasmBinaryFile=/g, "wasmBinaryFile=Module.wasmBinaryFile||");
     
-    preface = preface || fs.readFileSync(p.join(__dirname, "preface.js"), "utf8");
-    postscript = postscript || fs.readFileSync(p.join(__dirname, "postscript.js"), "utf8");
+    preface = preface || fs.readFileSync(p.join(__dirname, "src", "emscripten", "preface.js"), "utf8");
+    postscript = postscript || fs.readFileSync(p.join(__dirname, "src", "emscripten", "postscript.js"), "utf8");
     if (data.indexOf(preface) !== 0) {
         data = preface + data;
     }
@@ -422,8 +474,6 @@ if (buildToWASM) {
     if (params.basename) {
         fs.renameSync(stockfishWASMLoaderPath, p.join(__dirname, "src", params.basename + ".js"));
         fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
-        ///TODO: EMBED WORKER
-        ///fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
     }
 }
 

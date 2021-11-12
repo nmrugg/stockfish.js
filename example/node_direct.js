@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 var Stockfish;
-var engine;
+var myEngine;
 
-if (process.argv[2] === "--help") {
-    console.log("Usage: node --experimental-wasm-bulk-memory --experimental-wasm-threads simple_node.js [FEN OR move1 move2 ...moveN]");
+if (process.argv[2] === "--help" || process.argv[2] === "-h") {
+    console.log("Usage: node --experimental-wasm-threads --experimental-wasm-simd node_direct.js [FEN OR move1 move2 ...moveN]");
     console.log("");
     console.log("Examples:");
     console.log("   node simple_node.js");
@@ -13,22 +13,45 @@ if (process.argv[2] === "--help") {
     process.exit();
 }
 
-/// Don't forget --experimental-wasm-bulk-memory --experimental-wasm-threads.
+/// Don't forget --experimental-wasm-threads --experimental-wasm-simd and use Node.js 14.4+.
 try {
-    Stockfish = require("./stockfish.js")(console, require("path").join(__dirname, "stockfish.wasm"));
+    var INIT_ENGINE = require("./stockfish.js");
     
-    Stockfish().then(function (sf)
-    {
-        engine = sf;
-        
-        start();
-    });
+    var wasmPath = require("path").join(__dirname, "stockfish.wasm");
+    var mod = {
+        locateFile: function (path)
+        {
+            if (path.indexOf(".wasm") > -1) {
+                /// Set the path to the wasm binary.
+                return wasmPath;
+            } else {
+                /// Set path to worker (self + the worker hash)
+                return __filename;
+            }
+        },
+    };
+    if (typeof INIT_ENGINE === "function") {
+        var Stockfish = INIT_ENGINE();
+        try {
+            Stockfish(mod).then(function (sf)
+            {
+                myEngine = sf;
+                start();
+            });
+        } catch (e) {
+            console.error(e);
+            console.error("\nYour Node.js version appears to be too old. Also, try adding --experimental-wasm-threads --experimental-wasm-simd.\n");
+            process.exit(1);
+        }
+    }
+    
 } catch (e) {
     console.error(e)
 }
 
 function start()
 {
+    var loadedNets;
     var gotUCI;
     var startedThinking;
     var position = "startpos";
@@ -36,10 +59,10 @@ function start()
     function send(str)
     {
         console.log("Sending: " + str)
-        engine.postMessage(str);
+        myEngine.postMessage(str);
     }
     
-    engine.addMessageListener(function onLog(line)
+    myEngine.addMessageListener(function onLog(line)
     {
         var match;
         
@@ -52,17 +75,18 @@ function start()
             return;
         }
         
-        if (!gotUCI && line === "uciok") {
+        if (!loadedNets && line.indexOf("Load eval file success: 1") > -1) {
+            loadedNets = true;
+            send("uci");
+        } else if (!gotUCI && line === "uciok") {
             gotUCI = true;
-            if (position) {
-                send("position " + position);
-                send("eval");
-                send("d");
-            }
+            send("position " + position);
+            send("eval");
+            send("d");
             
             send("go ponder");
         } else if (!startedThinking && line.indexOf("info depth") > -1) {
-            console.log("Thinking...");
+            console.log("Stopping in three seconds...");
             startedThinking = true;
             setTimeout(function ()
             {
@@ -72,7 +96,7 @@ function start()
             match = line.match(/bestmove\s+(\S+)/);
             if (match) {
                 console.log("Best move: " + match[1]);
-                engine.PThread.terminateAllThreads()
+                myEngine.terminate();
             }
         }
     });
@@ -98,5 +122,5 @@ function start()
         }
     }());
     
-    send("uci");
+    send("setoption name Use NNUE value true");
 }

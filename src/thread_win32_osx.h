@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,15 +26,14 @@
 /// somewhat more than 1MB stack, so adjust it to TH_STACK_SIZE.
 /// The implementation calls pthread_create() with the stack size parameter
 /// equal to the linux 8MB default, on platforms that support it.
-///
-/// stockfish.wasm: Given that there is no Syzygy support, and assuming maximum
-/// search depth 99, we use 1MB instead.
 
-#if defined(__APPLE__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__EMSCRIPTEN__)
+#if defined(__APPLE__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(USE_PTHREADS)
 
 #include <pthread.h>
 
-static const size_t TH_STACK_SIZE = 1 * 1024 * 1024;
+namespace Stockfish {
+
+static const size_t TH_STACK_SIZE = 8 * 1024 * 1024;
 
 template <class T, class P = std::pair<T*, void(T::*)()>>
 void* start_routine(void* ptr)
@@ -55,16 +54,20 @@ public:
     pthread_attr_t attr_storage, *attr = &attr_storage;
     pthread_attr_init(attr);
     pthread_attr_setstacksize(attr, TH_STACK_SIZE);
-    int error = pthread_create(&thread, attr, start_routine<T>, new P(obj, fun));
-    if (error)
-        abort();
+    pthread_create(&thread, attr, start_routine<T>, new P(obj, fun));
   }
   void join() { pthread_join(thread, NULL); }
 };
 
+} // namespace Stockfish
+
 #else // Default case: use STL classes
 
+namespace Stockfish {
+
 typedef std::thread NativeThread;
+
+} // namespace Stockfish
 
 #endif
 

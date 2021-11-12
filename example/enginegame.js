@@ -42,6 +42,9 @@ function engineGame(options) {
     }
     uciCmd('uci');
     
+    uciCmd('setoption name Use NNUE value true', engine);
+    uciCmd('setoption name Use NNUE value true', evaler);
+    
     ///TODO: Eval starting posistions. I suppose the starting positions could be different in different chess varients.
 
     function displayStatus() {

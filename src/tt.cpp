@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 #include "tt.h"
 #include "uci.h"
 
+namespace Stockfish {
+
 TranspositionTable TT; // Our global transposition table
 
 /// TTEntry::save() populates the TTEntry with a new node's data, possibly
@@ -37,18 +39,19 @@ void TTEntry::save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev) 
   if (m || (uint16_t)k != key16)
       move16 = (uint16_t)m;
 
-  // Overwrite less valuable entries
-  if ((uint16_t)k != key16
-      || d - DEPTH_OFFSET > depth8 - 4
-      || b == BOUND_EXACT)
+  // Overwrite less valuable entries (cheapest checks first)
+  if (b == BOUND_EXACT
+      || (uint16_t)k != key16
+      || d - DEPTH_OFFSET > depth8 - 4)
   {
-      assert(d >= DEPTH_OFFSET);
+      assert(d > DEPTH_OFFSET);
+      assert(d < 256 + DEPTH_OFFSET);
 
       key16     = (uint16_t)k;
+      depth8    = (uint8_t)(d - DEPTH_OFFSET);
+      genBound8 = (uint8_t)(TT.generation8 | uint8_t(pv) << 2 | b);
       value16   = (int16_t)v;
       eval16    = (int16_t)ev;
-      genBound8 = (uint8_t)(TT.generation8 | uint8_t(pv) << 2 | b);
-      depth8    = (uint8_t)(d - DEPTH_OFFSET);
   }
 }
 
@@ -61,17 +64,17 @@ void TranspositionTable::resize(size_t mbSize) {
 
   Threads.main()->wait_for_search_finished();
 
+  aligned_large_pages_free(table);
+
   clusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
 
-  mem = realloc(mem, clusterCount * sizeof(Cluster) + CacheLineSize - 1);
-  if (!mem)
+  table = static_cast<Cluster*>(aligned_large_pages_alloc(clusterCount * sizeof(Cluster)));
+  if (!table)
   {
       std::cerr << "Failed to allocate " << mbSize
                 << "MB for transposition table." << std::endl;
       exit(EXIT_FAILURE);
   }
-
-  table = (Cluster*)((uintptr_t(mem) + CacheLineSize - 1) & ~(CacheLineSize - 1));
 
   clear();
 }
@@ -81,8 +84,34 @@ void TranspositionTable::resize(size_t mbSize) {
 //  in a multi-threaded way.
 
 void TranspositionTable::clear() {
+  #ifdef __EMSCRIPTEN__
+    // NOTE: Sometimes threaded TT initialization seems to fail (engine crash on startup), so here we simply initialize on main thread.
+    std::memset(table, 0, clusterCount * sizeof(Cluster));
+    return;
+  #endif
 
-  std::memset(mem, 0, clusterCount * sizeof(Cluster) + CacheLineSize - 1);
+  std::vector<std::thread> threads;
+
+  for (size_t idx = 0; idx < Options["Threads"]; ++idx)
+  {
+      threads.emplace_back([this, idx]() {
+
+          // Thread binding gives faster search on systems with a first-touch policy
+          if (Options["Threads"] > 8)
+              WinProcGroup::bindThisThread(idx);
+
+          // Each thread will zero its part of the hash table
+          const size_t stride = size_t(clusterCount / Options["Threads"]),
+                       start  = size_t(stride * idx),
+                       len    = idx != Options["Threads"] - 1 ?
+                                stride : clusterCount - start;
+
+          std::memset(&table[start], 0, len * sizeof(Cluster));
+      });
+  }
+
+  for (std::thread& th : threads)
+      th.join();
 }
 
 
@@ -99,22 +128,23 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
   const uint16_t key16 = (uint16_t)key;  // Use the low 16 bits as key inside the cluster
 
   for (int i = 0; i < ClusterSize; ++i)
-      if (!tte[i].key16 || tte[i].key16 == key16)
+      if (tte[i].key16 == key16 || !tte[i].depth8)
       {
-          tte[i].genBound8 = uint8_t(generation8 | (tte[i].genBound8 & 0x7)); // Refresh
+          tte[i].genBound8 = uint8_t(generation8 | (tte[i].genBound8 & (GENERATION_DELTA - 1))); // Refresh
 
-          return found = (bool)tte[i].key16, &tte[i];
+          return found = (bool)tte[i].depth8, &tte[i];
       }
 
   // Find an entry to be replaced according to the replacement strategy
   TTEntry* replace = tte;
   for (int i = 1; i < ClusterSize; ++i)
       // Due to our packed storage format for generation and its cyclic
-      // nature we add 263 (256 is the modulus plus 7 to keep the unrelated
-      // lowest three bits from affecting the result) to calculate the entry
-      // age correctly even after generation8 overflows into the next cycle.
-      if (  replace->depth8 - ((263 + generation8 - replace->genBound8) & 0xF8)
-          >   tte[i].depth8 - ((263 + generation8 -   tte[i].genBound8) & 0xF8))
+      // nature we add GENERATION_CYCLE (256 is the modulus, plus what
+      // is needed to keep the unrelated lowest n bits from affecting
+      // the result) to calculate the entry age correctly even after
+      // generation8 overflows into the next cycle.
+      if (  replace->depth8 - ((GENERATION_CYCLE + generation8 - replace->genBound8) & GENERATION_MASK)
+          >   tte[i].depth8 - ((GENERATION_CYCLE + generation8 -   tte[i].genBound8) & GENERATION_MASK))
           replace = &tte[i];
 
   return found = false, replace;
@@ -129,7 +159,9 @@ int TranspositionTable::hashfull() const {
   int cnt = 0;
   for (int i = 0; i < 1000; ++i)
       for (int j = 0; j < ClusterSize; ++j)
-          cnt += (table[i].entry[j].genBound8 & 0xF8) == generation8;
+          cnt += table[i].entry[j].depth8 && (table[i].entry[j].genBound8 & GENERATION_MASK) == generation8;
 
   return cnt / ClusterSize;
 }
+
+} // namespace Stockfish

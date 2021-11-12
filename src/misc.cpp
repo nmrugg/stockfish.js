@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ typedef bool(*fun3_t)(HANDLE, CONST GROUP_AFFINITY*, PGROUP_AFFINITY);
 #include <sys/mman.h>
 #endif
 
-#if defined(__APPLE__) || defined(__ANDROID__) || defined(__OpenBSD__) || (defined(__GLIBCXX__) && !defined(_GLIBCXX_HAVE_ALIGNED_ALLOC) && !defined(_WIN32))
+#if defined(__APPLE__) || defined(__ANDROID__) || defined(__OpenBSD__) || (defined(__GLIBCXX__) && !defined(_GLIBCXX_HAVE_ALIGNED_ALLOC) && !defined(_WIN32)) || defined(__e2k__)
 #define POSIXALIGNEDALLOC
 #include <stdlib.h>
 #endif
@@ -60,6 +60,8 @@ typedef bool(*fun3_t)(HANDLE, CONST GROUP_AFFINITY*, PGROUP_AFFINITY);
 #include "thread.h"
 
 using namespace std;
+
+namespace Stockfish {
 
 namespace {
 
@@ -132,45 +134,45 @@ public:
 
 } // namespace
 
+
 /// engine_info() returns the full name of the current Stockfish version. This
 /// will be either "Stockfish <Tag> DD-MM-YY" (where DD-MM-YY is the date when
 /// the program was compiled) or "Stockfish <Version>", depending on whether
 /// Version is empty.
 
-const string engine_info(bool to_uci) {
+string engine_info(bool to_uci) {
 
+#if !defined(CHESSCOM)
   const string months("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec");
   string month, day, year;
   stringstream ss, date(__DATE__); // From compiler, format is "Sep 21 2008"
-
-#ifdef ASMJS
-  ss << "Stockfish.js " << Version << setfill('0');
- #else
-  ss << "Stockfish " << Version << setfill('0');
+#else
+  stringstream ss;
 #endif
 
+  ss << "Stockfish " << Version << setfill('0');
+
+#if defined(CHESSCOM)
+  ss << (Is64Bit ? " 64" : "")
+     << (HasPext ? " BMI2" : (HasPopCnt ? " POPCNT" : ""))
+#if defined(__EMSCRIPTEN__)
+     << " WASM"
+#ifdef __EMSCRIPTEN_PTHREADS__
+     << " Multithreaded"
+#endif
+#endif
+;
+
+#else /// !defined(CHESSCOM)
   if (Version.empty())
   {
       date >> month >> day >> year;
       ss << setw(2) << day << setw(2) << (1 + months.find(month) / 4) << year.substr(2);
   }
-
-  ss << (Is64Bit ? " 64" : "")
-     << (HasPext ? " BMI2" : (HasPopCnt ? " POPCNT" : ""))
-#ifdef WASM
-     << " WASM"
-#ifdef __EMSCRIPTEN_PTHREADS__
-     << " MultiThreaded"
-#endif
 #endif
 
-     << (to_uci  ? "\nid author ": " by ")
-     << "the Stockfish developers (see AUTHORS file)"
-#ifdef CHESSCOM
-    // This is mainly for CI tests to verify which engine has loaded.
-    << " and Chess.com"
-#endif
-;
+  ss << (to_uci  ? "\nid author ": " by ")
+     << "the Stockfish developers (see AUTHORS file)";
 
   return ss.str();
 }
@@ -178,7 +180,7 @@ const string engine_info(bool to_uci) {
 
 /// compiler_info() returns a string trying to describe the compiler we use
 
-const std::string compiler_info() {
+std::string compiler_info() {
 
   #define stringify2(x) #x
   #define stringify(x) stringify2(x)
@@ -206,6 +208,18 @@ const std::string compiler_info() {
      compiler += "MSVC ";
      compiler += "(version ";
      compiler += stringify(_MSC_FULL_VER) "." stringify(_MSC_BUILD);
+     compiler += ")";
+  #elif defined(__e2k__) && defined(__LCC__)
+    #define dot_ver2(n) \
+      compiler += (char)'.'; \
+      compiler += (char)('0' + (n) / 10); \
+      compiler += (char)('0' + (n) % 10);
+
+     compiler += "MCST LCC ";
+     compiler += "(version ";
+     compiler += std::to_string(__LCC__ / 100);
+     dot_ver2(__LCC__ % 100)
+     dot_ver2(__LCC_MINOR__)
      compiler += ")";
   #elif __GNUC__
      compiler += "g++ (GNUC) ";
@@ -259,6 +273,9 @@ const std::string compiler_info() {
   compiler += (HasPopCnt ? " POPCNT" : "");
   #if defined(USE_MMX)
     compiler += " MMX";
+  #endif
+  #if defined(USE_NEON)
+    compiler += " NEON";
   #endif
 
   #if !defined(NDEBUG)
@@ -343,24 +360,27 @@ void prefetch(void* addr) {
 
 #endif
 
-/// Wrappers for systems where the c++17 implementation doesn't guarantee the availability of aligned_alloc.
-/// Memory allocated with std_aligned_alloc must be freed with std_aligned_free.
-///
+
+/// std_aligned_alloc() is our wrapper for systems where the c++17 implementation
+/// does not guarantee the availability of aligned_alloc(). Memory allocated with
+/// std_aligned_alloc() must be freed with std_aligned_free().
 
 void* std_aligned_alloc(size_t alignment, size_t size) {
+
 #if defined(POSIXALIGNEDALLOC)
-  void *pointer;
-  if(posix_memalign(&pointer, alignment, size) == 0)
-      return pointer;
-  return nullptr;
+  void *mem;
+  return posix_memalign(&mem, alignment, size) ? nullptr : mem;
 #elif defined(_WIN32)
   return _mm_malloc(size, alignment);
-#else
+#elif defined(__EMSCRIPTEN__)
   return aligned_alloc(alignment, size);
+#else
+  return std::aligned_alloc(alignment, size);
 #endif
 }
 
 void std_aligned_free(void* ptr) {
+
 #if defined(POSIXALIGNEDALLOC)
   free(ptr);
 #elif defined(_WIN32)
@@ -370,25 +390,16 @@ void std_aligned_free(void* ptr) {
 #endif
 }
 
-/// aligned_ttmem_alloc() will return suitably aligned memory, and if possible use large pages.
-/// The returned pointer is the aligned one, while the mem argument is the one that needs
-/// to be passed to free. With c++17 some of this functionality could be simplified.
+/// aligned_large_pages_alloc() will return suitably aligned memory, if possible using large pages.
 
-#if defined(__linux__) && !defined(__ANDROID__)
+#if defined(_WIN32)
 
-void* aligned_ttmem_alloc(size_t allocSize, void*& mem) {
+static void* aligned_large_pages_alloc_windows(size_t allocSize) {
 
-  constexpr size_t alignment = 2 * 1024 * 1024; // assumed 2MB page sizes
-  size_t size = ((allocSize + alignment - 1) / alignment) * alignment; // multiple of alignment
-  if (posix_memalign(&mem, alignment, size))
-     mem = nullptr;
-  madvise(mem, allocSize, MADV_HUGEPAGE);
-  return mem;
-}
-
-#elif defined(_WIN64)
-
-static void* aligned_ttmem_alloc_large_pages(size_t allocSize) {
+  #if !defined(_WIN64)
+    (void)allocSize; // suppress unused-parameter compiler warning
+    return nullptr;
+  #else
 
   HANDLE hProcessToken { };
   LUID luid { };
@@ -431,27 +442,14 @@ static void* aligned_ttmem_alloc_large_pages(size_t allocSize) {
   CloseHandle(hProcessToken);
 
   return mem;
+
+  #endif
 }
 
-void* aligned_ttmem_alloc(size_t allocSize, void*& mem) {
-
-  static bool firstCall = true;
+void* aligned_large_pages_alloc(size_t allocSize) {
 
   // Try to allocate large pages
-  mem = aligned_ttmem_alloc_large_pages(allocSize);
-
-  // Suppress info strings on the first call. The first call occurs before 'uci'
-  // is received and in that case this output confuses some GUIs.
-  if (!firstCall)
-  {
-      std::stringstream ss;
-      if (mem)
-          ss << "info string Hash table allocation: Windows large pages used." << sync_endl;
-      else
-          ss << "info string Hash table allocation: Windows large pages not used." << sync_endl;
-      std::cout << ss.str();
-  }
-  firstCall = false;
+  void* mem = aligned_large_pages_alloc_windows(allocSize);
 
   // Fall back to regular, page aligned, allocation if necessary
   if (!mem)
@@ -462,37 +460,48 @@ void* aligned_ttmem_alloc(size_t allocSize, void*& mem) {
 
 #else
 
-void* aligned_ttmem_alloc(size_t allocSize, void*& mem) {
+void* aligned_large_pages_alloc(size_t allocSize) {
 
-  constexpr size_t alignment = 64; // assumed cache line size
-  size_t size = allocSize + alignment - 1; // allocate some extra space
-  mem = malloc(size);
-  void* ret = reinterpret_cast<void*>((uintptr_t(mem) + alignment - 1) & ~uintptr_t(alignment - 1));
-  return ret;
+#if defined(__linux__)
+  constexpr size_t alignment = 2 * 1024 * 1024; // assumed 2MB page size
+#else
+  constexpr size_t alignment = 4096; // assumed small page size
+#endif
+
+  // round up to multiples of alignment
+  size_t size = ((allocSize + alignment - 1) / alignment) * alignment;
+  void *mem = std_aligned_alloc(alignment, size);
+#if defined(MADV_HUGEPAGE)
+#if defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
+  madvise(mem, size, MADV_HUGEPAGE);
+#endif
+#endif
+  return mem;
 }
 
 #endif
 
 
-/// aligned_ttmem_free() will free the previously allocated ttmem
+/// aligned_large_pages_free() will free the previously allocated ttmem
 
-#if defined(_WIN64)
+#if defined(_WIN32)
 
-void aligned_ttmem_free(void* mem) {
+void aligned_large_pages_free(void* mem) {
 
   if (mem && !VirtualFree(mem, 0, MEM_RELEASE))
   {
       DWORD err = GetLastError();
-      std::cerr << "Failed to free transposition table. Error code: 0x" <<
-          std::hex << err << std::dec << std::endl;
+      std::cerr << "Failed to free large page memory. Error code: 0x"
+                << std::hex << err
+                << std::dec << std::endl;
       exit(EXIT_FAILURE);
   }
 }
 
 #else
 
-void aligned_ttmem_free(void *mem) {
-  free(mem);
+void aligned_large_pages_free(void *mem) {
+  std_aligned_free(mem);
 }
 
 #endif
@@ -603,3 +612,66 @@ void bindThisThread(size_t idx) {
 #endif
 
 } // namespace WinProcGroup
+
+#ifdef _WIN32
+#include <direct.h>
+#define GETCWD _getcwd
+#else
+#include <unistd.h>
+#define GETCWD getcwd
+#endif
+
+namespace CommandLine {
+
+string argv0;            // path+name of the executable binary, as given by argv[0]
+string binaryDirectory;  // path of the executable directory
+string workingDirectory; // path of the working directory
+
+void init(int argc, char* argv[]) {
+    #ifdef __EMSCRIPTEN__
+    return
+    #endif
+
+    (void)argc;
+    string pathSeparator;
+
+    // extract the path+name of the executable binary
+    argv0 = argv[0];
+
+#ifdef _WIN32
+    pathSeparator = "\\";
+  #ifdef _MSC_VER
+    // Under windows argv[0] may not have the extension. Also _get_pgmptr() had
+    // issues in some windows 10 versions, so check returned values carefully.
+    char* pgmptr = nullptr;
+    if (!_get_pgmptr(&pgmptr) && pgmptr != nullptr && *pgmptr)
+        argv0 = pgmptr;
+  #endif
+#else
+    pathSeparator = "/";
+#endif
+
+    // extract the working directory
+    workingDirectory = "";
+    char buff[40000];
+    char* cwd = GETCWD(buff, 40000);
+    if (cwd)
+        workingDirectory = cwd;
+
+    // extract the binary directory path from argv0
+    binaryDirectory = argv0;
+    size_t pos = binaryDirectory.find_last_of("\\/");
+    if (pos == std::string::npos)
+        binaryDirectory = "." + pathSeparator;
+    else
+        binaryDirectory.resize(pos + 1);
+
+    // pattern replacement: "./" at the start of path is replaced by the working directory
+    if (binaryDirectory.find("." + pathSeparator) == 0)
+        binaryDirectory.replace(0, 1, workingDirectory);
+}
+
+
+} // namespace CommandLine
+
+} // namespace Stockfish

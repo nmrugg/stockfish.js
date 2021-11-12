@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include "movepick.h"
 #include "types.h"
 
+namespace Stockfish {
+
 class Position;
 
 namespace Search {
@@ -48,6 +50,9 @@ struct Stack {
   int statScore;
   int moveCount;
   bool inCheck;
+  bool ttPv;
+  bool ttHit;
+  int doubleExtensions;
 };
 
 
@@ -68,7 +73,8 @@ struct RootMove {
   Value score = -VALUE_INFINITE;
   Value previousScore = -VALUE_INFINITE;
   int selDepth = 0;
-  int bestMoveCount = 0;
+  int tbRank = 0;
+  Value tbScore;
   std::vector<Move> pv;
 };
 
@@ -84,10 +90,6 @@ struct LimitsType {
     time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = npmsec = movetime = TimePoint(0);
     movestogo = depth = mate = perft = infinite = 0;
     nodes = 0;
-#ifdef CHESSCOM
-    mindepth = smartdepth = mintime = maxtime = 0;
-    maxdepth = shallow = MAX_PLY;
-#endif
   }
 
   bool use_time_management() const {
@@ -98,10 +100,6 @@ struct LimitsType {
   TimePoint time[COLOR_NB], inc[COLOR_NB], npmsec, movetime, startTime;
   int movestogo, depth, mate, perft, infinite;
   int64_t nodes;
-#ifdef CHESSCOM
-  int mindepth, maxdepth, shallow, smartdepth;
-  double maxtime, mintime;
-#endif
 };
 
 extern LimitsType Limits;
@@ -110,5 +108,7 @@ void init();
 void clear();
 
 } // namespace Search
+
+} // namespace Stockfish
 
 #endif // #ifndef SEARCH_H_INCLUDED

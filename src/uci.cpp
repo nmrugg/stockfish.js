@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <emscripten.h>
 
 #include "evaluate.h"
 #include "movegen.h"
@@ -31,8 +30,18 @@
 #include "timeman.h"
 #include "tt.h"
 #include "uci.h"
+#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
+#include "syzygy/tbprobe.h"
+#endif
+
+#ifdef __EMSCRIPTEN__
+#include "emscripten/utils.h"
+#include "emscripten/misc/timeit.hpp"
+#endif
 
 using namespace std;
+
+namespace Stockfish {
 
 extern vector<string> setup_bench(const Position&, istream&);
 
@@ -85,11 +94,9 @@ namespace {
     Position p;
     p.set(pos.fen(), Options["UCI_Chess960"], &states->back(), Threads.main());
 
-    Eval::verify_NNUE();
-    
-    std::stringstream ss;
-    ss << "\n" << Eval::trace(p) << sync_endl;
-    std::cout << ss.str();
+    Eval::NNUE::verify();
+
+    sync_cout << "\n" << Eval::trace(p) << sync_endl;
   }
 
 
@@ -112,11 +119,8 @@ namespace {
 
     if (Options.count(name))
         Options[name] = value;
-    else {
-        std::stringstream ss;
-        ss << "No such option: " << name << sync_endl;
-        std::cout << ss.str();
-    }
+    else
+        sync_cout << "No such option: " << name << sync_endl;
   }
 
 
@@ -137,13 +141,6 @@ namespace {
             while (is >> token)
                 limits.searchmoves.push_back(UCI::to_move(pos, token));
 
-#ifdef CHESSCOM
-        else if (token == "mindepth")  is >> limits.mindepth;
-        else if (token == "maxdepth")  is >> limits.maxdepth;
-        else if (token == "shallow")   is >> limits.shallow;
-        else if (token == "mintime")   is >> limits.mintime;
-        else if (token == "maxtime")   is >> limits.maxtime;
-#endif
         else if (token == "wtime")     is >> limits.time[WHITE];
         else if (token == "btime")     is >> limits.time[BLACK];
         else if (token == "winc")      is >> limits.inc[WHITE];
@@ -182,7 +179,7 @@ namespace {
 
         if (token == "go" || token == "eval")
         {
-            cerr << "\nPosition: " << cnt++ << '/' << num << endl;
+            cerr << "\nPosition: " << cnt++ << '/' << num << " (" << pos.fen() << ")" << endl;
             if (token == "go")
             {
                go(pos, is, states);
@@ -217,17 +214,24 @@ namespace {
      // Coefficients of a 3rd order polynomial fit based on fishtest data
      // for two parameters needed to transform eval to the argument of a
      // logistic function.
-     double as[] = {-8.24404295, 64.23892342, -95.73056462, 153.86478679};
-     double bs[] = {-3.37154371, 28.44489198, -56.67657741,  72.05858751};
+     double as[] = {-3.68389304,  30.07065921, -60.52878723, 149.53378557};
+     double bs[] = {-2.0181857,   15.85685038, -29.83452023,  47.59078827};
      double a = (((as[0] * m + as[1]) * m + as[2]) * m) + as[3];
      double b = (((bs[0] * m + bs[1]) * m + bs[2]) * m) + bs[3];
 
      // Transform eval to centipawns with limited range
-     double x = Utility::clamp(double(100 * v) / PawnValueEg, -1000.0, 1000.0);
+     double x = std::clamp(double(100 * v) / PawnValueEg, -2000.0, 2000.0);
 
      // Return win rate in per mille (rounded to nearest)
      return int(0.5 + 1000 / (1 + std::exp((a - x) / b)));
   }
+
+  #ifdef __EMSCRIPTEN__
+  void bench_eval(Position& pos) {
+    auto res = timeit::timeit([&]() { return Eval::evaluate(pos); });
+    std::cout << res << std::endl;
+  }
+  #endif
 
 } // namespace
 
@@ -238,27 +242,32 @@ namespace {
 /// run 'bench', once the command is executed the function returns immediately.
 /// In addition to the UCI ones, also some additional debug commands are supported.
 
-EMSCRIPTEN_KEEPALIVE extern "C" int uci_command(const char *c_cmd) {
-  std::string cmd(c_cmd);
+void UCI::loop(int argc, char* argv[]) {
 
-  static bool initialized = false;
-  static Position pos;
-  string token;
-  static StateListPtr states(new std::deque<StateInfo>(1));
+  Position pos;
+  string token, cmd;
+  StateListPtr states(new std::deque<StateInfo>(1));
 
-  if (!initialized) {
-      pos.set(StartFEN, false, &states->back(), Threads.main());
-      initialized = true;
-  }
+  pos.set(StartFEN, false, &states->back(), Threads.main());
 
-  for (Thread* th : Threads) {
-      if (!th->threadStarted)
-          return 1;
-  }
+  for (int i = 1; i < argc; ++i)
+      cmd += std::string(argv[i]) + " ";
 
-  if (Eval::init_NNUE()) {
-      return 1;
-  }
+  do {
+      #ifdef __EMSCRIPTEN__
+        argc = 1;
+        emscripten_utils_getline(cmd);
+      #else
+        if (argc == 1 && !getline(cin, cmd)) // Block here waiting for input or EOF
+            cmd = "quit";
+      #endif
+
+#if defined(CHESSCOM) && defined(__EMSCRIPTEN__)
+        // If the network file is downloading, wait.
+        if (Eval::NNUE::isLoading()) {
+            continue;
+        }
+#endif
 
       istringstream is(cmd);
 
@@ -276,46 +285,46 @@ EMSCRIPTEN_KEEPALIVE extern "C" int uci_command(const char *c_cmd) {
       else if (token == "ponderhit")
           Threads.main()->ponder = false; // Switch to normal search
 
-      else if (token == "uci") {
-          std::stringstream ss;
-          ss << "id name " << engine_info(true)
+      else if (token == "uci")
+          sync_cout << "id name " << engine_info(true)
                     << "\n"       << Options
                     << "\nuciok"  << sync_endl;
-          std::cout << ss.str();
-      }
 
       else if (token == "setoption")  setoption(is);
       else if (token == "go")         go(pos, is, states);
       else if (token == "position")   position(pos, is, states);
       else if (token == "ucinewgame") Search::clear();
-      else if (token == "isready")    {
-        std::stringstream ss;
-        ss << "readyok" << sync_endl;
-        std::cout << ss.str();
-      }
+      else if (token == "isready")    sync_cout << "readyok" << sync_endl;
 
       // Additional custom non-UCI commands, mainly for debugging.
       // Do not use these commands during a search!
       else if (token == "flip")     pos.flip();
       else if (token == "bench")    bench(pos, is, states);
-      else if (token == "d")        {
-        std::stringstream ss;
-        ss << pos << sync_endl;
-        std::cout << ss.str();
-      }
+      else if (token == "d")        sync_cout << pos << sync_endl;
       else if (token == "eval")     trace_eval(pos);
-      else if (token == "compiler") {
-        std::stringstream ss;
-        ss << compiler_info() << sync_endl;
-        std::cout << ss.str();
+      else if (token == "compiler") sync_cout << compiler_info() << sync_endl;
+#if !defined(CHESSCOM) || !defined(__EMSCRIPTEN__)
+      else if (token == "export_net")
+      {
+          std::optional<std::string> filename;
+          std::string f;
+          if (is >> skipws >> f)
+              filename = f;
+          Eval::NNUE::save_eval(filename);
       }
-      else {
-          std::stringstream ss;
-          ss << "Unknown command: " << cmd << sync_endl;
-          std::cout << ss.str();
-      }
+#endif // CHESSCOM
+      #ifdef __EMSCRIPTEN__
+      else if (token == "bench_eval") bench_eval(pos);
+      #endif
+      else if (!token.empty() && token[0] != '#')
+          sync_cout << "Unknown command: " << cmd << sync_endl;
 
-  return 0;
+  } while (token != "quit" && argc == 1); // Command line args are one-shot
+
+  #ifdef __EMSCRIPTEN__
+    // TODO: Ideally, we should send message to foreground and terminate gracefully from there
+    emscripten_force_exit(0);
+  #endif
 }
 
 
@@ -406,3 +415,5 @@ Move UCI::to_move(const Position& pos, string& str) {
 
   return MOVE_NONE;
 }
+
+} // namespace Stockfish

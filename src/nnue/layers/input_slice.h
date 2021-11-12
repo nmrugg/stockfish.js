@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,46 +23,51 @@
 
 #include "../nnue_common.h"
 
-namespace Eval::NNUE::Layers {
+namespace Stockfish::Eval::NNUE::Layers {
 
 // Input layer
-template <IndexType OutputDimensions, IndexType Offset = 0>
+template <IndexType OutDims, IndexType Offset = 0>
 class InputSlice {
  public:
   // Need to maintain alignment
-  static_assert(Offset % kMaxSimdWidth == 0, "");
+  static_assert(Offset % MaxSimdWidth == 0, "");
 
   // Output type
   using OutputType = TransformedFeatureType;
 
   // Output dimensionality
-  static constexpr IndexType kOutputDimensions = OutputDimensions;
+  static constexpr IndexType OutputDimensions = OutDims;
 
   // Size of forward propagation buffer used from the input layer to this layer
-  static constexpr std::size_t kBufferSize = 0;
+  static constexpr std::size_t BufferSize = 0;
 
   // Hash value embedded in the evaluation file
-  static constexpr std::uint32_t GetHashValue() {
-    std::uint32_t hash_value = 0xEC42E90Du;
-    hash_value ^= kOutputDimensions ^ (Offset << 10);
-    return hash_value;
+  static constexpr std::uint32_t get_hash_value() {
+    std::uint32_t hashValue = 0xEC42E90Du;
+    hashValue ^= OutputDimensions ^ (Offset << 10);
+    return hashValue;
   }
 
   // Read network parameters
-  bool ReadParameters(std::istream& /*stream*/) {
+  bool read_parameters(std::istream& /*stream*/) {
+    return true;
+  }
+
+  // Write network parameters
+  bool write_parameters(std::ostream& /*stream*/) const {
     return true;
   }
 
   // Forward propagation
-  const OutputType* Propagate(
-      const TransformedFeatureType* transformed_features,
+  const OutputType* propagate(
+      const TransformedFeatureType* transformedFeatures,
       char* /*buffer*/) const {
-    return transformed_features + Offset;
+    return transformedFeatures + Offset;
   }
 
  private:
 };
 
-}  // namespace Layers
+}  // namespace Stockfish::Eval::NNUE::Layers
 
 #endif // #ifndef NNUE_LAYERS_INPUT_SLICE_H_INCLUDED

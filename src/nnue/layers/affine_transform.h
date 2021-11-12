@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,10 +24,10 @@
 #include <iostream>
 #include "../nnue_common.h"
 
-namespace Eval::NNUE::Layers {
+namespace Stockfish::Eval::NNUE::Layers {
 
   // Affine transformation layer
-  template <typename PreviousLayer, IndexType OutputDimensions>
+  template <typename PreviousLayer, IndexType OutDims>
   class AffineTransform {
    public:
     // Input/output type
@@ -36,212 +36,403 @@ namespace Eval::NNUE::Layers {
     static_assert(std::is_same<InputType, std::uint8_t>::value, "");
 
     // Number of input/output dimensions
-    static constexpr IndexType kInputDimensions =
-        PreviousLayer::kOutputDimensions;
-    static constexpr IndexType kOutputDimensions = OutputDimensions;
-    static constexpr IndexType kPaddedInputDimensions =
-        CeilToMultiple<IndexType>(kInputDimensions, kMaxSimdWidth);
+    static constexpr IndexType InputDimensions =
+        PreviousLayer::OutputDimensions;
+    static constexpr IndexType OutputDimensions = OutDims;
+    static constexpr IndexType PaddedInputDimensions =
+        ceil_to_multiple<IndexType>(InputDimensions, MaxSimdWidth);
+#if defined (USE_AVX512)
+    static constexpr const IndexType OutputSimdWidth = SimdWidth / 2;
+#elif defined (USE_SSSE3)
+    static constexpr const IndexType OutputSimdWidth = SimdWidth / 4;
+#endif
 
     // Size of forward propagation buffer used in this layer
-    static constexpr std::size_t kSelfBufferSize =
-        CeilToMultiple(kOutputDimensions * sizeof(OutputType), kCacheLineSize);
+    static constexpr std::size_t SelfBufferSize =
+        ceil_to_multiple(OutputDimensions * sizeof(OutputType), CacheLineSize);
 
     // Size of the forward propagation buffer used from the input layer to this layer
-    static constexpr std::size_t kBufferSize =
-        PreviousLayer::kBufferSize + kSelfBufferSize;
+    static constexpr std::size_t BufferSize =
+        PreviousLayer::BufferSize + SelfBufferSize;
 
     // Hash value embedded in the evaluation file
-    static constexpr std::uint32_t GetHashValue() {
-      std::uint32_t hash_value = 0xCC03DAE4u;
-      hash_value += kOutputDimensions;
-      hash_value ^= PreviousLayer::GetHashValue() >> 1;
-      hash_value ^= PreviousLayer::GetHashValue() << 31;
-      return hash_value;
+    static constexpr std::uint32_t get_hash_value() {
+      std::uint32_t hashValue = 0xCC03DAE4u;
+      hashValue += OutputDimensions;
+      hashValue ^= PreviousLayer::get_hash_value() >> 1;
+      hashValue ^= PreviousLayer::get_hash_value() << 31;
+      return hashValue;
     }
 
-   // Read network parameters
-    bool ReadParameters(std::istream& stream) {
-      if (!previous_layer_.ReadParameters(stream)) return false;
-      stream.read(reinterpret_cast<char*>(biases_),
-                  kOutputDimensions * sizeof(BiasType));
-      stream.read(reinterpret_cast<char*>(weights_),
-                  kOutputDimensions * kPaddedInputDimensions *
-                  sizeof(WeightType));
+    // Read network parameters
+    bool read_parameters(std::istream& stream) {
+      if (!previousLayer.read_parameters(stream)) return false;
+      for (std::size_t i = 0; i < OutputDimensions; ++i)
+        biases[i] = read_little_endian<BiasType>(stream);
+      for (std::size_t i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+#if !defined (USE_SSSE3)
+        weights[i] = read_little_endian<WeightType>(stream);
+#else
+        weights[
+          (i / 4) % (PaddedInputDimensions / 4) * OutputDimensions * 4 +
+          i / PaddedInputDimensions * 4 +
+          i % 4
+        ] = read_little_endian<WeightType>(stream);
+#endif
+
+      return !stream.fail();
+    }
+
+    // Write network parameters
+    bool write_parameters(std::ostream& stream) const {
+      if (!previousLayer.write_parameters(stream)) return false;
+      for (std::size_t i = 0; i < OutputDimensions; ++i)
+          write_little_endian<BiasType>(stream, biases[i]);
+#if !defined (USE_SSSE3)
+      for (std::size_t i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+          write_little_endian<WeightType>(stream, weights[i]);
+#else
+      std::unique_ptr<WeightType[]> unscrambledWeights = std::make_unique<WeightType[]>(OutputDimensions * PaddedInputDimensions);
+      for (std::size_t i = 0; i < OutputDimensions * PaddedInputDimensions; ++i) {
+          unscrambledWeights[i] =
+              weights[
+                (i / 4) % (PaddedInputDimensions / 4) * OutputDimensions * 4 +
+                i / PaddedInputDimensions * 4 +
+                i % 4
+              ];
+      }
+
+      for (std::size_t i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+          write_little_endian<WeightType>(stream, unscrambledWeights[i]);
+#endif
+
       return !stream.fail();
     }
 
     // Forward propagation
-    const OutputType* Propagate(
-        const TransformedFeatureType* transformed_features, char* buffer) const {
-      const auto input = previous_layer_.Propagate(
-          transformed_features, buffer + kSelfBufferSize);
-      const auto output = reinterpret_cast<OutputType*>(buffer);
+    const OutputType* propagate(
+        const TransformedFeatureType* transformedFeatures, char* buffer) const {
+      const auto input = previousLayer.propagate(
+          transformedFeatures, buffer + SelfBufferSize);
 
-  #if defined(USE_AVX512)
-      constexpr IndexType kNumChunks = kPaddedInputDimensions / (kSimdWidth * 2);
-      const auto input_vector = reinterpret_cast<const __m512i*>(input);
-  #if !defined(USE_VNNI)
-      const __m512i kOnes = _mm512_set1_epi16(1);
-  #endif
+#if defined(USE_WASM_SIMD)
+      {
+        // Simplify variable names (y = Ax + b)
+        static_assert(InputDimensions % 16 == 0);
+        constexpr int n = InputDimensions;
+        constexpr int m = OutputDimensions;
+        constexpr int n_stride = PaddedInputDimensions;
+        auto A = *reinterpret_cast<const int8_t(*)[m][n_stride]>(weights);
+        auto x = *reinterpret_cast<const uint8_t(*)[n]>(input);
+        auto b = *reinterpret_cast<const int32_t(*)[m]>(biases);
+        auto y = *reinterpret_cast<int32_t(*)[m]>(buffer);
+        emscripten_wasm_simd::affine<n, m, n_stride>(A, x, b, y);
+        return y;
+      }
+#endif
 
-  #elif defined(USE_AVX2)
-      constexpr IndexType kNumChunks = kPaddedInputDimensions / kSimdWidth;
-      const __m256i kOnes = _mm256_set1_epi16(1);
-      const auto input_vector = reinterpret_cast<const __m256i*>(input);
+#if defined (USE_AVX512)
 
-  #elif defined(USE_SSE2)
-      constexpr IndexType kNumChunks = kPaddedInputDimensions / kSimdWidth;
-  #ifndef USE_SSSE3
-      const __m128i kZeros = _mm_setzero_si128();
-  #else
-      const __m128i kOnes = _mm_set1_epi16(1);
-  #endif
-      const auto input_vector = reinterpret_cast<const __m128i*>(input);
+      [[maybe_unused]] const __m512i Ones512 = _mm512_set1_epi16(1);
 
-  #elif defined(USE_MMX)
-      constexpr IndexType kNumChunks = kPaddedInputDimensions / kSimdWidth;
-      const __m64 kZeros = _mm_setzero_si64();
-      const auto input_vector = reinterpret_cast<const __m64*>(input);
+      [[maybe_unused]] auto m512_hadd = [](__m512i sum, int bias) -> int {
+        return _mm512_reduce_add_epi32(sum) + bias;
+      };
 
-  #elif defined(USE_NEON)
-      constexpr IndexType kNumChunks = kPaddedInputDimensions / kSimdWidth;
-      const auto input_vector = reinterpret_cast<const int8x8_t*>(input);
-  #endif
+      [[maybe_unused]] auto m512_add_dpbusd_epi32 = [=](__m512i& acc, __m512i a, __m512i b) {
+#if defined (USE_VNNI)
+        acc = _mm512_dpbusd_epi32(acc, a, b);
+#else
+        __m512i product0 = _mm512_maddubs_epi16(a, b);
+        product0 = _mm512_madd_epi16(product0, Ones512);
+        acc = _mm512_add_epi32(acc, product0);
+#endif
+      };
 
-      for (IndexType i = 0; i < kOutputDimensions; ++i) {
-        const IndexType offset = i * kPaddedInputDimensions;
+      [[maybe_unused]] auto m512_add_dpbusd_epi32x4 = [=](__m512i& acc, __m512i a0, __m512i b0, __m512i a1, __m512i b1,
+                                                                        __m512i a2, __m512i b2, __m512i a3, __m512i b3) {
+#if defined (USE_VNNI)
+        acc = _mm512_dpbusd_epi32(acc, a0, b0);
+        acc = _mm512_dpbusd_epi32(acc, a1, b1);
+        acc = _mm512_dpbusd_epi32(acc, a2, b2);
+        acc = _mm512_dpbusd_epi32(acc, a3, b3);
+#else
+        __m512i product0 = _mm512_maddubs_epi16(a0, b0);
+        __m512i product1 = _mm512_maddubs_epi16(a1, b1);
+        __m512i product2 = _mm512_maddubs_epi16(a2, b2);
+        __m512i product3 = _mm512_maddubs_epi16(a3, b3);
+        product0 = _mm512_adds_epi16(product0, product1);
+        product0 = _mm512_madd_epi16(product0, Ones512);
+        product2 = _mm512_adds_epi16(product2, product3);
+        product2 = _mm512_madd_epi16(product2, Ones512);
+        acc = _mm512_add_epi32(acc, _mm512_add_epi32(product0, product2));
+#endif
+      };
 
-  #if defined(USE_AVX512)
-        __m512i sum = _mm512_setzero_si512();
-        const auto row = reinterpret_cast<const __m512i*>(&weights_[offset]);
-        for (IndexType j = 0; j < kNumChunks; ++j) {
-  #if defined(USE_VNNI)
-            sum = _mm512_dpbusd_epi32(sum, _mm512_loadA_si512(&input_vector[j]), _mm512_load_si512(&row[j]));
-  #else
-            __m512i product = _mm512_maddubs_epi16(_mm512_loadA_si512(&input_vector[j]), _mm512_load_si512(&row[j]));
-            product = _mm512_madd_epi16(product, kOnes);
-            sum = _mm512_add_epi32(sum, product);
-  #endif
-        }
+#endif
+#if defined (USE_AVX2)
 
-        // Note: Changing kMaxSimdWidth from 32 to 64 breaks loading existing networks.
-        // As a result kPaddedInputDimensions may not be an even multiple of 64(512bit)
-        // and we have to do one more 256bit chunk.
-        if (kPaddedInputDimensions != kNumChunks * kSimdWidth * 2)
-        {
-            const auto iv256  = reinterpret_cast<const __m256i*>(&input_vector[kNumChunks]);
-            const auto row256 = reinterpret_cast<const __m256i*>(&row[kNumChunks]);
-  #if defined(USE_VNNI)
-            __m256i product256 = _mm256_dpbusd_epi32(
-                _mm512_castsi512_si256(sum), _mm256_loadA_si256(&iv256[0]), _mm256_load_si256(&row256[0]));
-            sum = _mm512_inserti32x8(sum, product256, 0);
-  #else
-            __m256i product256 = _mm256_maddubs_epi16(_mm256_loadA_si256(&iv256[0]), _mm256_load_si256(&row256[0]));
-            sum = _mm512_add_epi32(sum, _mm512_cvtepi16_epi32(product256));
-  #endif
-        }
-        output[i] = _mm512_reduce_add_epi32(sum) + biases_[i];
+      [[maybe_unused]] const __m256i Ones256 = _mm256_set1_epi16(1);
 
-  #elif defined(USE_AVX2)
-        __m256i sum = _mm256_setzero_si256();
-        const auto row = reinterpret_cast<const __m256i*>(&weights_[offset]);
-        for (IndexType j = 0; j < kNumChunks; ++j) {
-          __m256i product = _mm256_maddubs_epi16(_mm256_loadA_si256(&input_vector[j]), _mm256_load_si256(&row[j]));
-          product = _mm256_madd_epi16(product, kOnes);
-          sum = _mm256_add_epi32(sum, product);
-        }
+      [[maybe_unused]] auto m256_hadd = [](__m256i sum, int bias) -> int {
         __m128i sum128 = _mm_add_epi32(_mm256_castsi256_si128(sum), _mm256_extracti128_si256(sum, 1));
         sum128 = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_PERM_BADC));
         sum128 = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_PERM_CDAB));
-        output[i] = _mm_cvtsi128_si32(sum128) + biases_[i];
+        return _mm_cvtsi128_si32(sum128) + bias;
+      };
 
-  #elif defined(USE_SSSE3)
-        __m128i sum = _mm_setzero_si128();
-        const auto row = reinterpret_cast<const __m128i*>(&weights_[offset]);
-        for (int j = 0; j < (int)kNumChunks - 1; j += 2) {
-          __m128i product0 = _mm_maddubs_epi16(_mm_load_si128(&input_vector[j]), _mm_load_si128(&row[j]));
-          product0 = _mm_madd_epi16(product0, kOnes);
-          sum = _mm_add_epi32(sum, product0);
-          __m128i product1 = _mm_maddubs_epi16(_mm_load_si128(&input_vector[j+1]), _mm_load_si128(&row[j+1]));
-          product1 = _mm_madd_epi16(product1, kOnes);
-          sum = _mm_add_epi32(sum, product1);
-        }
-        if (kNumChunks & 0x1) {
-          __m128i product = _mm_maddubs_epi16(_mm_load_si128(&input_vector[kNumChunks-1]), _mm_load_si128(&row[kNumChunks-1]));
-          product = _mm_madd_epi16(product, kOnes);
-          sum = _mm_add_epi32(sum, product);
-        }
+      [[maybe_unused]] auto m256_add_dpbusd_epi32 = [=](__m256i& acc, __m256i a, __m256i b) {
+#if defined (USE_VNNI)
+        acc = _mm256_dpbusd_epi32(acc, a, b);
+#else
+        __m256i product0 = _mm256_maddubs_epi16(a, b);
+        product0 = _mm256_madd_epi16(product0, Ones256);
+        acc = _mm256_add_epi32(acc, product0);
+#endif
+      };
+
+      [[maybe_unused]] auto m256_add_dpbusd_epi32x4 = [=](__m256i& acc, __m256i a0, __m256i b0, __m256i a1, __m256i b1,
+                                                                        __m256i a2, __m256i b2, __m256i a3, __m256i b3) {
+#if defined (USE_VNNI)
+        acc = _mm256_dpbusd_epi32(acc, a0, b0);
+        acc = _mm256_dpbusd_epi32(acc, a1, b1);
+        acc = _mm256_dpbusd_epi32(acc, a2, b2);
+        acc = _mm256_dpbusd_epi32(acc, a3, b3);
+#else
+        __m256i product0 = _mm256_maddubs_epi16(a0, b0);
+        __m256i product1 = _mm256_maddubs_epi16(a1, b1);
+        __m256i product2 = _mm256_maddubs_epi16(a2, b2);
+        __m256i product3 = _mm256_maddubs_epi16(a3, b3);
+        product0 = _mm256_adds_epi16(product0, product1);
+        product0 = _mm256_madd_epi16(product0, Ones256);
+        product2 = _mm256_adds_epi16(product2, product3);
+        product2 = _mm256_madd_epi16(product2, Ones256);
+        acc = _mm256_add_epi32(acc, _mm256_add_epi32(product0, product2));
+#endif
+      };
+
+#endif
+#if defined (USE_SSSE3)
+
+      [[maybe_unused]] const __m128i Ones128 = _mm_set1_epi16(1);
+
+      [[maybe_unused]] auto m128_hadd = [](__m128i sum, int bias) -> int {
         sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, 0x4E)); //_MM_PERM_BADC
         sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, 0xB1)); //_MM_PERM_CDAB
-        output[i] = _mm_cvtsi128_si32(sum) + biases_[i];
+        return _mm_cvtsi128_si32(sum) + bias;
+      };
 
-  #elif defined(USE_SSE2)
-        __m128i sum_lo = _mm_cvtsi32_si128(biases_[i]);
-        __m128i sum_hi = kZeros;
-        const auto row = reinterpret_cast<const __m128i*>(&weights_[offset]);
-        for (IndexType j = 0; j < kNumChunks; ++j) {
+      [[maybe_unused]] auto m128_add_dpbusd_epi32 = [=](__m128i& acc, __m128i a, __m128i b) {
+        __m128i product0 = _mm_maddubs_epi16(a, b);
+        product0 = _mm_madd_epi16(product0, Ones128);
+        acc = _mm_add_epi32(acc, product0);
+      };
+
+      [[maybe_unused]] auto m128_add_dpbusd_epi32x4 = [=](__m128i& acc, __m128i a0, __m128i b0, __m128i a1, __m128i b1,
+                                                                        __m128i a2, __m128i b2, __m128i a3, __m128i b3) {
+        __m128i product0 = _mm_maddubs_epi16(a0, b0);
+        __m128i product1 = _mm_maddubs_epi16(a1, b1);
+        __m128i product2 = _mm_maddubs_epi16(a2, b2);
+        __m128i product3 = _mm_maddubs_epi16(a3, b3);
+        product0 = _mm_adds_epi16(product0, product1);
+        product0 = _mm_madd_epi16(product0, Ones128);
+        product2 = _mm_adds_epi16(product2, product3);
+        product2 = _mm_madd_epi16(product2, Ones128);
+        acc = _mm_add_epi32(acc, _mm_add_epi32(product0, product2));
+      };
+
+#endif
+
+#if defined (USE_AVX512)
+      using vec_t = __m512i;
+      #define vec_setzero _mm512_setzero_si512
+      #define vec_set_32 _mm512_set1_epi32
+      auto& vec_add_dpbusd_32 = m512_add_dpbusd_epi32;
+      auto& vec_add_dpbusd_32x4 = m512_add_dpbusd_epi32x4;
+      auto& vec_hadd = m512_hadd;
+#elif defined (USE_AVX2)
+      using vec_t = __m256i;
+      #define vec_setzero _mm256_setzero_si256
+      #define vec_set_32 _mm256_set1_epi32
+      auto& vec_add_dpbusd_32 = m256_add_dpbusd_epi32;
+      auto& vec_add_dpbusd_32x4 = m256_add_dpbusd_epi32x4;
+      auto& vec_hadd = m256_hadd;
+#elif defined (USE_SSSE3)
+      using vec_t = __m128i;
+      #define vec_setzero _mm_setzero_si128
+      #define vec_set_32 _mm_set1_epi32
+      auto& vec_add_dpbusd_32 = m128_add_dpbusd_epi32;
+      auto& vec_add_dpbusd_32x4 = m128_add_dpbusd_epi32x4;
+      auto& vec_hadd = m128_hadd;
+#endif
+
+#if defined (USE_SSSE3)
+      // Different layout, we process 4 inputs at a time, always.
+      static_assert(InputDimensions % 4 == 0);
+
+      const auto output = reinterpret_cast<OutputType*>(buffer);
+      const auto inputVector = reinterpret_cast<const vec_t*>(input);
+
+      static_assert(OutputDimensions % OutputSimdWidth == 0 || OutputDimensions == 1);
+
+      // OutputDimensions is either 1 or a multiple of SimdWidth
+      // because then it is also an input dimension.
+      if constexpr (OutputDimensions % OutputSimdWidth == 0)
+      {
+          constexpr IndexType NumChunks = InputDimensions / 4;
+
+          const auto input32 = reinterpret_cast<const std::int32_t*>(input);
+          vec_t* outptr = reinterpret_cast<vec_t*>(output);
+          std::memcpy(output, biases, OutputDimensions * sizeof(OutputType));
+
+          for (int i = 0; i < (int)NumChunks - 3; i += 4)
+          {
+              const vec_t in0 = vec_set_32(input32[i + 0]);
+              const vec_t in1 = vec_set_32(input32[i + 1]);
+              const vec_t in2 = vec_set_32(input32[i + 2]);
+              const vec_t in3 = vec_set_32(input32[i + 3]);
+              const auto col0 = reinterpret_cast<const vec_t*>(&weights[(i + 0) * OutputDimensions * 4]);
+              const auto col1 = reinterpret_cast<const vec_t*>(&weights[(i + 1) * OutputDimensions * 4]);
+              const auto col2 = reinterpret_cast<const vec_t*>(&weights[(i + 2) * OutputDimensions * 4]);
+              const auto col3 = reinterpret_cast<const vec_t*>(&weights[(i + 3) * OutputDimensions * 4]);
+              for (int j = 0; j * OutputSimdWidth < OutputDimensions; ++j)
+                  vec_add_dpbusd_32x4(outptr[j], in0, col0[j], in1, col1[j], in2, col2[j], in3, col3[j]);
+          }
+      }
+      else if constexpr (OutputDimensions == 1)
+      {
+#if defined (USE_AVX512)
+          if constexpr (PaddedInputDimensions % (SimdWidth * 2) != 0)
+          {
+              constexpr IndexType NumChunks = PaddedInputDimensions / SimdWidth;
+              const auto inputVector256 = reinterpret_cast<const __m256i*>(input);
+
+              __m256i sum0 = _mm256_setzero_si256();
+              const auto row0 = reinterpret_cast<const __m256i*>(&weights[0]);
+
+              for (int j = 0; j < (int)NumChunks; ++j)
+              {
+                  const __m256i in = inputVector256[j];
+                  m256_add_dpbusd_epi32(sum0, in, row0[j]);
+              }
+              output[0] = m256_hadd(sum0, biases[0]);
+          }
+          else
+#endif
+          {
+#if defined (USE_AVX512)
+              constexpr IndexType NumChunks = PaddedInputDimensions / (SimdWidth * 2);
+#else
+              constexpr IndexType NumChunks = PaddedInputDimensions / SimdWidth;
+#endif
+              vec_t sum0 = vec_setzero();
+              const auto row0 = reinterpret_cast<const vec_t*>(&weights[0]);
+
+              for (int j = 0; j < (int)NumChunks; ++j)
+              {
+                  const vec_t in = inputVector[j];
+                  vec_add_dpbusd_32(sum0, in, row0[j]);
+              }
+              output[0] = vec_hadd(sum0, biases[0]);
+          }
+      }
+
+#else
+
+// Use old implementation for the other architectures.
+
+      auto output = reinterpret_cast<OutputType*>(buffer);
+
+#if defined(USE_SSE2)
+      // At least a multiple of 16, with SSE2.
+      static_assert(InputDimensions % SimdWidth == 0);
+      constexpr IndexType NumChunks = InputDimensions / SimdWidth;
+      const __m128i Zeros = _mm_setzero_si128();
+      const auto inputVector = reinterpret_cast<const __m128i*>(input);
+
+#elif defined(USE_MMX)
+      static_assert(InputDimensions % SimdWidth == 0);
+      constexpr IndexType NumChunks = InputDimensions / SimdWidth;
+      const __m64 Zeros = _mm_setzero_si64();
+      const auto inputVector = reinterpret_cast<const __m64*>(input);
+
+#elif defined(USE_NEON)
+      static_assert(InputDimensions % SimdWidth == 0);
+      constexpr IndexType NumChunks = InputDimensions / SimdWidth;
+      const auto inputVector = reinterpret_cast<const int8x8_t*>(input);
+#endif
+
+      for (IndexType i = 0; i < OutputDimensions; ++i) {
+        const IndexType offset = i * PaddedInputDimensions;
+
+#if defined(USE_SSE2)
+        __m128i sumLo = _mm_cvtsi32_si128(biases[i]);
+        __m128i sumHi = Zeros;
+        const auto row = reinterpret_cast<const __m128i*>(&weights[offset]);
+        for (IndexType j = 0; j < NumChunks; ++j) {
           __m128i row_j = _mm_load_si128(&row[j]);
-          __m128i input_j = _mm_load_si128(&input_vector[j]);
-          __m128i row_signs = _mm_cmpgt_epi8(kZeros, row_j);
-          __m128i extended_row_lo = _mm_unpacklo_epi8(row_j, row_signs);
-          __m128i extended_row_hi = _mm_unpackhi_epi8(row_j, row_signs);
-          __m128i extended_input_lo = _mm_unpacklo_epi8(input_j, kZeros);
-          __m128i extended_input_hi = _mm_unpackhi_epi8(input_j, kZeros);
-          __m128i product_lo = _mm_madd_epi16(extended_row_lo, extended_input_lo);
-          __m128i product_hi = _mm_madd_epi16(extended_row_hi, extended_input_hi);
-          sum_lo = _mm_add_epi32(sum_lo, product_lo);
-          sum_hi = _mm_add_epi32(sum_hi, product_hi);
+          __m128i input_j = _mm_load_si128(&inputVector[j]);
+          __m128i extendedRowLo = _mm_srai_epi16(_mm_unpacklo_epi8(row_j, row_j), 8);
+          __m128i extendedRowHi = _mm_srai_epi16(_mm_unpackhi_epi8(row_j, row_j), 8);
+          __m128i extendedInputLo = _mm_unpacklo_epi8(input_j, Zeros);
+          __m128i extendedInputHi = _mm_unpackhi_epi8(input_j, Zeros);
+          __m128i productLo = _mm_madd_epi16(extendedRowLo, extendedInputLo);
+          __m128i productHi = _mm_madd_epi16(extendedRowHi, extendedInputHi);
+          sumLo = _mm_add_epi32(sumLo, productLo);
+          sumHi = _mm_add_epi32(sumHi, productHi);
         }
-        __m128i sum = _mm_add_epi32(sum_lo, sum_hi);
-        __m128i sum_high_64 = _mm_shuffle_epi32(sum, _MM_SHUFFLE(1, 0, 3, 2));
-        sum = _mm_add_epi32(sum, sum_high_64);
+        __m128i sum = _mm_add_epi32(sumLo, sumHi);
+        __m128i sumHigh_64 = _mm_shuffle_epi32(sum, _MM_SHUFFLE(1, 0, 3, 2));
+        sum = _mm_add_epi32(sum, sumHigh_64);
         __m128i sum_second_32 = _mm_shufflelo_epi16(sum, _MM_SHUFFLE(1, 0, 3, 2));
         sum = _mm_add_epi32(sum, sum_second_32);
         output[i] = _mm_cvtsi128_si32(sum);
 
-  #elif defined(USE_MMX)
-        __m64 sum_lo = _mm_cvtsi32_si64(biases_[i]);
-        __m64 sum_hi = kZeros;
-        const auto row = reinterpret_cast<const __m64*>(&weights_[offset]);
-        for (IndexType j = 0; j < kNumChunks; ++j) {
+#elif defined(USE_MMX)
+        __m64 sumLo = _mm_cvtsi32_si64(biases[i]);
+        __m64 sumHi = Zeros;
+        const auto row = reinterpret_cast<const __m64*>(&weights[offset]);
+        for (IndexType j = 0; j < NumChunks; ++j) {
           __m64 row_j = row[j];
-          __m64 input_j = input_vector[j];
-          __m64 row_signs = _mm_cmpgt_pi8(kZeros, row_j);
-          __m64 extended_row_lo = _mm_unpacklo_pi8(row_j, row_signs);
-          __m64 extended_row_hi = _mm_unpackhi_pi8(row_j, row_signs);
-          __m64 extended_input_lo = _mm_unpacklo_pi8(input_j, kZeros);
-          __m64 extended_input_hi = _mm_unpackhi_pi8(input_j, kZeros);
-          __m64 product_lo = _mm_madd_pi16(extended_row_lo, extended_input_lo);
-          __m64 product_hi = _mm_madd_pi16(extended_row_hi, extended_input_hi);
-          sum_lo = _mm_add_pi32(sum_lo, product_lo);
-          sum_hi = _mm_add_pi32(sum_hi, product_hi);
+          __m64 input_j = inputVector[j];
+          __m64 extendedRowLo = _mm_srai_pi16(_mm_unpacklo_pi8(row_j, row_j), 8);
+          __m64 extendedRowHi = _mm_srai_pi16(_mm_unpackhi_pi8(row_j, row_j), 8);
+          __m64 extendedInputLo = _mm_unpacklo_pi8(input_j, Zeros);
+          __m64 extendedInputHi = _mm_unpackhi_pi8(input_j, Zeros);
+          __m64 productLo = _mm_madd_pi16(extendedRowLo, extendedInputLo);
+          __m64 productHi = _mm_madd_pi16(extendedRowHi, extendedInputHi);
+          sumLo = _mm_add_pi32(sumLo, productLo);
+          sumHi = _mm_add_pi32(sumHi, productHi);
         }
-        __m64 sum = _mm_add_pi32(sum_lo, sum_hi);
+        __m64 sum = _mm_add_pi32(sumLo, sumHi);
         sum = _mm_add_pi32(sum, _mm_unpackhi_pi32(sum, sum));
         output[i] = _mm_cvtsi64_si32(sum);
 
-  #elif defined(USE_NEON)
-        int32x4_t sum = {biases_[i]};
-        const auto row = reinterpret_cast<const int8x8_t*>(&weights_[offset]);
-        for (IndexType j = 0; j < kNumChunks; ++j) {
-          int16x8_t product = vmull_s8(input_vector[j * 2], row[j * 2]);
-          product = vmlal_s8(product, input_vector[j * 2 + 1], row[j * 2 + 1]);
+#elif defined(USE_NEON)
+        int32x4_t sum = {biases[i]};
+        const auto row = reinterpret_cast<const int8x8_t*>(&weights[offset]);
+        for (IndexType j = 0; j < NumChunks; ++j) {
+          int16x8_t product = vmull_s8(inputVector[j * 2], row[j * 2]);
+          product = vmlal_s8(product, inputVector[j * 2 + 1], row[j * 2 + 1]);
           sum = vpadalq_s16(sum, product);
         }
         output[i] = sum[0] + sum[1] + sum[2] + sum[3];
 
-  #else
-        OutputType sum = biases_[i];
-        for (IndexType j = 0; j < kInputDimensions; ++j) {
-          sum += weights_[offset + j] * input[j];
+#else
+        OutputType sum = biases[i];
+        for (IndexType j = 0; j < InputDimensions; ++j) {
+          sum += weights[offset + j] * input[j];
         }
         output[i] = sum;
-  #endif
+#endif
 
       }
-  #if defined(USE_MMX)
+#if defined(USE_MMX)
       _mm_empty();
-  #endif
+#endif
+
+#endif
+
       return output;
     }
 
@@ -249,13 +440,12 @@ namespace Eval::NNUE::Layers {
     using BiasType = OutputType;
     using WeightType = std::int8_t;
 
-    PreviousLayer previous_layer_;
+    PreviousLayer previousLayer;
 
-    alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
-    alignas(kCacheLineSize)
-        WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
+    alignas(CacheLineSize) BiasType biases[OutputDimensions];
+    alignas(CacheLineSize) WeightType weights[OutputDimensions * PaddedInputDimensions];
   };
 
-}  // namespace Eval::NNUE::Layers
+}  // namespace Stockfish::Eval::NNUE::Layers
 
 #endif // #ifndef NNUE_LAYERS_AFFINE_TRANSFORM_H_INCLUDED
