@@ -7,7 +7,7 @@ bits = 64
 
 # Build options
 wasm_simd = no
-wasm_simd_post_mvp = no
+wasm_simd_post_mvp = yes
 minify_js = yes
 assertion = no
 embedded_nnue = yes
@@ -79,6 +79,10 @@ endif
 ifeq ($(wasm_simd_post_mvp),yes)
 	EM_CXXFLAGS += -DUSE_WASM_SIMD -DUSE_WASM_SIMD_POST_MVP -msimd128
 	SRCS += emscripten/wasm_simd.cpp
+	sse = yes
+	sse2 = yes
+	ssse3 = yes
+	sse41 = yes
 else ifeq ($(wasm_simd),yes)
 	EM_CXXFLAGS += -DUSE_WASM_SIMD -msimd128
 	SRCS += emscripten/wasm_simd.cpp

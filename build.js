@@ -22,7 +22,7 @@ var preface;
 var postscript;
 var buildToWASM;
 var child;
-var stockfishVersion = "14";
+var stockfishVersion = "14.1";
 var fistRun;
 
 function get_params(options, argv)
@@ -208,6 +208,19 @@ function execFileSync(command, args, options)
     return runExecFileSync(command, args, options);
 }
 
+function addNNSymLink()
+{
+    /// Adds NN symlink for testing code to use, if it doesn't exist already.
+    try {
+        var path = fs.readFileSync(p.join(__dirname, "src", "evaluate.h"), "utf8").match(/EvalFileDefaultName\s+["']([^"']+)/)[1];
+        execFileSync("ln", ["-s", "../../" + path], {cwd: p.join(__dirname, "src", "emscripten", "public"), stdio: "pipe"});
+    } catch (e) {
+        if (!e.message || e.message.indexOf("File exists") === -1) {
+            console.error("Creating symlink failed");
+            console.error(e);
+        }
+    }
+}
 
 if (!params.make) {
     params.make = "make";
@@ -384,14 +397,20 @@ if (!buildToWASM && params.basename) {
 if (buildToWASM) {
     data = fs.readFileSync(stockfishWASMLoaderPath, "utf8");
     workerData = fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim();
+    
     try {
         fs.unlinkSync(stockfishWorkerThreadPath);
     } catch (e) {};
+    
+    if (params["debug-wasm"]) {
+        data = "//HACK: This build requires some hacks to run\nglobal.ENVIRONMENT_IS_FETCH_WORKER=true;global.indexedDB={open:function(){return{}}};\n" + data;
+    }
+    
     /// Append the hacky custom post message code for the asyncify.
     workerData += "\n" + fs.readFileSync(p.join(__dirname, "src", "emscripten", "worker-postamble.js"), "utf8").trim();
     /// Run the init function instead of using emscripten's ugly importScripts hack.
     ///NOTE: Could remove other ugly hacks.
-    workerData = workerData.replace(/if\s*\([^)]+urlOrBlob.*?else\s*\{[^}]+\}/, "Stockfish=INIT_ENGINE();");
+    workerData = workerData.replace(/if\s*\([^)]+urlOrBlob[\s\S]*?else\s*\{[^}]+\}/, "Stockfish=INIT_ENGINE();");
     data = data.replace("/// Insert worker here", workerData).trim();
     fs.writeFileSync(stockfishWASMLoaderPath, data);
     
@@ -399,82 +418,8 @@ if (buildToWASM) {
         fs.renameSync(stockfishWASMLoaderPath, p.join(__dirname, "src", params.basename + ".js"));
         fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
     }
-}
-
-///OLD
-if (false && buildToWASM) {
-    data = fs.readFileSync(stockfishWASMLoaderPath, "utf8");
     
-    /// Remove "var Module" so that it does not overwrite our custom module.
-    //data = data.replace("var Module;", "");
-    
-    if (params.basename) {
-        data = data.replace(/stockfish\.wasm/g, params.basename + ".wasm");
-    }
-    /// Fix the initializer in a Web Worker.
-    data = data.replace(/__register_pthread_ptr\s*\(\s*PThread\s*\.\s*mainThreadBlock\s*,\s*!\s*ENVIRONMENT_IS_WORKER/, "__register_pthread_ptr(PThread.mainThreadBlock,isInitializer||!ENVIRONMENT_IS_WORKER");
-    /// Throw errors if files do not load. This catches Firefox header issues.
-    data = data.replace(/(function instantiateAsync.*?fetch\(.*?\));?\s*(}\s*else)/, "$1.catch(function (e){setTimeout(function (){throw e},0);console.error(e)})$2");
-    
-    /// Load the embeded worker.
-    data = data.replace(/var pthreadMainJs\s*=\s*locateFile\(["'].*?.worker.js["']\)/, "var pthreadMainJs;if(ENVIRONMENT_IS_NODE)pthreadMainJs=__filename;else pthreadMainJs=self.location.origin+self.location.pathname+\"#\"+(wasmPath||wasmBinaryFile)+\",1\"");
-    
-    data = data.replace(/(wasmBinaryFile\s*=\s*locateFile\(wasmBinaryFile\);?\s*\}?)/, "$1wasmBinaryFile=Module.wasmBinaryFile||wasmBinaryFile;");
-    
-    /// Embed stockfish.worker.js
-    /*data = data.replace(/locateFile\(["']stockfish.worker.js["']\)/, "\"data:application/javascript," + encodeURIComponent(fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim()) + "\"");
-    try {
-        fs.unlinkSync(stockfishWorkerThreadPath);
-    } catch (e) {};
-    */
-    /// Firefox sometimes triggers this. Closing the bad Web Worker seems to avoid the problem.
-    workerData = fs.readFileSync(stockfishWorkerThreadPath, "utf8").trim();
-    workerData = workerData.replace(/Module\s*=\s*Stockfish\(Module\)/, "if(typeof Stockfish===\"undefined\")return self.close();Module=Stockfish(Module);");
-    //fs.writeFileSync(stockfishWorkerThreadPath, workerData);
-    /// Run the init function instead of using the importScripts hack.
-    workerData = workerData.replace(/if\s*\([^)]+urlOrBlob.*?else\s*\{[^}]+\}/, "INIT_ENGINE();");
-    
-    try {
-        fs.unlinkSync(stockfishWorkerThreadPath);
-    } catch (e) {};
-    
-    /// Fix bad emscripten path finding
-    data = data.replace(/scriptDirectory\s*=\s*scriptDirectory\s*\.\s*substr\s*\(0\s*,\s*scriptDirectory\s*\.\s*lastIndexOf\s*\(\s*["']\/["']\s*\)\s*\+\s*1\s*\);?/, "scriptDirectory=scriptDirectory.substr(0,scriptDirectory.replace(/[?#].*/,\"\").lastIndexOf('/')+1);");
- 
-    
-    /*
-    /// Firefox sometimes triggers this. Closing the bad Web Worker seems to avoid the problem.
-            if (typeof Stockfish === "undefined") {
-                return self.close();
-                //console.log("waiting")
-                //return setTimeout(this.onmessage, 100, e);
-            }
-            */
-    //Module = Stockfish(Module);
-    
-    // /// Fix issues with locating the WASM file
-    //data = data.replace(/wasmBinaryFile=/g, "wasmBinaryFile=Module.wasmBinaryFile||");
-    
-    preface = preface || fs.readFileSync(p.join(__dirname, "src", "emscripten", "preface.js"), "utf8");
-    postscript = postscript || fs.readFileSync(p.join(__dirname, "src", "emscripten", "postscript.js"), "utf8");
-    if (data.indexOf(preface) !== 0) {
-        data = preface + data;
-    }
-    if (data.indexOf(postscript) === -1) {
-        data = data + postscript;
-    }
-    
-    data = data.replace("/// Insert worker here", workerData);
-    
-    /// Remove debugging code.
-    data = data.replace(/\s*\/\/\/ Uncomment for debugging\s*\/\/console\.log\("-->",\s*line\);?\s*/, "");
-    
-    fs.writeFileSync(stockfishWASMLoaderPath, data);
-    
-    if (params.basename) {
-        fs.renameSync(stockfishWASMLoaderPath, p.join(__dirname, "src", params.basename + ".js"));
-        fs.renameSync(stockfishWASMPath, p.join(__dirname, "src", params.basename + ".wasm"));
-    }
+    addNNSymLink();
 }
 
 beep();

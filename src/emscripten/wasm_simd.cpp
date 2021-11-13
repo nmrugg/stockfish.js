@@ -1,12 +1,10 @@
-#include "wasm_simd.h"
+#include "wasm_simd128.h"
 #include <cstdio>
 
 namespace emscripten_wasm_simd {
 
 template<int n, int m, int n_stride>
 void affine(const int8_t A[m][n_stride], const uint8_t x[n], const int32_t b[m], int32_t y[m]) {
-  static_assert(n % 16 == 0);
-
   //
   // Dot product of two SIMD vectors
   //
@@ -29,6 +27,7 @@ void affine(const int8_t A[m][n_stride], const uint8_t x[n], const int32_t b[m],
     #endif
   };
 
+  // (NOT USED)
   [[maybe_unused]] auto dot_i16x8 = [](__i16x8 a, __i16x8 b) -> __i32x4 {
     __i16x8 c = wasm_i16x8_mul(a, b);
     return wasm_i32x4_add(wasm_i32x4_extend_low_i16x8(c), wasm_i32x4_extend_high_i16x8(c));
@@ -41,6 +40,7 @@ void affine(const int8_t A[m][n_stride], const uint8_t x[n], const int32_t b[m],
     return wasm_i32x4_add(wasm_i32x4_shuffle(x0, x1, 0, 2, 4, 6), wasm_i32x4_shuffle(x0, x1, 1, 3, 5, 7));
   };
 
+  // (NOT USED)
   [[maybe_unused]] auto haddx4 = [&](__i32x4 x0, __i32x4 x1, __i32x4 x2, __i32x4 x3) -> __i32x4 {
     return hadd(hadd(x0, x1), hadd(x2, x3));
   };
@@ -94,21 +94,26 @@ void affine(const int8_t A[m][n_stride], const uint8_t x[n], const int32_t b[m],
   //
   // Affine
   //
-  if constexpr (m % 4 == 0) {
+  // 2048x8
+  if constexpr (n % 16 == 0 && m % 4 == 0) {
     for (int i = 0; i < m; i += 4) {
       dot4(&A[i][0], &x[0], &b[i], &y[i]);
     }
 
+  // 8x32, 32x1 (it doesn't worth optimizing such small kernels)
   } else {
     for (int i = 0; i < m; i++) {
-      dot(&A[i][0], &x[0], &b[i], &y[i]);
+      y[i] = b[i];
+      for (int j = 0; j < n; j++) {
+        y[i] += A[i][j] * x[j];
+      }
     }
   }
 }
 
 // Explicit instantiation
-template void affine<1024, 16, 1024>(const int8_t A[16][1024], const uint8_t x[1024], const int32_t b[16], int32_t y[16]);
-template void affine<  16, 32,   32>(const int8_t A[32][  32], const uint8_t x[  16], const int32_t b[32], int32_t y[32]);
+template void affine<2048,  8, 2048>(const int8_t A[ 8][2048], const uint8_t x[2048], const int32_t b[ 8], int32_t y[ 8]);
+template void affine<   8, 32,   32>(const int8_t A[32][  32], const uint8_t x[   8], const int32_t b[32], int32_t y[32]);
 template void affine<  32,  1,   32>(const int8_t A[ 1][  32], const uint8_t x[  32], const int32_t b[ 1], int32_t y[ 1]);
 
 } // namespace emscripten_wasm_simd
