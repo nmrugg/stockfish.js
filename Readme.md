@@ -5,7 +5,7 @@
 Stockfish.js is currently updated to Stockfish 14.1.
 
 ```
-NOTE: Stockfish.js 14.1 reqiures some of the latest features and does not work in every browser.
+NOTE: Stockfish.js 14.1 requires some of the latest features and does not work in every browser.
 ```
 
 This is a multi-threaded engine, and will only run in newer browsers and node.js versions. For an older JS and WASM version, see the <a href=../../tree/Stockfish11>Stockfish.js 11 branch</a>.
