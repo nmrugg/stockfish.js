@@ -201,6 +201,7 @@ EM_JS(void, unpauseQueue, (), {
 
                 MemoryBuffer buffer(const_cast<char*>(reinterpret_cast<const char*>(gEmbeddedNNUEData)),
                                     size_t(gEmbeddedNNUESize));
+                (void) gEmbeddedNNUEEnd; // Silence warning on unused variable
 
                 istream stream(&buffer);
                 if (load_eval(eval_file, stream))
