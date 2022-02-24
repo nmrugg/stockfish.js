@@ -246,10 +246,10 @@ namespace Stockfish::Eval::NNUE::Layers {
 
     // Read network parameters
     bool read_parameters(std::istream& stream) {
-      for (std::size_t i = 0; i < OutputDimensions; ++i)
+      for (IndexType i = 0; i < OutputDimensions; ++i)
         biases[i] = read_little_endian<BiasType>(stream);
 
-      for (std::size_t i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+      for (IndexType i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
         weights[get_weight_index(i)] = read_little_endian<WeightType>(stream);
 
       return !stream.fail();
@@ -257,10 +257,10 @@ namespace Stockfish::Eval::NNUE::Layers {
 
     // Write network parameters
     bool write_parameters(std::ostream& stream) const {
-      for (std::size_t i = 0; i < OutputDimensions; ++i)
+      for (IndexType i = 0; i < OutputDimensions; ++i)
           write_little_endian<BiasType>(stream, biases[i]);
 
-      for (std::size_t i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+      for (IndexType i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
         write_little_endian<WeightType>(stream, weights[get_weight_index(i)]);
 
       return !stream.fail();
@@ -448,9 +448,9 @@ namespace Stockfish::Eval::NNUE::Layers {
 
     // Read network parameters
     bool read_parameters(std::istream& stream) {
-      for (std::size_t i = 0; i < OutputDimensions; ++i)
+      for (IndexType i = 0; i < OutputDimensions; ++i)
         biases[i] = read_little_endian<BiasType>(stream);
-      for (std::size_t i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+      for (IndexType i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
         weights[get_weight_index(i)] = read_little_endian<WeightType>(stream);
 
       return !stream.fail();
@@ -458,10 +458,10 @@ namespace Stockfish::Eval::NNUE::Layers {
 
     // Write network parameters
     bool write_parameters(std::ostream& stream) const {
-      for (std::size_t i = 0; i < OutputDimensions; ++i)
+      for (IndexType i = 0; i < OutputDimensions; ++i)
         write_little_endian<BiasType>(stream, biases[i]);
 
-      for (std::size_t i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+      for (IndexType i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
         write_little_endian<WeightType>(stream, weights[get_weight_index(i)]);
 
       return !stream.fail();
