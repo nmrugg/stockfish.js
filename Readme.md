@@ -29,7 +29,7 @@ You need to have the <a href="http://kripken.github.io/emscripten-site/docs/gett
 
 ### Example
 
-There are examples in the example folder. You will need to run the example/server.js server to veiw the client-side examples.
+There are examples in the example folder. You will need to run the example/server.js server to view the client-side examples.
 
 There are also example using Node.js.
 
