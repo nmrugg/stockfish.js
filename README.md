@@ -1,6 +1,6 @@
 ## Stockfish NNUE WASM
 
-WebAssembly port of [Stockfish](https://github.com/official-stockfish/Stockfish) with NNUE support, currently used by [lichess.org](https://lichess.org/blog/YDOKRxQAACgAREB3/stockfish-13-nnue-on-lichess) for in-browser analysis.
+WebAssembly port of [Stockfish 15](https://github.com/official-stockfish/Stockfish) with NNUE support, currently used by chess.com for in-browser analysis.
 
 For development, see [src/emscripten/README.md](src/emscripten/README.md).
 
