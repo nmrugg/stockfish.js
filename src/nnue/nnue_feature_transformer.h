@@ -110,6 +110,20 @@ namespace Stockfish::Eval::NNUE {
   #define vec_zero_psqt() psqt_vec_t{0}
   #define NumRegistersSIMD 16
 
+  #elif USE_WASM_SIMD
+  typedef __i16x8 vec_t;
+  typedef __i32x4 psqt_vec_t;
+  #define vec_load(a) wasm_v128_load(a)
+  #define vec_store(a,b) wasm_v128_store(a, b)
+  #define vec_add_16(a,b) wasm_i16x8_add(a,b)
+  #define vec_sub_16(a,b) wasm_i16x8_sub(a,b)
+  #define vec_load_psqt(a) wasm_v128_load(a)
+  #define vec_store_psqt(a,b) wasm_v128_store(a, b)
+  #define vec_add_psqt_32(a,b) wasm_i32x4_add(a,b)
+  #define vec_sub_psqt_32(a,b) wasm_i32x4_sub(a,b)
+  #define vec_zero_psqt() wasm_i32x4_splat(0)
+  #define NumRegistersSIMD 8 // TODO: investigate how this affects performance
+
   #else
   #undef VECTOR
 
@@ -338,6 +352,23 @@ namespace Stockfish::Eval::NNUE {
 
               out[j] = vcombine_s8(pa, pb);
           }
+
+#elif defined(USE_WASM_SIMD)
+      const __i16x8 ClampMin = wasm_i16x8_splat(0);
+      const __i16x8 ClampMax = wasm_i16x8_splat(127);
+      for (IndexType p = 0; p < 2; ++p)
+      {
+          const IndexType offset = HalfDimensions * p;
+          for (IndexType j = 0; j < HalfDimensions; j += 2 * 8)
+          {
+              __i16x8 x = wasm_v128_load(&accumulation[static_cast<int>(perspectives[p])][j + 0 * 8]);
+              __i16x8 y = wasm_v128_load(&accumulation[static_cast<int>(perspectives[p])][j + 1 * 8]);
+              x = wasm_i16x8_min(wasm_i16x8_max(x, ClampMin), ClampMax);
+              y = wasm_i16x8_min(wasm_i16x8_max(y, ClampMin), ClampMax);
+              __u8x16 z = wasm_u8x16_narrow_i16x8(x, y);
+              wasm_v128_store(&output[offset + j], z);
+          }
+      }
 
 #else
 

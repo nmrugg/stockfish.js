@@ -279,7 +279,7 @@ namespace Stockfish::Eval::NNUE::Layers {
         auto A = *reinterpret_cast<const int8_t(*)[m][n_stride]>(weights);
         auto x = *reinterpret_cast<const uint8_t(*)[n]>(input);
         auto b = *reinterpret_cast<const int32_t(*)[m]>(biases);
-        auto y = *reinterpret_cast<int32_t(*)[m]>(buffer);
+        auto y = *reinterpret_cast<int32_t(*)[m]>(output);
         emscripten_wasm_simd::affine<n, m, n_stride>(A, x, b, y);
         return y;
       }
