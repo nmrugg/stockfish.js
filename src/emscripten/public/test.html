@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8" />
+  <title>Test (Stockfish NNUE JS)</title>
+</head>
+
+<body>
+  <div>Test</div>
+
+<script src="./stockfish.js"></script>
+
+<script>
+
+//
+// Simple queue with async get (assume single consumer)
+//
+class Queue {
+  constructor() {
+    this.getter = null;
+    this.list = [];
+  }
+  async get() {
+    if (this.list.length > 0) { return this.list.shift(); }
+    return await new Promise(resolve => this.getter = resolve);
+  }
+  put(x) {
+    if (this.getter) { this.getter(x); this.getter = null; return; }
+    this.list.push(x);
+  }
+};
+
+//
+// Instantiate Stockfish and run command
+//
+const run = async (command, waitPredicate) => {
+
+  let resolveOnExit;
+  const promiseOnExit = new Promise(resolve => resolveOnExit = resolve);
+
+  const engine = await Stockfish({ onExit: resolveOnExit });
+
+  const queue = new Queue();
+  const listener = line => queue.put(line);
+  engine.addMessageListener(listener);
+
+  console.log('>>', command);
+  engine.postMessage(command);
+  while (true) {
+    const line = await queue.get();
+    console.log('<<', line);
+    if (waitPredicate(line)) { break; }
+  }
+
+  engine.removeMessageListener(listener);
+  engine.postMessage('quit');
+
+  await promiseOnExit;
+};
+
+//
+// Run many tests by reloading so that each run starts from fresh runtime
+//
+const runMany = async () => {
+  const params = new URLSearchParams(window.location.search);
+  const n = Number(params.get('n'));
+  if (n <= 0) { return; }
+
+  const memory = Number(params.get('memory')) || 16;
+  const thread = Number(params.get('thread')) || 1;
+  const depth = Number(params.get('depth')) || 1;
+
+  const command = `bench ${memory} ${thread} ${depth} current depth NNUE`;
+  const wait = line => line.startsWith('Nodes/second');
+
+  console.log(`--------------`);
+  console.log(`--- (${n}) ---`);
+  console.log(`--------------`);
+  await run(command, wait);
+
+  params.set('n', n - 1);
+  window.location.search = params.toString();
+};
+
+runMany();
+
+</script>
+
+</body>

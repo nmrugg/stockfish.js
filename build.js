@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-//! Chess.com (c) 2021
+//! Chess.com (c) 2022
 
 "use strict";
 
@@ -22,7 +22,7 @@ var preface;
 var postscript;
 var buildToWASM;
 var child;
-var stockfishVersion = "14.1";
+var stockfishVersion = "15";
 var fistRun;
 
 function get_params(options, argv)

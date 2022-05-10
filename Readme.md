@@ -2,10 +2,10 @@
 
 <a href="https://github.com/nmrugg/stockfish.js">Stockfish.js</a> is a WASM implementation of <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> chess engine.
 
-Stockfish.js is currently updated to Stockfish 14.1.
+Stockfish.js is currently updated to Stockfish 15.
 
 ```
-NOTE: Stockfish.js 14.1 reqiures some of the latest features and does not work in every browser.
+NOTE: Stockfish.js 15 reqiures some of the latest features and does not work in every browser.
 ```
 
 This is a multi-threaded engine, and will only run in newer browsers and node.js versions. For an older JS and WASM version, see the <a href=../../tree/Stockfish11>Stockfish.js 11 branch</a>.

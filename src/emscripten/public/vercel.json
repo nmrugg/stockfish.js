@@ -1,0 +1,20 @@
+{
+  "builds": [
+    { "src": "*", "use": "@vercel/static" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+      ]
+    },
+    {
+      "source": "/stockfish.wasm",
+      "headers": [
+        { "key": "x-decompressed-content-length", "value": "21813047" }
+      ]
+    }
+  ]
+}

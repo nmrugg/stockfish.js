@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8" />
+  <title>Lichess Bot (Stockfish NNUE JS)</title>
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <link rel="icon" href="data:image/svg+xml,%3C%3Fxml%20version%3D%221.0%22%20encoding%3D%22UTF-8%22%20standalone%3D%22no%22%3F%3E%0A%3C!DOCTYPE%20svg%20PUBLIC%20%22-%2F%2FW3C%2F%2FDTD%20SVG%201.1%2F%2FEN%22%20%22http%3A%2F%2Fwww.w3.org%2FGraphics%2FSVG%2F1.1%2FDTD%2Fsvg11.dtd%22%3E%0A%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20version%3D%221.1%22%20width%3D%2245%22%20height%3D%2245%22%3E%0A%20%20%3Cg%20style%3D%22opacity%3A1%3B%20fill%3Anone%3B%20fill-opacity%3A1%3B%20fill-rule%3Aevenodd%3B%20stroke%3A%23000000%3B%20stroke-width%3A1.5%3B%20stroke-linecap%3Around%3Bstroke-linejoin%3Around%3Bstroke-miterlimit%3A4%3B%20stroke-dasharray%3Anone%3B%20stroke-opacity%3A1%3B%22%3E%0A%20%20%20%20%3Cpath%0A%20%20%20%20%20%20d%3D%22M%2022%2C10%20C%2032.5%2C11%2038.5%2C18%2038%2C39%20L%2015%2C39%20C%2015%2C30%2025%2C32.5%2023%2C18%22%0A%20%20%20%20%20%20style%3D%22fill%3A%23000000%3B%20stroke%3A%23000000%3B%22%20%2F%3E%0A%20%20%20%20%3Cpath%0A%20%20%20%20%20%20d%3D%22M%2024%2C18%20C%2024.38%2C20.91%2018.45%2C25.37%2016%2C27%20C%2013%2C29%2013.18%2C31.34%2011%2C31%20C%209.958%2C30.06%2012.41%2C27.96%2011%2C28%20C%2010%2C28%2011.19%2C29.23%2010%2C30%20C%209%2C30%205.997%2C31%206%2C26%20C%206%2C24%2012%2C14%2012%2C14%20C%2012%2C14%2013.89%2C12.1%2014%2C10.5%20C%2013.27%2C9.506%2013.5%2C8.5%2013.5%2C7.5%20C%2014.5%2C6.5%2016.5%2C10%2016.5%2C10%20L%2018.5%2C10%20C%2018.5%2C10%2019.28%2C8.008%2021%2C7%20C%2022%2C7%2022%2C10%2022%2C10%22%0A%20%20%20%20%20%20style%3D%22fill%3A%23000000%3B%20stroke%3A%23000000%3B%22%20%2F%3E%0A%20%20%20%20%3Cpath%0A%20%20%20%20%20%20d%3D%22M%209.5%2025.5%20A%200.5%200.5%200%201%201%208.5%2C25.5%20A%200.5%200.5%200%201%201%209.5%2025.5%20z%22%0A%20%20%20%20%20%20style%3D%22fill%3A%23ffffff%3B%20stroke%3A%23ffffff%3B%22%20%2F%3E%0A%20%20%20%20%3Cpath%0A%20%20%20%20%20%20d%3D%22M%2015%2015.5%20A%200.5%201.5%200%201%201%20%2014%2C15.5%20A%200.5%201.5%200%201%201%20%2015%2015.5%20z%22%0A%20%20%20%20%20%20transform%3D%22matrix(0.866%2C0.5%2C-0.5%2C0.866%2C9.693%2C-5.173)%22%0A%20%20%20%20%20%20style%3D%22fill%3A%23ffffff%3B%20stroke%3A%23ffffff%3B%22%20%2F%3E%0A%20%20%20%20%3Cpath%0A%20%20%20%20%20%20d%3D%22M%2024.55%2C10.4%20L%2024.1%2C11.85%20L%2024.6%2C12%20C%2027.75%2C13%2030.25%2C14.49%2032.5%2C18.75%20C%2034.75%2C23.01%2035.75%2C29.06%2035.25%2C39%20L%2035.2%2C39.5%20L%2037.45%2C39.5%20L%2037.5%2C39%20C%2038%2C28.94%2036.62%2C22.15%2034.25%2C17.66%20C%2031.88%2C13.17%2028.46%2C11.02%2025.06%2C10.5%20L%2024.55%2C10.4%20z%20%22%0A%20%20%20%20%20%20style%3D%22fill%3A%23ffffff%3B%20stroke%3Anone%3B%22%20%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E%0A" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto+Mono">
+</head>
+
+<!-- CSS -->
+
+<style>
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0; padding: 0; border: 0;
+  font: inherit;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+#root {
+  font-family: 'Roboto Mono';
+  font-size: 13px;
+}
+
+main {
+  height: 100%;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+main div:not(:last-child) {
+  margin-bottom: 5px;
+}
+
+.ui-input {
+  height: 22px;
+  padding: 2px 0 2px 6px;
+  border: 1px solid #ddd;
+}
+
+.ui-button {
+  height: 22px;
+  display: inline-block;
+  padding: 1px 6px 1px 6px;
+  background: #888;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.ui-button--disabled {
+  background: #aaa;
+  color: #eee;
+  cursor: not-allowed;
+}
+
+#log {
+  flex: 1 1 auto;
+  width: 100%;
+  border: 1px solid #ddd;
+  padding: 10px;
+  overflow: scroll;
+  box-shadow: inset 1px 1px 2px #eee;
+  font-size: 11px;
+}
+
+</style>
+
+<!-- Javascript -->
+
+<body>
+<div id="root"></div>
+
+<script src="./stockfish.js"></script>
+<script src="./bot.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mithril@2.0.4/mithril.min.js"></script>
+
+<script>
+
+const $ = (...args) => document.querySelector(...args);
+
+const repr = (x) => {
+  if (typeof x === 'string') return x;
+  return JSON.stringify(x, null, 2);
+}
+
+const stringifyToLine = (obj) => JSON.stringify(obj, null, 1).replace(/\n/g, '');
+
+const App = () => {
+  let user_id;
+  let is_invalid_key = false;
+  let is_verified = false;
+  let is_bot = false;
+  let is_running = false;
+  let log = '';
+  let api;
+  let stockfish;
+  let bot;
+  let tail_mode = true;
+  let default_api_key = window.localStorage.getItem('api-key');
+  let challenge = { "username": "ai", "level": 7, "rated": false, "clock.limit": 180, "clock.increment": 1, "color": "random" };
+
+  const writeLog = (...args) => {
+    for (const arg of args) {
+      log += repr(arg) + ' ';
+    }
+    log += '\n';
+    // TODO: Probably, better to mutate $("#log") by ourselves (e.g. by appendChild)
+    m.redraw();
+  };
+
+  const scrollLog = () => {
+    if (!tail_mode) { return; }
+    $('#log').scrollTo({ top: $('#log').scrollHeight, behavior: 'smooth' });
+  };
+
+  const onVerify = () => {
+    const key = $('#api-key').value;
+    api = new Api(key);
+    writeLog('[Api.account]');
+    api.account()
+    .then(
+      (resp) => {
+        writeLog(resp);
+        is_invalid_key = false;
+        is_verified = true;
+        user_id = resp.id;
+        is_bot = resp.title === 'BOT';
+        window.localStorage.setItem('api-key', key);
+      },
+      (e) => {
+        writeLog('ERROR', e.toString());
+        console.error(e);
+        is_invalid_key = true;
+      }
+    )
+    .finally(m.redraw);
+  }
+
+  const onUpgrade = () => {
+    writeLog('[Api.upgrade]');
+    api.upgrade()
+    .then(
+      (resp) => {
+        writeLog(resp);
+        is_bot = true;
+      },
+      (e) => {
+        writeLog('ERROR', e.toString());
+        console.error(e);
+      }
+    )
+    .finally(m.redraw);
+  }
+
+  const onStart = async () => {
+    try {
+      writeLog(':: Loading Stockfish...')
+      stockfish = await Stockfish();
+      writeLog(':: Starting Bot...')
+      bot = new Bot(api, stockfish, writeLog);
+      is_running = true;
+      await bot.start();
+    } catch (e) {
+      writeLog('ERROR', e.toString());
+      console.error(e);
+    }
+    m.redraw();
+  };
+
+  const onEditChallenge = () => {
+    const default_value = stringifyToLine(challenge);
+    const result = window.prompt("Edit Challenge", default_value);
+    if (!result) { return; }
+    challenge = JSON.parse(result);
+    m.redraw();
+  };
+
+  const onSendChallenge = () => {
+    writeLog('[Api.createChallenge]');
+    api.createChallenge(challenge.username, challenge)
+    .then(
+      (resp) => {
+        writeLog(resp);
+      },
+      (e) => {
+        writeLog('ERROR', e.toString());
+        console.error(e);
+      }
+    )
+    .finally(m.redraw);
+  };
+
+  const oncreate = () => {
+    if (default_api_key) {
+      $("#api-key").value = default_api_key;
+    }
+  };
+
+  const view = () => {
+    const upgrade_enabled = is_verified && !is_bot;
+    const start_enabled = is_bot && !is_running;
+    const stop_enabled = is_running;
+    const challenge_enabled = is_running;
+
+    return m('main', [
+      m('div', [
+        m('span', 'API Key: '),
+        m('input#api-key.ui-input', { style: 'width: 150px; border-right: 0;' }),
+        m('button.ui-button', { onclick: onVerify }, 'Check'),
+        ' ',
+        '(', m('a', { href: 'https://lichess.org/api#operation/botAccountUpgrade' }, 'help'), ')'
+      ]),
+      m('div', [
+        m('span', 'Status: '),
+        m('span',
+          is_invalid_key ? 'API key is invalid.' :
+          !is_verified ? 'API key is not verified.' :
+          is_bot    ? `Account (${user_id}) is a bot.` : `Account (${user_id}) is not a bot.`
+        ),
+        ' ',
+        m('button.ui-button', upgrade_enabled ? { onclick: onUpgrade } : { class: 'ui-button--disabled' }, 'Become Bot'),
+        ' ',
+        m('button.ui-button', start_enabled ? { onclick: onStart } : { class: 'ui-button--disabled' }, 'Start'),
+      ]),
+      m('div', [
+          m('span', 'Challenge: '),
+          m('span', stringifyToLine(challenge)),
+          ' ',
+          m('button.ui-button', { onclick: onEditChallenge }, 'Edit'),
+          ' ',
+          m('button.ui-button', challenge_enabled ? { onclick: onSendChallenge } : { class: 'ui-button--disabled' }, 'Send'),
+          ' ',
+          '(', m('a', { href: 'https://lichess.org/api#operation/challengeCreate' }, 'help'), ')'
+      ]),
+      m('div', [
+          m('span', 'Scroll log: '),
+          m('span', { style: 'cursor: pointer;', onclick: () => { tail_mode = !tail_mode; scrollLog(); } }, [
+            tail_mode ? '[x]' : '[ ]'
+          ]),
+      ]),
+      m('div#log', { onupdate: () => window.setTimeout(scrollLog) },  m("pre", log))
+    ]);
+  };
+
+  return { oncreate, view };
+};
+
+const isSupported = () => {
+  if (typeof WebAssembly !== 'object') return false;
+  const source = Uint8Array.from([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 7, 8, 1, 4, 116, 101, 115, 116, 0, 0, 10, 15, 1, 13, 0, 65, 0, 253, 17, 65, 0, 253, 17, 253, 186, 1, 11]);
+  if (typeof WebAssembly.validate !== 'function' || !WebAssembly.validate(source)) return false;
+  if (typeof Atomics !== 'object') return false;
+  if (typeof SharedArrayBuffer !== 'function') return false;
+  return true;
+};
+
+if (!isSupported()) {
+  window.alert("Your browser is not supported. For more information, please take a look at https://github.com/hi-ogawa/Stockfish/wiki.");
+} else {
+  m.mount($("#root"), App);
+}
+
+</script>
+</body>
