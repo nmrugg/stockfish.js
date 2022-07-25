@@ -22,7 +22,7 @@ var preface;
 var postscript;
 var buildToWASM;
 var child;
-var stockfishVersion = "15";
+var stockfishVersion = "15+";
 var fistRun;
 
 function get_params(options, argv)
