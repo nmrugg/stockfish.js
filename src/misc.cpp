@@ -397,10 +397,9 @@ void std_aligned_free(void* ptr) {
 
 #if defined(_WIN32)
 
-static void* aligned_large_pages_alloc_windows(size_t allocSize) {
+static void* aligned_large_pages_alloc_windows([[maybe_unused]] size_t allocSize) {
 
   #if !defined(_WIN64)
-    (void)allocSize; // suppress unused-parameter compiler warning
     return nullptr;
   #else
 
@@ -647,12 +646,11 @@ string argv0;            // path+name of the executable binary, as given by argv
 string binaryDirectory;  // path of the executable directory
 string workingDirectory; // path of the working directory
 
-void init(int argc, char* argv[]) {
+void init([[maybe_unused]] int argc, char* argv[]) {
     #ifdef __EMSCRIPTEN__
-    return
+    return;
     #endif
 
-    (void)argc;
     string pathSeparator;
 
     // extract the path+name of the executable binary
