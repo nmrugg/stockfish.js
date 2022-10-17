@@ -27,12 +27,12 @@
 #include "../nnue_common.h"
 
 
-#include "../../simd.h"
+#include "simd.h"
 #if defined(USE_WASM_SIMD)
 #include "../../emscripten/wasm_simd.h"
 #include "wasm_simd128.h"
 #else
-// #include "../../simd.h"
+// #include "simd.h"
 #endif
 
 /*
@@ -159,9 +159,15 @@ namespace Stockfish::Eval::NNUE::Layers {
   template <IndexType InDims, IndexType OutDims, typename Enabled = void>
   class AffineTransform;
 
+#if defined (USE_AVX512)
+  constexpr IndexType LargeInputSize = 2 * 64;
+#else
+  constexpr IndexType LargeInputSize = std::numeric_limits<IndexType>::max();
+#endif
+
   // A specialization for large inputs.
   template <IndexType InDims, IndexType OutDims>
-  class AffineTransform<InDims, OutDims, std::enable_if_t<(ceil_to_multiple<IndexType>(InDims, MaxSimdWidth) >= 2*64)>> {
+  class AffineTransform<InDims, OutDims, std::enable_if_t<(ceil_to_multiple<IndexType>(InDims, MaxSimdWidth) >= LargeInputSize)>> {
    public:
     // Input/output type
     using InputType = std::uint8_t;
@@ -178,7 +184,7 @@ namespace Stockfish::Eval::NNUE::Layers {
 
     using OutputBuffer = OutputType[PaddedOutputDimensions];
 
-    static_assert(PaddedInputDimensions >= 128, "Something went wrong. This specialization should not have been chosen.");
+    static_assert(PaddedInputDimensions >= LargeInputSize, "Something went wrong. This specialization should not have been chosen.");
 
 #if defined (USE_AVX512)
     static constexpr const IndexType InputSimdWidth = 64;
@@ -395,7 +401,7 @@ namespace Stockfish::Eval::NNUE::Layers {
   };
 
   template <IndexType InDims, IndexType OutDims>
-  class AffineTransform<InDims, OutDims, std::enable_if_t<(ceil_to_multiple<IndexType>(InDims, MaxSimdWidth) < 2*64)>> {
+  class AffineTransform<InDims, OutDims, std::enable_if_t<(ceil_to_multiple<IndexType>(InDims, MaxSimdWidth) < LargeInputSize)>> {
    public:
     // Input/output type
     // Input/output type
@@ -413,7 +419,7 @@ namespace Stockfish::Eval::NNUE::Layers {
 
     using OutputBuffer = OutputType[PaddedOutputDimensions];
 
-    static_assert(PaddedInputDimensions < 128, "Something went wrong. This specialization should not have been chosen.");
+    static_assert(PaddedInputDimensions < LargeInputSize, "Something went wrong. This specialization should not have been chosen.");
 
 #if defined (USE_SSSE3)
     static constexpr const IndexType OutputSimdWidth = SimdWidth / 4;
