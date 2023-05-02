@@ -559,7 +559,7 @@ ifeq ($(optimize),yes)
     endif
 
 	ifeq ($(comp),clang)
-		CXXFLAGS += -fexperimental-new-pass-manager
+		CXXFLAGS += 
 	endif
 endif
 

@@ -24,7 +24,7 @@ ifeq ($(CHESSCOM),1)
 		--extern-pre-js emscripten/extern-pre.js \
 		--extern-post-js emscripten/extern-post.js \
 		-s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s ENVIRONMENT=web,worker,node \
-		-s STRICT=1 \
+		-s STRICT=0 \
 		-s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=["emscripten_utils_getline_impl"]' \
 		-s USE_PTHREADS=1 \
 		-s PROXY_TO_PTHREAD=1 \
@@ -36,7 +36,7 @@ else
 	EM_LDFLAGS += \
 		--pre-js emscripten/preamble.js \
 		-s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s ENVIRONMENT=web,worker,node \
-		-s STRICT=1 \
+		-s STRICT=0 \
 		-s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=["emscripten_utils_getline_impl"]' \
 		-s USE_PTHREADS=1 \
 		-s PROXY_TO_PTHREAD=1 \
