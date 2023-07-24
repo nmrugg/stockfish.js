@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 var Stockfish;
-var myEngine;
+var engine;
 
 if (process.argv[2] === "--help" || process.argv[2] === "-h") {
-    console.log("Usage: node --experimental-wasm-threads --experimental-wasm-simd node_direct.js [FEN OR move1 move2 ...moveN]");
+    console.log("Usage: node node_direct.js [FEN OR move1 move2 ...moveN]");
     console.log("");
     console.log("Examples:");
     console.log("   node simple_node.js");
@@ -13,12 +13,12 @@ if (process.argv[2] === "--help" || process.argv[2] === "-h") {
     process.exit();
 }
 
-/// Don't forget --experimental-wasm-threads --experimental-wasm-simd and use Node.js 14.4+.
+/// For older Node.js versions, you may need --experimental-wasm-threads --experimental-wasm-simd.
 try {
     var INIT_ENGINE = require("./stockfish.js");
     
     var wasmPath = require("path").join(__dirname, "stockfish.wasm");
-    var mod = {
+    var engine = {
         locateFile: function (path)
         {
             if (path.indexOf(".wasm") > -1) {
@@ -33,9 +33,8 @@ try {
     if (typeof INIT_ENGINE === "function") {
         var Stockfish = INIT_ENGINE();
         try {
-            Stockfish(mod).then(function (sf)
+            Stockfish(engine).then(function ()
             {
-                myEngine = sf;
                 start();
             });
         } catch (e) {
@@ -59,10 +58,10 @@ function start()
     function send(str)
     {
         console.log("Sending: " + str)
-        myEngine.postMessage(str);
+        engine.postMessage(str);
     }
     
-    myEngine.addMessageListener(function onLog(line)
+    engine.addMessageListener(function onLog(line)
     {
         var match;
         
@@ -96,7 +95,7 @@ function start()
             match = line.match(/bestmove\s+(\S+)/);
             if (match) {
                 console.log("Best move: " + match[1]);
-                myEngine.terminate();
+                engine.terminate();
             }
         }
     });

@@ -2,7 +2,7 @@ function engineGame(options) {
     options = options || {}
     var game = new Chess();
     var board;
-    /// We can load Stockfish via Web Workers or via STOCKFISH() if loaded from a <script> tag.
+    ///NOTE: If the WASM binary is not in the expected location, must be added after the hash.
     var engine = typeof STOCKFISH === "function" ? STOCKFISH() : new Worker(options.stockfishjs || 'stockfish.js#stockfish.wasm');
     var evaler = typeof STOCKFISH === "function" ? STOCKFISH() : new Worker(options.stockfishjs || 'stockfish.js#stockfish.wasm');
     var engineStatus = {};
