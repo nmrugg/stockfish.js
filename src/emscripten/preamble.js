@@ -1,3 +1,4 @@
+;console.log("This is not used, right?");
 //
 // Post custom message to all workers (including main worker)
 //
@@ -11,25 +12,37 @@ Module["postCustomMessage"] = (data) => {
 //
 // Simple queue with async get (assume single consumer)
 //
-class Queue {
-  constructor() {
-    this.getter = null;
-    this.list = [];
-  }
-  async get() {
-    if (this.list.length > 0) { return this.list.shift(); }
-    return await new Promise(resolve => this.getter = resolve);
-  }
-  put(x) {
-    if (this.getter) { this.getter(x); this.getter = null; return; }
-    this.list.push(x);
-  }
-};
-
+function createQueue()
+{
+    var list = [];
+    var queue = {};
+    var pending;
+    return {
+        get: async function ()
+        {
+            if (list.length > 0) {
+                return list.shift();
+            }
+            return await new Promise(function (resolve)
+            {
+                return pending = resolve;
+            });
+        },
+        put: function (data)
+        {
+            if (pending) {
+                pending(data);
+                pending = null;
+            } else {
+                list.push(data);
+            }
+        }
+    };
+}
 //
 // TODO: This is used only by main worker
 //
-Module["queue"] = new Queue();
+Module["queue"] = createQueue();
 
 Module["onCustomMessage"] = (data) => {
   Module["queue"].put(data);

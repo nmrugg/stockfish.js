@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2022 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2023 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@
 
 #include "types.h"
 
+#define stringify2(x) #x
+#define stringify(x) stringify2(x)
+
 namespace Stockfish {
 
 std::string engine_info(bool to_uci = false);
@@ -39,12 +42,13 @@ void std_aligned_free(void* ptr);
 void* aligned_large_pages_alloc(size_t size); // memory aligned by page size, min alignment: 4096 bytes
 void aligned_large_pages_free(void* mem); // nop if mem == nullptr
 
-void dbg_hit_on(bool b);
-void dbg_hit_on(bool c, bool b);
-void dbg_mean_of(int v);
+void dbg_hit_on(bool cond, int slot = 0);
+void dbg_mean_of(int64_t value, int slot = 0);
+void dbg_stdev_of(int64_t value, int slot = 0);
+void dbg_correl_of(int64_t value1, int64_t value2, int slot = 0);
 void dbg_print();
 
-typedef std::chrono::milliseconds::rep TimePoint; // A value in milliseconds
+using TimePoint = std::chrono::milliseconds::rep; // A value in milliseconds
 static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
 inline TimePoint now() {
   return std::chrono::duration_cast<std::chrono::milliseconds>
@@ -85,85 +89,19 @@ static inline const union { uint32_t i; char c[4]; } Le = { 0x01020304 };
 static inline const bool IsLittleEndian = (Le.c[0] == 4);
 
 
-// RunningAverage : a class to calculate a running average of a series of values.
-// For efficiency, all computations are done with integers.
-class RunningAverage {
-  public:
-
-      // Reset the running average to rational value p / q
-      void set(int64_t p, int64_t q)
-        { average = p * PERIOD * RESOLUTION / q; }
-
-      // Update average with value v
-      void update(int64_t v)
-        { average = RESOLUTION * v + (PERIOD - 1) * average / PERIOD; }
-
-      // Test if average is strictly greater than rational a / b
-      bool is_greater(int64_t a, int64_t b) const
-        { return b * average > a * (PERIOD * RESOLUTION); }
-
-      int64_t value() const
-        { return average / (PERIOD * RESOLUTION); }
-
-  private :
-      static constexpr int64_t PERIOD     = 4096;
-      static constexpr int64_t RESOLUTION = 1024;
-      int64_t average;
-};
-
 template <typename T, std::size_t MaxSize>
 class ValueList {
 
 public:
   std::size_t size() const { return size_; }
-  void resize(std::size_t newSize) { size_ = newSize; }
   void push_back(const T& value) { values_[size_++] = value; }
-  T& operator[](std::size_t index) { return values_[index]; }
-  T* begin() { return values_; }
-  T* end() { return values_ + size_; }
-  const T& operator[](std::size_t index) const { return values_[index]; }
   const T* begin() const { return values_; }
   const T* end() const { return values_ + size_; }
-
-  void swap(ValueList& other) {
-    const std::size_t maxSize = std::max(size_, other.size_);
-    for (std::size_t i = 0; i < maxSize; ++i) {
-      std::swap(values_[i], other.values_[i]);
-    }
-    std::swap(size_, other.size_);
-  }
 
 private:
   T values_[MaxSize];
   std::size_t size_ = 0;
 };
-
-
-/// sigmoid(t, x0, y0, C, P, Q) implements a sigmoid-like function using only integers,
-/// with the following properties:
-///
-///  -  sigmoid is centered in (x0, y0)
-///  -  sigmoid has amplitude [-P/Q , P/Q] instead of [-1 , +1]
-///  -  limit is (y0 - P/Q) when t tends to -infinity
-///  -  limit is (y0 + P/Q) when t tends to +infinity
-///  -  the slope can be adjusted using C > 0, smaller C giving a steeper sigmoid
-///  -  the slope of the sigmoid when t = x0 is P/(Q*C)
-///  -  sigmoid is increasing with t when P > 0 and Q > 0
-///  -  to get a decreasing sigmoid, change sign of P
-///  -  mean value of the sigmoid is y0
-///
-/// Use <https://www.desmos.com/calculator/jhh83sqq92> to draw the sigmoid
-
-inline int64_t sigmoid(int64_t t, int64_t x0,
-                                  int64_t y0,
-                                  int64_t  C,
-                                  int64_t  P,
-                                  int64_t  Q)
-{
-   assert(C > 0);
-   assert(Q != 0);
-   return y0 + P * (t-x0) / (Q * (std::abs(t-x0) + C)) ;
-}
 
 
 /// xorshift64star Pseudo-Random Number Generator
@@ -204,7 +142,7 @@ public:
 
 inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
 #if defined(__GNUC__) && defined(IS_64BIT)
-    __extension__ typedef unsigned __int128 uint128;
+    __extension__ using uint128 = unsigned __int128;
     return ((uint128)a * (uint128)b) >> 64;
 #else
     uint64_t aL = (uint32_t)a, aH = a >> 32;

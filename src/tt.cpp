@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2022 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2023 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -62,7 +62,9 @@ void TTEntry::save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev) 
 
 void TranspositionTable::resize(size_t mbSize) {
 
+#ifndef __EMSCRIPTEN_SINGLE_THREADED__
   Threads.main()->wait_for_search_finished();
+#endif
 
   aligned_large_pages_free(table);
 
@@ -92,7 +94,7 @@ void TranspositionTable::clear() {
 
   std::vector<std::thread> threads;
 
-  for (size_t idx = 0; idx < Options["Threads"]; ++idx)
+  for (size_t idx = 0; idx < size_t(Options["Threads"]); ++idx)
   {
       threads.emplace_back([this, idx]() {
 
@@ -103,7 +105,7 @@ void TranspositionTable::clear() {
           // Each thread will zero its part of the hash table
           const size_t stride = size_t(clusterCount / Options["Threads"]),
                        start  = size_t(stride * idx),
-                       len    = idx != Options["Threads"] - 1 ?
+                       len    = idx != size_t(Options["Threads"]) - 1 ?
                                 stride : clusterCount - start;
 
           std::memset(&table[start], 0, len * sizeof(Cluster));

@@ -220,6 +220,11 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
         }
     }());
 } else {
-    ///NOTE: If it's a normal browser, the client can use the Stockfish() function directly.
-    Stockfish = INIT_ENGINE();
+    ///NOTE: If it's a normal browser, the client can use the engine without polluting the global scope.
+    if (typeof document === "object" && document.currentScript) {
+        document.currentScript._exports = INIT_ENGINE();
+    } else {
+        Stockfish = INIT_ENGINE();
+    }
 }
+}());

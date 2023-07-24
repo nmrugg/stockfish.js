@@ -35,9 +35,11 @@ if (typeof XMLHttpRequest === "undefined") {
 //
 Module["postCustomMessage"] = function (data)
 {
-    // TODO: Acutally want to post only to main worker
-    for (var worker of PThread.runningWorkers) {
-      worker.postMessage({"cmd": "custom", "userData": data});
+    if (typeof PThread !== "undefined") {
+        // TODO: Acutally want to post only to main worker
+        for (var worker of PThread.runningWorkers) {
+        worker.postMessage({"cmd": "custom", "userData": data});
+        }
     }
 };
 
@@ -136,5 +138,7 @@ Module["print"] = Module["printErr"] = function (data)
 
 Module["terminate"] = function ()
 {
-    PThread.terminateAllThreads();
+    if (typeof PThread !== "undefined") {
+        PThread.terminateAllThreads();
+    }
 };

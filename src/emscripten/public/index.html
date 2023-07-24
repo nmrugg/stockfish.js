@@ -79,9 +79,11 @@ main {
 
 <!-- Javascript -->
 
-<script src="./stockfish.js"></script>
+<script id=StockfishScript src="./stockfish.js"></script>
 <script src="./mithril.2.0.4.min.js"></script>
 <script>
+
+var Stockfish = document.getElementById("StockfishScript")._exports;
 
 const $ = (...args) => document.querySelector(...args);
 
@@ -91,8 +93,8 @@ const formatMB = (n) => {
 
 const isSupported = () => {
   if (typeof WebAssembly !== 'object') return false;
-  const source = Uint8Array.from([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 7, 8, 1, 4, 116, 101, 115, 116, 0, 0, 10, 15, 1, 13, 0, 65, 0, 253, 17, 65, 0, 253, 17, 253, 186, 1, 11]);
-  if (typeof WebAssembly.validate !== 'function' || !WebAssembly.validate(source)) return false;
+  //const source = Uint8Array.from([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 7, 8, 1, 4, 116, 101, 115, 116, 0, 0, 10, 15, 1, 13, 0, 65, 0, 253, 17, 65, 0, 253, 17, 253, 186, 1, 11]);
+  //if (typeof WebAssembly.validate !== 'function' || !WebAssembly.validate(source)) return false;
   if (typeof Atomics !== 'object') return false;
   if (typeof SharedArrayBuffer !== 'function') return false;
   return true;
@@ -172,7 +174,16 @@ const App = () => {
 
   const sendCommand = () => {
     const command = $('#command').value;
-    if (command.length > 0) { stockfish.postMessage(command); }
+    if (command.length > 0) {
+        output += " > " + command + '\n';
+        m.redraw();
+        //debugger;
+        if (stockfish.__IS_NON_NESTED__ || stockfish.__IS_SINGLE_THREADED__) {
+            stockfish.onCustomMessage(command);
+        } else {
+            stockfish.postMessage(command);
+        }
+    }
   };
 
   const scrollOutput = () => {

@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2022 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2023 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,12 @@
 #endif
 #include "tt.h"
 
+#ifdef __NON_NESTED_WASM__
+#include <emscripten.h>
+#endif
+
+
+
 namespace Stockfish {
 
 ThreadPool Threads; // Global object
@@ -35,11 +41,27 @@ ThreadPool Threads; // Global object
 
 /// Thread constructor launches the thread and waits until it goes to sleep
 /// in idle_loop(). Note that 'searching' and 'exit' should be already set.
-
+#ifndef __EMSCRIPTEN_SINGLE_THREADED__
 Thread::Thread(size_t n) : idx(n), stdThread(&Thread::idle_loop, this) {
 
   wait_for_search_finished();
 }
+#else
+void* run_idle_loop(void* thread) {
+  static_cast<Thread*>(thread)->idle_loop();
+  return nullptr;
+}
+Thread::Thread(size_t n) : idx(n) {
+  // With increased MAX_MOVES (for variants) the stack can grow larger than the
+  // system default. Explicitly set a sufficient stack size.
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  pthread_attr_setstacksize(&attr, 4096 * MAX_MOVES);
+  pthread_create(&nativeThread, &attr, run_idle_loop, this);
+  
+  clear(); // Zero-init histories (based on std::array)
+}
+#endif
 
 
 /// Thread destructor wakes up the thread in idle_loop() and waits
@@ -51,7 +73,11 @@ Thread::~Thread() {
 
   exit = true;
   start_searching();
+#ifndef __EMSCRIPTEN_SINGLE_THREADED__
   stdThread.join();
+#else
+  pthread_join(nativeThread, nullptr);
+#endif
 }
 
 
@@ -65,22 +91,23 @@ void Thread::clear() {
 
   for (bool inCheck : { false, true })
       for (StatsType c : { NoCaptures, Captures })
-      {
           for (auto& to : continuationHistory[inCheck][c])
-                for (auto& h : to)
-                      h->fill(-71);
-          continuationHistory[inCheck][c][NO_PIECE][0]->fill(Search::CounterMovePruneThreshold - 1);
-      }
+              for (auto& h : to)
+                  h->fill(-71);
 }
 
 
 /// Thread::start_searching() wakes up the thread that will start the search
 
 void Thread::start_searching() {
-
-  std::lock_guard<std::mutex> lk(mutex);
+  mutex.lock();
   searching = true;
+  mutex.unlock(); // Unlock before notifying saves a few CPU-cycles
+#ifndef __EMSCRIPTEN_SINGLE_THREADED__
   cv.notify_one(); // Wake up the thread in idle_loop()
+#else
+  search();
+#endif
 }
 
 
@@ -129,24 +156,45 @@ void Thread::idle_loop() {
 
 void ThreadPool::set(size_t requested) {
 
-  if (size() > 0)   // destroy any existing thread(s)
+  if (threads.size() > 0)   // destroy any existing thread(s)
   {
+#ifndef __EMSCRIPTEN_SINGLE_THREADED__
       main()->wait_for_search_finished();
-
-      while (size() > 0)
-          delete back(), pop_back();
+#endif
+      while (threads.size() > 0)
+          delete threads.back(), threads.pop_back();
   }
 
   if (requested > 0)   // create new thread(s)
   {
-      push_back(new MainThread(0));
+      threads.push_back(new MainThread(0));
 
-      while (size() < requested)
-          push_back(new Thread(size()));
+#ifdef __NON_NESTED_WASM__
+      emscripten_sleep(0);
+#endif
+
+      while (threads.size() < requested) {
+          threads.push_back(new Thread(threads.size()));
+#ifdef __NON_NESTED_WASM__
+    emscripten_sleep(0);
+#endif
+      }
+#ifdef __NON_NESTED_WASM__
+      emscripten_sleep(0);
+#endif
+
       clear();
+
+#ifdef __NON_NESTED_WASM__
+      emscripten_sleep(0);
+#endif
 
       // Reallocate the hash with the new threadpool size
       TT.resize(size_t(Options["Hash"]));
+
+#ifdef __NON_NESTED_WASM__
+      emscripten_sleep(0);
+#endif
 
       // Init thread number dependent search params.
       Search::init();
@@ -158,7 +206,7 @@ void ThreadPool::set(size_t requested) {
 
 void ThreadPool::clear() {
 
-  for (Thread* th : *this)
+  for (Thread* th : threads)
       th->clear();
 
   main()->callsCnt = 0;
@@ -174,7 +222,9 @@ void ThreadPool::clear() {
 void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
                                 const Search::LimitsType& limits, bool ponderMode) {
 
+#ifndef __EMSCRIPTEN_SINGLE_THREADED__
   main()->wait_for_search_finished();
+#endif
 
   main()->stopOnPonderhit = stop = false;
   increaseDepth = true;
@@ -193,7 +243,7 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
 #endif
 
   // After ownership transfer 'states' becomes empty, so if we stop the search
-  // and call 'go' again without setting a new position states.get() == NULL.
+  // and call 'go' again without setting a new position states.get() == nullptr.
   assert(states.get() || setupStates.get());
 
   if (states.get())
@@ -204,7 +254,7 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
   // be deduced from a fen string, so set() clears them and they are set from
   // setupStates->back() later. The rootState is per thread, earlier states are shared
   // since they are read-only.
-  for (Thread* th : *this)
+  for (Thread* th : threads)
   {
       th->nodes = th->tbHits = th->nmpMinPly = th->bestMoveChanges = 0;
       th->rootDepth = th->completedDepth = 0;
@@ -218,20 +268,23 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
 
 Thread* ThreadPool::get_best_thread() const {
 
-    Thread* bestThread = front();
+    Thread* bestThread = threads.front();
     std::map<Move, int64_t> votes;
     Value minScore = VALUE_NONE;
 
     // Find minimum score of all threads
-    for (Thread* th: *this)
+    for (Thread* th: threads)
         minScore = std::min(minScore, th->rootMoves[0].score);
 
     // Vote according to score and depth, and select the best thread
-    for (Thread* th : *this)
-    {
-        votes[th->rootMoves[0].pv[0]] +=
-            (th->rootMoves[0].score - minScore + 14) * int(th->completedDepth);
+    auto thread_value = [minScore](Thread* th) {
+            return (th->rootMoves[0].score - minScore + 14) * int(th->completedDepth);
+        };
 
+    for (Thread* th : threads)
+        votes[th->rootMoves[0].pv[0]] += thread_value(th);
+
+    for (Thread* th : threads)
         if (abs(bestThread->rootMoves[0].score) >= VALUE_TB_WIN_IN_MAX_PLY)
         {
             // Make sure we pick the shortest mate / TB conversion or stave off mate the longest
@@ -240,9 +293,11 @@ Thread* ThreadPool::get_best_thread() const {
         }
         else if (   th->rootMoves[0].score >= VALUE_TB_WIN_IN_MAX_PLY
                  || (   th->rootMoves[0].score > VALUE_TB_LOSS_IN_MAX_PLY
-                     && votes[th->rootMoves[0].pv[0]] > votes[bestThread->rootMoves[0].pv[0]]))
+                     && (   votes[th->rootMoves[0].pv[0]] > votes[bestThread->rootMoves[0].pv[0]]
+                         || (   votes[th->rootMoves[0].pv[0]] == votes[bestThread->rootMoves[0].pv[0]]
+                             &&   thread_value(th) * int(th->rootMoves[0].pv.size() > 2)
+                                > thread_value(bestThread) * int(bestThread->rootMoves[0].pv.size() > 2)))))
             bestThread = th;
-    }
 
     return bestThread;
 }
@@ -252,8 +307,8 @@ Thread* ThreadPool::get_best_thread() const {
 
 void ThreadPool::start_searching() {
 
-    for (Thread* th : *this)
-        if (th != front())
+    for (Thread* th : threads)
+        if (th != threads.front())
             th->start_searching();
 }
 
@@ -262,8 +317,8 @@ void ThreadPool::start_searching() {
 
 void ThreadPool::wait_for_search_finished() const {
 
-    for (Thread* th : *this)
-        if (th != front())
+    for (Thread* th : threads)
+        if (th != threads.front())
             th->wait_for_search_finished();
 }
 

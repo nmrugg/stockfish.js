@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2022 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2023 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,8 +27,10 @@
 
 #include "features/half_ka_v2_hm.h"
 
+#include "layers/affine_transform_sparse_input.h"
 #include "layers/affine_transform.h"
 #include "layers/clipped_relu.h"
+#include "layers/sqr_clipped_relu.h"
 
 #include "../misc.h"
 
@@ -38,7 +40,7 @@ namespace Stockfish::Eval::NNUE {
 using FeatureSet = Features::HalfKAv2_hm;
 
 // Number of input feature dimensions after conversion
-constexpr IndexType TransformedFeatureDimensions = 1024;
+constexpr IndexType TransformedFeatureDimensions = 1536;
 constexpr IndexType PSQTBuckets = 8;
 constexpr IndexType LayerStacks = 8;
 
@@ -47,9 +49,10 @@ struct Network
   static constexpr int FC_0_OUTPUTS = 15;
   static constexpr int FC_1_OUTPUTS = 32;
 
-  Layers::AffineTransform<TransformedFeatureDimensions, FC_0_OUTPUTS + 1> fc_0;
+  Layers::AffineTransformSparseInput<TransformedFeatureDimensions, FC_0_OUTPUTS + 1> fc_0;
+  Layers::SqrClippedReLU<FC_0_OUTPUTS + 1> ac_sqr_0;
   Layers::ClippedReLU<FC_0_OUTPUTS + 1> ac_0;
-  Layers::AffineTransform<FC_0_OUTPUTS, FC_1_OUTPUTS> fc_1;
+  Layers::AffineTransform<FC_0_OUTPUTS * 2, FC_1_OUTPUTS> fc_1;
   Layers::ClippedReLU<FC_1_OUTPUTS> ac_1;
   Layers::AffineTransform<FC_1_OUTPUTS, 1> fc_2;
 
@@ -70,22 +73,20 @@ struct Network
 
   // Read network parameters
   bool read_parameters(std::istream& stream) {
-    if (!fc_0.read_parameters(stream)) return false;
-    if (!ac_0.read_parameters(stream)) return false;
-    if (!fc_1.read_parameters(stream)) return false;
-    if (!ac_1.read_parameters(stream)) return false;
-    if (!fc_2.read_parameters(stream)) return false;
-    return true;
+    return   fc_0.read_parameters(stream)
+          && ac_0.read_parameters(stream)
+          && fc_1.read_parameters(stream)
+          && ac_1.read_parameters(stream)
+          && fc_2.read_parameters(stream);
   }
 
-  // Read network parameters
+  // Write network parameters
   bool write_parameters(std::ostream& stream) const {
-    if (!fc_0.write_parameters(stream)) return false;
-    if (!ac_0.write_parameters(stream)) return false;
-    if (!fc_1.write_parameters(stream)) return false;
-    if (!ac_1.write_parameters(stream)) return false;
-    if (!fc_2.write_parameters(stream)) return false;
-    return true;
+    return   fc_0.write_parameters(stream)
+          && ac_0.write_parameters(stream)
+          && fc_1.write_parameters(stream)
+          && ac_1.write_parameters(stream)
+          && fc_2.write_parameters(stream);
   }
 
   std::int32_t propagate(const TransformedFeatureType* transformedFeatures)
@@ -93,6 +94,7 @@ struct Network
     struct alignas(CacheLineSize) Buffer
     {
       alignas(CacheLineSize) decltype(fc_0)::OutputBuffer fc_0_out;
+      alignas(CacheLineSize) decltype(ac_sqr_0)::OutputType ac_sqr_0_out[ceil_to_multiple<IndexType>(FC_0_OUTPUTS * 2, 32)];
       alignas(CacheLineSize) decltype(ac_0)::OutputBuffer ac_0_out;
       alignas(CacheLineSize) decltype(fc_1)::OutputBuffer fc_1_out;
       alignas(CacheLineSize) decltype(ac_1)::OutputBuffer ac_1_out;
@@ -114,8 +116,10 @@ struct Network
 #endif
 
     fc_0.propagate(transformedFeatures, buffer.fc_0_out);
+    ac_sqr_0.propagate(buffer.fc_0_out, buffer.ac_sqr_0_out);
     ac_0.propagate(buffer.fc_0_out, buffer.ac_0_out);
-    fc_1.propagate(buffer.ac_0_out, buffer.fc_1_out);
+    std::memcpy(buffer.ac_sqr_0_out + FC_0_OUTPUTS, buffer.ac_0_out, FC_0_OUTPUTS * sizeof(decltype(ac_0)::OutputType));
+    fc_1.propagate(buffer.ac_sqr_0_out, buffer.fc_1_out);
     ac_1.propagate(buffer.fc_1_out, buffer.ac_1_out);
     fc_2.propagate(buffer.ac_1_out, buffer.fc_2_out);
 

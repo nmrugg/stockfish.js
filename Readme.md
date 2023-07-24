@@ -2,26 +2,24 @@
 
 <a href="https://github.com/nmrugg/stockfish.js">Stockfish.js</a> is a WASM implementation of <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> chess engine.
 
-Stockfish.js is currently updated to Stockfish 15.
+Stockfish.js is currently updated to Stockfish 16.
 
-```
-NOTE: Stockfish.js 15 reqiures some of the latest features and does not work in every browser.
-```
+This edition of Stockfish.js comes in four flavors.
 
-This is a multi-threaded engine, and will only run in newer browsers and node.js versions. For an older JS and WASM version, see the <a href=../../tree/Stockfish11>Stockfish.js 11 branch</a>.
+ * The full mult-threaded engine:
+    * This is best version of the engine but will only run in new browsers with the proper CORS headers applied.
+    * Files: stockfish-nnue-16.js & stockfish-nnue-16.wasm
+ * The single-threaded engine:
+    * This will run in most browsers but is not as responsive as the multi-threaded version.
+    * Files: stockfish-nnue-16-single.js & stockfish-nnue-16-single.wasm
+ * The mult-threaded non-SIMD engine:
+    * Requires CORS headers but will run on older browsers that do not support SIMD (such as older Safari):
+    * Files: stockfish-nnue-16-no-simd.js & stockfish-nnue-16-no-simd.wasm
+ * The mult-threaded non-nested worker:
+    * Designed specifically to workaround a bug in Chrome 109. Requires CORS headers.
+    * Files: stockfish-nnue-16-no-Worker.js & stockfish-nnue-16-no-Worker.wasm
 
-### API
-
-You can run Stockfish.js directly from the command line with Node.js 14.4+. You may need to add some command line flags to get it to run:
-
-```shell
-node --experimental-wasm-threads --experimental-wasm-simd stockfish.js
-```
-Stockfish.js can be found in the npm repository and installed like this: `npm install stockfish`.
-
-If you want to use it from the command line, you may want to simply install it globally: `npm install -g stockfish`. Then you can simply run `stockfishjs`.
-
-In Node.js, you can either run it directly from the command line (i.e., `node src/stockfish.js`) or require() it as a module (i.e., `var stockfish = require("stockfish");`).
+For older WASM engines or a pure ASM.JS engine, see the <a href=../../tree/Stockfish11>Stockfish.js 11 branch</a>.
 
 ### Compiling
 

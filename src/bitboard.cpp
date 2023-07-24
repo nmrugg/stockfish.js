@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2022 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2023 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,12 +22,15 @@
 #include "bitboard.h"
 #include "misc.h"
 
+#ifdef __NON_NESTED_WASM__
+#include <emscripten.h>
+#endif
+
 namespace Stockfish {
 
 uint8_t PopCnt16[1 << 16];
 uint8_t SquareDistance[SQUARE_NB][SQUARE_NB];
 
-Bitboard SquareBB[SQUARE_NB];
 Bitboard LineBB[SQUARE_NB][SQUARE_NB];
 Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
 Bitboard PseudoAttacks[PIECE_TYPE_NB][SQUARE_NB];
@@ -82,18 +85,37 @@ void Bitboards::init() {
   for (unsigned i = 0; i < (1 << 16); ++i)
       PopCnt16[i] = uint8_t(std::bitset<16>(i).count());
 
-  for (Square s = SQ_A1; s <= SQ_H8; ++s)
-      SquareBB[s] = (1ULL << s);
+#ifdef __NON_NESTED_WASM__
+  emscripten_sleep(0);
+#endif
+
 
   for (Square s1 = SQ_A1; s1 <= SQ_H8; ++s1)
       for (Square s2 = SQ_A1; s2 <= SQ_H8; ++s2)
           SquareDistance[s1][s2] = std::max(distance<File>(s1, s2), distance<Rank>(s1, s2));
 
+#ifdef __NON_NESTED_WASM__
+  emscripten_sleep(0);
+#endif
+
   init_magics(ROOK, RookTable, RookMagics);
+
+#ifdef __NON_NESTED_WASM__
+  emscripten_sleep(0);
+#endif
+
   init_magics(BISHOP, BishopTable, BishopMagics);
+
+#ifdef __NON_NESTED_WASM__
+  emscripten_sleep(0);
+#endif
 
   for (Square s1 = SQ_A1; s1 <= SQ_H8; ++s1)
   {
+#ifdef __NON_NESTED_WASM__
+      emscripten_sleep(0);
+#endif
+
       PawnAttacks[WHITE][s1] = pawn_attacks_bb<WHITE>(square_bb(s1));
       PawnAttacks[BLACK][s1] = pawn_attacks_bb<BLACK>(square_bb(s1));
 
@@ -188,6 +210,10 @@ namespace {
             continue;
 
         PRNG rng(seeds[Is64Bit][rank_of(s)]);
+
+#ifdef __NON_NESTED_WASM__
+      emscripten_sleep(0);
+#endif
 
         // Find a magic for square 's' picking up an (almost) random number
         // until we find the one that passes the verification test.

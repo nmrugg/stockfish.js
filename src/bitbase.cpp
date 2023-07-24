@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2022 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2023 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,10 @@
 
 #include "bitboard.h"
 #include "types.h"
+
+#ifdef __NON_NESTED_WASM__
+#include <emscripten.h>
+#endif
 
 namespace Stockfish {
 
@@ -82,19 +86,31 @@ void Bitbases::init() {
   unsigned idx, repeat = 1;
 
   // Initialize db with known win / draw positions
-  for (idx = 0; idx < MAX_INDEX; ++idx)
+  for (idx = 0; idx < MAX_INDEX; ++idx) {
       db[idx] = KPKPosition(idx);
+#ifdef __NON_NESTED_WASM__
+      if (idx % 50000 == 0) emscripten_sleep(0);
+#endif
+  }
 
   // Iterate through the positions until none of the unknown positions can be
   // changed to either wins or draws (15 cycles needed).
   while (repeat)
-      for (repeat = idx = 0; idx < MAX_INDEX; ++idx)
+      for (repeat = idx = 0; idx < MAX_INDEX; ++idx) {
           repeat |= (db[idx] == UNKNOWN && db[idx].classify(db) != UNKNOWN);
+#ifdef __NON_NESTED_WASM__
+        if (idx % 50000 == 0) emscripten_sleep(0);
+#endif
+  }
 
   // Fill the bitbase with the decisive results
-  for (idx = 0; idx < MAX_INDEX; ++idx)
+  for (idx = 0; idx < MAX_INDEX; ++idx) {
       if (db[idx] == WIN)
           KPKBitbase.set(idx);
+#ifdef __NON_NESTED_WASM__
+      if (idx % 50000 == 0) emscripten_sleep(0);
+#endif
+  }
 }
 
 namespace {
