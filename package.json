@@ -1,7 +1,7 @@
 {
   "name": "stockfish",
   "description": "The Stockfish chess engine in Web Assembly (WASM)",
-  "version": "15.0.0",
+  "version": "16.0.0",
   "author": {
     "name": "Nathan Rugg",
     "email": "nmrugg@gmail.com"
