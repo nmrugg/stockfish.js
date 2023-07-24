@@ -282,13 +282,8 @@ void UCI::loop(int argc, char* argv[]) {
 
 #if defined(CHESSCOM) && defined(__EMSCRIPTEN__)
         // If the network file is downloading, wait.
-#ifdef __EMSCRIPTEN_SINGLE_THREADED__
         while (Eval::NNUE::isLoading()) {
             emscripten_sleep(0);
-#else
-        if (Eval::NNUE::isLoading()) {
-            continue;
-#endif
         }
 #endif
 
