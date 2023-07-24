@@ -21,6 +21,19 @@ This edition of Stockfish.js comes in four flavors.
 
 For older WASM engines or a pure ASM.JS engine, see the <a href=../../tree/Stockfish11>Stockfish.js 11 branch</a>.
 
+### API
+
+You can run Stockfish.js directly from the command line with Node.js 14.4+. You may need to add some command line flags to get it to run:
+
+```shell
+node src/stockfish.js
+```
+Stockfish.js can be found in the npm repository and installed like this: `npm install stockfish`.
+
+If you want to use it from the command line, you may want to simply install it globally: `npm install -g stockfish`. Then you can simply run `stockfishjs`.
+
+In Node.js, you can either run it directly from the command line (i.e., `node src/stockfish.js`) or require() it as a module (i.e., `var stockfish = require("stockfish");`).
+
 ### Compiling
 
 You need to have the <a href="http://kripken.github.io/emscripten-site/docs/getting_started/downloads.html">emscripten</a> compiler installed and in your path (tested with `2.0.26`). Then you can compile Stockfish.js with the build script: `./build.js`. See `./build.js --help` for details.
@@ -33,7 +46,7 @@ There are also example using Node.js.
 
 ### Thanks
 
-- <a href="https://github.com/mcostalba/Stockfish">The Stockfish team</a>
+- <a href="https://github.com/official-stockfish/Stockfish">The Stockfish team</a>
 - <a href="https://github.com/exoticorn/stockfish-js">exoticorn</a>
 - <a href="https://github.com/ddugovic/Stockfish">ddugovic</a>
 - <a href="https://github.com/niklasf/">niklasf</a> <a href="https://github.com/niklasf/stockfish.js">stockfish.js</a> & <a href="https://github.com/niklasf/stockfish.wasm">stockfish.wasm</a>
