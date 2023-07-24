@@ -30,6 +30,10 @@ if (typeof XMLHttpRequest === "undefined") {
     }
 }
 
+if (typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]" && typeof fetch !== "undefined") {
+    fetch = null;
+}
+
 //
 // Post custom message to all workers (including main worker)
 //
