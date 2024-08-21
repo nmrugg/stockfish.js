@@ -1,1 +1,0 @@
-Module["onSpecialMessage"] = Module["postCustomMessage"];

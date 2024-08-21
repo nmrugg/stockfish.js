@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2023 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2024 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,77 +17,61 @@
 */
 
 #include <iostream>
+#include <unordered_map>
 
 #include "bitboard.h"
-#include "endgame.h"
+#include "evaluate.h"
+#include "misc.h"
 #include "position.h"
-#include "psqt.h"
-#include "search.h"
-#if !defined(CHESSCOM) && !defined(__EMSCRIPTEN__)
-#include "syzygy/tbprobe.h"
-#endif
-#include "thread.h"
-#include "tt.h"
+#include "tune.h"
+#include "types.h"
 #include "uci.h"
-
-#if defined(__NON_NESTED_WASM__) || defined(__EMSCRIPTEN_SINGLE_THREADED__)
-#include <emscripten.h>
-#endif
 
 using namespace Stockfish;
 
+#ifdef __EMSCRIPTEN__
+UCI* uciP; // Create a global pointer to the UCI object
+    #ifndef __EMSCRIPTEN_SINGLE_THREADED__
+        bool ready = false;
+    #endif
+#endif
+
 int main(int argc, char* argv[]) {
 
-#if defined(__NON_NESTED_WASM__) || defined(__EMSCRIPTEN_SINGLE_THREADED__)
-      emscripten_sleep(0);
-#endif
+    std::cout << engine_info() << std::endl;
 
-  std::cout << engine_info() << std::endl;
-
-  CommandLine::init(argc, argv);
-#ifdef __NON_NESTED_WASM__
-      emscripten_sleep(0);
-#endif
-  UCI::init(Options);
-  Tune::init();
-  PSQT::init();
-  Bitboards::init();
-  Position::init();
-#ifdef __NON_NESTED_WASM__
-      emscripten_sleep(0);
-#endif
-  Bitbases::init();
-#ifdef __NON_NESTED_WASM__
-      emscripten_sleep(0);
-#endif
-  Endgames::init();
-  Threads.set(size_t(Options["Threads"]));
-  Search::clear(); // After threads are up
-  Eval::NNUE::init();
-
-#ifdef __NON_NESTED_WASM__
-      emscripten_sleep(0);
-#endif
-
-  UCI::loop(argc, argv);
-
-#ifndef __EMSCRIPTEN_SINGLE_THREADED__
-
-#ifdef __NON_NESTED_WASM__
-  Threads.set(0);
-  emscripten_force_exit(0);
+    Bitboards::init();
+    Position::init();
+    
+#ifndef __EMSCRIPTEN__
+    UCI uci(argc, argv);
 #else
-  Threads.set(0);
+    uciP = new UCI(argc, argv); // initialize the UCI object
+    UCI& uci = *uciP; // This is just so that we can access the UCI object's properties with a dot (.) like normal in this function, so we don't have to rewrite all of the code to use `uciP->`.
+#endif
+    
+    Tune::init(uci.options);
+
+    uci.evalFiles = Eval::NNUE::load_networks(uci.workingDirectory(), uci.options, uci.evalFiles);
+    
+#ifndef __EMSCRIPTEN__
+    uci.loop();
+#else
+    #ifndef __EMSCRIPTEN_SINGLE_THREADED__
+        ready = true;
+    #endif
 #endif
 
-#endif // __EMSCRIPTEN_SINGLE_THREADED__
-
-  return 0;
+    return 0;
 }
 
-#ifdef __EMSCRIPTEN_SINGLE_THREADED__
-extern "C" void init(int argc, char* argv[]) {
-    main(argc, argv);
+#ifdef __EMSCRIPTEN__
+extern "C" void command(const char *cmd) {
+    uciP->process_command(cmd);
 }
+    #ifndef __EMSCRIPTEN_SINGLE_THREADED__
+    extern "C" bool isReady() {
+        return ready;
+    }
+    #endif
 #endif
-

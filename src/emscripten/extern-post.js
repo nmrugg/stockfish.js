@@ -10,10 +10,8 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
     (function ()
     {
         var isNode = typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]";
-        var mod;
-        var myEngine;
+        var engine = {};
         var queue = [];
-        var args;
         var wasmPath;
         
         function completer(line)
@@ -38,24 +36,17 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                 "setoption name Move Overhead value ",
                 "setoption name MultiPV value ",
                 "setoption name Ponder value ",
-                //"setoption name Skill Level Maximum Error value ",
-                //"setoption name Skill Level Probability value ",
                 "setoption name Skill Level value ",
                 "setoption name Slow Mover value ",
                 "setoption name Threads value ",
                 "setoption name UCI_Chess960 value false",
                 "setoption name UCI_Chess960 value true",
-                "setoption name UCI_AnalyseMode value true",
-                "setoption name UCI_AnalyseMode value false",
                 "setoption name UCI_LimitStrength value true",
                 "setoption name UCI_LimitStrength value false",
                 "setoption name UCI_Elo value ",
                 "setoption name UCI_ShowWDL value true",
                 "setoption name UCI_ShowWDL value false",
-                "setoption name Use NNUE value true",
-                "setoption name Use NNUE value false",
                 "setoption name nodestime value ",
-                "setoption name EvalFile value ",
                 "stop",
                 "uci",
                 "ucinewgame"
@@ -106,37 +97,71 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
         }
         
         if (isNode) {
-            ///NOTE: Node.js v14+ needs --experimental-wasm-threads --experimental-wasm-simd
+            ///NOTE: Node.js v14-19 needs --experimental-wasm-threads --experimental-wasm-simd
             /// Was it called directly?
             if (require.main === module) {
-                wasmPath = require("path").join(__dirname, "stockfish.wasm");
-                mod = {
-                    locateFile: function (path)
-                    {
-                        if (path.indexOf(".wasm") > -1) {
-                            /// Set the path to the wasm binary.
-                            return wasmPath;
-                        } else {
-                            /// Set path to worker (self + the worker hash)
-                            return __filename;
-                        }
-                    },
-                };
-                Stockfish = INIT_ENGINE();
-                Stockfish(mod).then(function (sf)
+                (function ()
                 {
-                    myEngine = sf;
-                    sf.addMessageListener(function (line)
-                    {
-                        console.log(line);
-                    });
+                    var p = require("path");
                     
-                    if (queue.length) {
-                        queue.forEach(function (line)
-                        {
-                            sf.postMessage(line, true);
-                        });
+                    function assembleWASM(count)
+                    {
+                        var fs = require("fs");
+                        var ext = p.extname(wasmPath);
+                        var basename = wasmPath.slice(0, -ext.length);
+                        var i;
+                        var buffers = [];
+                        
+                        for (i = 0; i < count; ++i) {
+                            buffers.push(fs.readFileSync(basename + "-part-" + i + ".wasm"));
+                        }
+                        
+                        return Buffer.concat(buffers);
                     }
+                    wasmPath = p.join(__dirname, p.basename(__filename, p.extname(__filename)) + ".wasm");
+                    engine = {
+                        locateFile: function (path)
+                        {
+                            if (path.indexOf(".wasm") > -1) {
+                                if (path.indexOf(".wasm.map") > -1) {
+                                    /// Set the path to the wasm map.
+                                    return wasmPath + ".map"
+                                }
+                                /// Set the path to the wasm binary.
+                                return wasmPath;
+                            }
+                            /// Set path to worker
+                            
+                            return __filename;
+                        },
+                        listener: function onMessage(line)
+                        {
+                            process.stdout.write(line + "\n");
+                        },
+                    };
+                    
+                    if (typeof enginePartsCount === "number") {
+                        /// Prepare the wasm data because it is in parts.
+                        engine.wasmBinary = assembleWASM(enginePartsCount);
+                    }
+                }());
+                
+                Stockfish = INIT_ENGINE();
+                Stockfish(engine).then(function checkIfReady()
+                {
+                    if (engine._isReady) {
+                        if (!engine._isReady()) {
+                            return setTimeout(checkIfReady, 10);
+                        }
+                        delete engine._isReady;
+                    }
+                    engine.sendCommand = function (cmd)
+                    {
+                        ///NOTE: The single-threaded engine needs to specifiy async for "go" commands to prevent memory leaks and other errors.
+                        engine.ccall("command", null, ["string"], [cmd], {async: typeof IS_ASYNCIFY !== "undefined" && /^go\b/.test(cmd)});
+                    };
+                    
+                    queue.forEach(engine.sendCommand);
                     queue = null;
                 });
                 
@@ -145,16 +170,16 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                     output: process.stdout,
                     completer: completer,
                     historySize: 100,
-                }).on("line", function online(line)
+                }).on("line", function online(cmd)
                 {
-                    if (line) {
-                        if (line === "quit" || line === "exit") {
-                            process.exit();
-                        }
-                        if (myEngine) {
-                            myEngine.postMessage(line, true);
+                    if (cmd) {
+                        if (engine.sendCommand) {
+                            engine.sendCommand(cmd);
                         } else {
-                            queue.push(line);
+                            queue.push(cmd);
+                        }
+                        if (cmd === "quit" || cmd === "exit") {
+                            process.exit();
                         }
                     }
                 }).on("close", function onend()
@@ -167,56 +192,132 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                 module.exports = INIT_ENGINE;
             }
         } else {
-            args = self.location.hash.substr(1).split(",");
-            wasmPath = decodeURIComponent(args[0] || "stockfish.wasm");
-            mod = {
-                locateFile: function (path)
+            (function ()
+            {
+                var wasmBlob;
+                
+                function loadBinary(onLoaded)
                 {
-                    if (path.indexOf(".wasm") > -1) {
-                        /// Set the path to the wasm binary.
-                        return wasmPath;
+                    function fetchBinary(path, cb)
+                    {
+                        fetch(new Request(path)).then(function (response)
+                        {
+                            return response.blob();
+                        }).then(function (wasmData)
+                        {
+                            cb(wasmData);
+                        });
+                    }
+                    function loadParts(total)
+                    {
+                        var doneCount = 0;
+                        var i;
+                        var parts = [];
+                        var ext = wasmPath.slice((wasmPath.lastIndexOf(".") - 1 >>> 0) + 1);
+                        var basename = wasmPath.slice(0, -ext.length);
+                        
+                        function createOnDownload(num)
+                        {
+                            return function onDownload(data)
+                            {
+                                var wasmBlob;
+                                ++doneCount;
+                                parts[num] = data;
+                                if (doneCount === total) {
+                                    wasmBlob = URL.createObjectURL(new Blob(parts));
+                                    onLoaded(wasmBlob);
+                                }
+                            };
+                        }
+                        for (i = 0; i < total; ++i) {
+                            fetchBinary(basename + "-part-" + i + ext, createOnDownload(i));
+                        }
+                    }
+                    if (typeof enginePartsCount === "number") {
+                        loadParts(enginePartsCount);
                     } else {
-                        /// Set path to worker (self + the worker hash)
-                        return self.location.origin + self.location.pathname + "#" + wasmPath + ",worker";
+                        onLoaded();
                     }
                 }
-            };
-            Stockfish = INIT_ENGINE();
-            Stockfish(mod).then(function onCreate(sf)
-            {
-                myEngine = sf;
-                sf.addMessageListener(function onMessage(line)
+                
+                var args = self.location.hash.substr(1).split(",");
+                wasmPath = decodeURIComponent(args[0] || location.origin + location.pathname.replace(/\.js$/i, ".wasm"));
+                
+                loadBinary(function (wasmBlob)
                 {
-                    postMessage(line);
+                    engine = {
+                        locateFile: function (path)
+                        {
+                            if (path.indexOf(".wasm") > -1) {
+                                if (path.indexOf(".wasm.map") > -1) {
+                                    /// Set the path to the wasm map.
+                                    return wasmPath + ".map"
+                                }
+                                /// Set the path to the wasm binary.
+                                return wasmBlob || wasmPath;
+                            }
+                            /// Set path to worker (self + the worker hash)
+                            return self.location.origin + self.location.pathname + "#" + wasmPath + ",worker";
+                        },
+                        listener: function onMessage(line)
+                        {
+                            postMessage(line);
+                        },
+                    }
+                    Stockfish = INIT_ENGINE();
+                
+                    Stockfish(engine).then(function checkIfReady()
+                    {
+                        if (engine._isReady) {
+                            if (!engine._isReady()) {
+                                return setTimeout(checkIfReady, 10);
+                            }
+                            delete engine._isReady;
+                        }
+                        
+                        engine.sendCommand = function (cmd)
+                        {
+                            ///NOTE: The single-threaded engine needs to specifiy async for "go" commands to prevent memory leaks and other errors.
+                            engine.ccall("command", null, ["string"], [cmd], {async: typeof IS_ASYNCIFY !== "undefined" && /^go\b/.test(cmd)});
+                            ///NOTE: The engine must be fully initialized before we can close the Pthreads. so we have to check this here, not in onmessage.
+                            if (cmd === "quit" || cmd === "exit") {
+                                /// Close the Pthreads.
+                                try {
+                                    engine.terminate();
+                                } catch (e) {}
+                            }
+                        };
+                        queue.forEach(engine.sendCommand);
+                        queue = null;
+                    }).catch(function (e)
+                    {
+                        /// Sadly, Web Workers will not trigger the error event when errors occur in promises, so we need to create a new context and throw an error there.
+                        setTimeout(function throwError()
+                        {
+                            throw e;
+                        }, 1);
+                    });
                 });
                 
-                if (queue.length) {
-                    queue.forEach(function (line)
+                /// Make sure that this is only added once.
+                if (!onmessage) {
+                    onmessage = function (event)
                     {
-                        sf.postMessage(line, true);
-                    });
+                        if (engine.sendCommand) {
+                            engine.sendCommand(event.data);
+                        } else {
+                            queue.push(event.data);
+                        }
+                        ///NOTE: We check this here, not just in engine.sendCommand, because the engine might never finish loading.
+                        if (event.data === "quit" || event.data === "exit") {
+                            /// Exit the Web Worker.
+                            try {
+                                self.close();
+                            } catch (e) {}
+                        }
+                    };
                 }
-                queue = null;
-            }).catch(function (e)
-            {
-                /// Sadly, Web Workers will not trigger the error event when errors occur in promises, so we need to create a new context and throw an error there.
-                setTimeout(function throwError()
-                {
-                    throw e;
-                }, 1);
-            });
-            
-            /// Make sure that this is only added once.
-            if (!onmessage) {
-                onmessage = function (event)
-                {
-                    if (myEngine) {
-                        myEngine.postMessage(event.data, true);
-                    } else {
-                        queue.push(event.data);
-                    }
-                };
-            }
+            }());
         }
     }());
 } else {
