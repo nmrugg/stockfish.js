@@ -28,3 +28,4 @@ tester.js
 test_load_engine.js
 tests/
 scripts/
+src/emscripten/wasm_embedded*
