@@ -1,1 +1,1 @@
-/localhost/chess/stockfish.js/src/stockfish-nnue-16.js
+./stockfish-16.1.js
