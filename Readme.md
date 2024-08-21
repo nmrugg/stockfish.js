@@ -8,16 +8,16 @@ This edition of Stockfish.js comes in five flavors:
 
  * The large multi-threaded engine:
     * This is strongest version of the engine, but it is large (≈66MB) and will only run in browsers with the proper <a href=https://web.dev/articles/cross-origin-isolation-guide>CORS headers</a> applied. This engine is recommended if possible.
-    * Files: `stockfish-nnue-16.1.js` & `stockfish-nnue-16.1.wasm`
+    * Files: `stockfish-16.1.js` & `stockfish-16.1.wasm`
  * The large single-threaded engine:
     * This is also large but will run in browsers without CORS headers; however it cannot use multiple threads via the UCI command `setoption name Threads`. This engine is recommended if CORS support is not possible.
-    * Files: `stockfish-nnue-16.1-single.js` & `stockfish-nnue-16.1-single.wasm`
+    * Files: `stockfish-16.1-single.js` & `stockfish-16.1-single.wasm`
  * The lite mult-threaded engine:
     * This is the same as the first multi-threaded but much smaller (≈6MB) and quite a bit weaker. This engine is recommended for mobile browsers when CORS is available.
-    * Files: `stockfish-nnue-16.1-lite.js` & `stockfish-nnue-16.1-lite.wasm`
+    * Files: `stockfish-16.1-lite.js` & `stockfish-16.1-lite.wasm`
  * The lite single-threaded engine:
     * Same as the first single-threaded engine but much smaller (≈6MB) and quite a bit weaker. This engine is recommended for mobile browsers that do not support CORS.
-    * Files: `stockfish-nnue-16.1-lite-single.js` & `stockfish-nnue-16.1-lite-single.wasm`
+    * Files: `stockfish-16.1-lite-single.js` & `stockfish-16.1-lite-single.wasm`
  * The ASM-JS engine:
     * Compiled to JavaScript, not WASM. Compatible with every browser that runs JavaScript. Very slow and weak. Larger than the lite WASM engines (≈9MB). This engine should only be used as a last resort.
     * File: `stockfish-16.1-asm.js`
