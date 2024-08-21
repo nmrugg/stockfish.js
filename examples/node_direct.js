@@ -17,7 +17,8 @@ if (process.argv[2] === "--help" || process.argv[2] === "-h") {
 try {
     var fs = require("fs");
     var p = require("path");
-    var pathToEngine = fs.readlinkSync(p.join(__dirname, "../src/stockfish.js"));
+    var pathToEngine = p.join(__dirname, "..", "src", fs.readlinkSync(p.join(__dirname, "../src/stockfish.js")));
+    
     var ext = p.extname(pathToEngine);
     var basepath = pathToEngine.slice(0, -ext.length);
     var wasmPath = basepath + ".wasm";
@@ -68,11 +69,14 @@ try {
                     }
                     delete engine._isReady;
                 }
-                engine._sendCommand = engine.cwrap("command", null, ["string"]);
+                
                 engine.sendCommand = function (cmd)
                 {
                     /// Not sure why this needs to be async.
-                    setImmediate(engine._sendCommand, cmd);
+                    setImmediate(function ()
+                    {
+                        engine.ccall("command", null, ["string"], [cmd], {async: /^go\b/.test(cmd)})
+                    });
                 };
 
                 start();
