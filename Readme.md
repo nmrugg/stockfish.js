@@ -38,7 +38,7 @@ Stockfish.js can be found in the npm repository and installed like this: `npm in
 
 If you want to use it from the command line, you may want to simply install it globally: `npm install -g stockfish`. Then you can simply run `stockfishjs`.
 
-In Node.js, you can either run it directly from the command line (i.e., `node src/stockfish.js`) or require() it as a module (i.e., `var stockfish = require("stockfish");`).
+In Node.js, you can either run it directly from the command line (i.e., `node src/stockfish.js`) or require() it as a module (i.e., `var stockfish = require("stockfish");`). You can also run stockfish.js as a backend API service by providing API layer on top of Stockfish.js see [Node.js API example](https://github.com/jalpp/stockfish-rest-api)
 
 ### Compiling
 
