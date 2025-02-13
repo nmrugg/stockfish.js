@@ -1,1 +1,1 @@
-./stockfish-16.1.js
+./stockfish-17.js
