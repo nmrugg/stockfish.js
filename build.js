@@ -250,7 +250,7 @@ function checkEmscriptenVersion()
     } catch (e) {
         console.error(e);
         console.error(highlight("Warning:"));
-        console.error("\nCould not confirm emscripten version. Set your " + note("emcc") + " path with the " + note("--emcc") +" flag, or add " + not("--skip-em-check") + " to bypass this check.\n");
+        console.error("\nCould not confirm emscripten version. Set your " + note("emcc") + " path with the " + note("--emcc") +" flag, or add " + note("--skip-em-check") + " to bypass this check.\n");
     }
 }
 
