@@ -19,121 +19,71 @@
 #include "uci.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cctype>
 #include <cmath>
-#include <cstdlib>
-#include <deque>
-#include <memory>
+#include <cstdint>
 #include <optional>
 #include <sstream>
+#include <string_view>
+#include <utility>
 #include <vector>
-#include <cstdint>
 
 #include "benchmark.h"
-#include "evaluate.h"
+#include "engine.h"
 #include "movegen.h"
-#include "nnue/evaluate_nnue.h"
-#include "nnue/nnue_architecture.h"
 #include "position.h"
+#include "score.h"
 #include "search.h"
-#include "syzygy/tbprobe.h"
 #include "types.h"
 #include "ucioption.h"
-#include "perft.h"
-
-#ifdef __EMSCRIPTEN_SINGLE_THREADED__
-#include <emscripten.h>
-#endif
 
 namespace Stockfish {
 
-constexpr auto StartFEN             = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-constexpr int  NormalizeToPawnValue = 356;
-constexpr int  MaxHashMB            = Is64Bit ? 33554432 : 2048;
+constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+template<typename... Ts>
+struct overload: Ts... {
+    using Ts::operator()...;
+};
 
+template<typename... Ts>
+overload(Ts...) -> overload<Ts...>;
 
-UCI::UCI(int argc, char** argv) :
-cli(argc, argv) {
-
-#if defined(__ULTRA_LITE_NET__) || defined(__LITE_NET__)
-    evalFiles = {{Eval::NNUE::Big, {"EvalFile", EvalFileDefaultNameBig, "None", ""}}};
-#else
-    evalFiles = {{Eval::NNUE::Big, {"EvalFile", EvalFileDefaultNameBig, "None", ""}},
-                 {Eval::NNUE::Small, {"EvalFileSmall", EvalFileDefaultNameSmall, "None", ""}}};
-#endif
-
-#ifndef __EMSCRIPTEN__
-    options["Debug Log File"] << Option("", [](const Option& o) { start_logger(o); });
-#endif
-
-#ifndef __EMSCRIPTEN_SINGLE_THREADED__
-    options["Threads"] << Option(1, 1, 1024, [this](const Option&) {
-#else
-    options["Threads"] << Option(1, 1, 1, [this](const Option&) {
-#endif
-        threads.set({options, threads, tt});
-    });
-
-
-    options["Hash"] << Option(16, 1, MaxHashMB, [this](const Option& o) {
-#ifndef __EMSCRIPTEN_SINGLE_THREADED__
-        threads.main_thread()->wait_for_search_finished();
-#endif
-        tt.resize(o, options["Threads"]);
-    });
-
-    options["Clear Hash"] << Option([this](const Option&) { search_clear(); });
-    options["Ponder"] << Option(false);
-    options["MultiPV"] << Option(1, 1, MAX_MOVES);
-    options["Skill Level"] << Option(20, 0, 20);
-    options["Move Overhead"] << Option(10, 0, 5000);
-    options["nodestime"] << Option(0, 0, 10000);
-    options["UCI_Chess960"] << Option(false);
-    options["UCI_LimitStrength"] << Option(false);
-    options["UCI_Elo"] << Option(1320, 1320, 3190);
-    options["UCI_ShowWDL"] << Option(false);
-#ifndef __NO_SYZYGY__
-    options["SyzygyPath"] << Option("<empty>", [](const Option& o) { Tablebases::init(o); });
-    options["SyzygyProbeDepth"] << Option(1, 1, 100);
-    options["Syzygy50MoveRule"] << Option(true);
-    options["SyzygyProbeLimit"] << Option(7, 0, 7);
-    options["EvalFile"] << Option(EvalFileDefaultNameBig, [this](const Option&) {
-        evalFiles = Eval::NNUE::load_networks(cli.binaryDirectory, options, evalFiles);
-    });
-    options["EvalFileSmall"] << Option(EvalFileDefaultNameSmall, [this](const Option&) {
-        evalFiles = Eval::NNUE::load_networks(cli.binaryDirectory, options, evalFiles);
-    });
-#endif
-
-    threads.set({options, threads, tt});
-
-    search_clear();  // After threads are up
-
-#ifdef __EMSCRIPTEN__
-    // Initialize the position and state objects.
-    states = StateListPtr(new std::deque<StateInfo>(1));
-    pos.set(StartFEN, false, &states->back());
-#endif
+void UCIEngine::print_info_string(const std::string& str) {
+    sync_cout_start();
+    for (auto& line : split(str, "\n"))
+    {
+        if (!is_whitespace(line))
+        {
+            std::cout << "info string " << line << '\n';
+        }
+    }
+    sync_cout_end();
 }
 
+UCIEngine::UCIEngine(int argc, char** argv) :
+    engine(argv[0]),
+    cli(argc, argv) {
 
+    engine.get_options().add_info_listener([](const std::optional<std::string>& str) {
+        if (str.has_value())
+            print_info_string(*str);
+    });
+
+    engine.set_on_iter([](const auto& i) { on_iter(i); });
+    engine.set_on_update_no_moves([](const auto& i) { on_update_no_moves(i); });
+    engine.set_on_update_full(
+      [this](const auto& i) { on_update_full(i, engine.get_options()["UCI_ShowWDL"]); });
+    engine.set_on_bestmove([](const auto& bm, const auto& p) { on_bestmove(bm, p); });
+}
 
 #ifdef __EMSCRIPTEN__
-
-void UCI::process_command(std::string cmd)
+void UCIEngine::process_command(std::string cmd)
 {
     std::string token;
     std::istringstream is(cmd);
 #else
-
-void UCI::loop() {
-
-    Position     pos;
-    std::string  token, cmd;
-    StateListPtr states(new std::deque<StateInfo>(1));
-
-    pos.set(StartFEN, false, &states->back());
+void UCIEngine::loop() {
+    std::string token, cmd;
 
     for (int i = 1; i < cli.argc; ++i)
         cmd += std::string(cli.argv[i]) + " ";
@@ -152,52 +102,67 @@ void UCI::loop() {
 
 
         if (token == "quit" || token == "stop")
-            threads.stop = true;
+            engine.stop();
 
         // The GUI sends 'ponderhit' to tell that the user has played the expected move.
         // So, 'ponderhit' is sent if pondering was done on the same move that the user
         // has played. The search should continue, but should also switch from pondering
         // to the normal search.
         else if (token == "ponderhit")
-            threads.main_manager()->ponder = false;  // Switch to the normal search
+            engine.set_ponderhit(false);
 
         else if (token == "uci")
+        {
             sync_cout << "id name " << engine_info(true) << "\n"
-                      << options << "\nuciok" << sync_endl;
+                      << engine.get_options() << sync_endl;
+
+            sync_cout << "uciok" << sync_endl;
+        }
 
         else if (token == "setoption")
             setoption(is);
         else if (token == "go")
-            go(pos, is, states);
+        {
+#ifndef __EMSCRIPTEN__
+            // send info strings after the go command is sent for old GUIs and python-chess
+            print_info_string(engine.numa_config_information_as_string());
+            print_info_string(engine.thread_binding_information_as_string());
+#endif
+            go(is);
+        }
         else if (token == "position")
-            position(pos, is, states);
+            position(is);
         else if (token == "ucinewgame")
-            search_clear();
+            engine.search_clear();
         else if (token == "isready")
             sync_cout << "readyok" << sync_endl;
 
         // Add custom non-UCI commands, mainly for debugging purposes.
         // These commands must not be used during a search!
         else if (token == "flip")
-            pos.flip();
+            engine.flip();
 #ifndef __EMSCRIPTEN__
         else if (token == "bench")
-            bench(pos, is, states);
+            bench(is);
 #endif
         else if (token == "d")
-            sync_cout << pos << sync_endl;
+            sync_cout << engine.visualize() << sync_endl;
         else if (token == "eval")
-            trace_eval(pos);
+            engine.trace_eval();
         else if (token == "compiler")
             sync_cout << compiler_info() << sync_endl;
 #ifndef __EMSCRIPTEN__
         else if (token == "export_net")
         {
-            std::optional<std::string> filename;
-            std::string                f;
-            if (is >> std::skipws >> f)
-                filename = f;
-            Eval::NNUE::save_eval(filename, Eval::NNUE::Big, evalFiles);
+            std::pair<std::optional<std::string>, std::string> files[2];
+
+            if (is >> std::skipws >> files[0].second)
+                files[0].first = files[0].second;
+
+            if (is >> std::skipws >> files[1].second)
+                files[1].first = files[1].second;
+
+            engine.save_network(files);
         }
 #endif
         else if (token == "--help" || token == "help" || token == "--license" || token == "license")
@@ -218,18 +183,16 @@ void UCI::loop() {
 #endif
 }
 
-void UCI::go(Position& pos, std::istringstream& is, StateListPtr& states) {
-
+Search::LimitsType UCIEngine::parse_limits(std::istream& is) {
     Search::LimitsType limits;
     std::string        token;
-    bool               ponderMode = false;
 
     limits.startTime = now();  // The search starts as early as possible
 
     while (is >> token)
         if (token == "searchmoves")  // Needs to be the last command on the line
             while (is >> token)
-                limits.searchmoves.push_back(to_move(pos, token));
+                limits.searchmoves.push_back(to_lower(token));
 
         else if (token == "wtime")
             is >> limits.time[WHITE];
@@ -254,24 +217,33 @@ void UCI::go(Position& pos, std::istringstream& is, StateListPtr& states) {
         else if (token == "infinite")
             limits.infinite = 1;
         else if (token == "ponder")
-            ponderMode = true;
+            limits.ponderMode = true;
 
-    Eval::NNUE::verify(options, evalFiles);
-
-    if (limits.perft)
-    {
-        perft(pos.fen(), limits.perft, options["UCI_Chess960"]);
-        return;
-    }
-
-    threads.start_thinking(options, pos, states, limits, ponderMode);
+    return limits;
 }
 
-void UCI::bench(Position& pos, std::istream& args, StateListPtr& states) {
+void UCIEngine::go(std::istringstream& is) {
+
+    Search::LimitsType limits = parse_limits(is);
+
+    if (limits.perft)
+        perft(limits);
+    else
+        engine.go(limits);
+}
+
+void UCIEngine::bench(std::istream& args) {
     std::string token;
     uint64_t    num, nodes = 0, cnt = 1;
+    uint64_t    nodesSearched = 0;
+    const auto& options       = engine.get_options();
 
-    std::vector<std::string> list = setup_bench(pos, args);
+    engine.set_on_update_full([&](const auto& i) {
+        nodesSearched = i.nodes;
+        on_update_full(i, options["UCI_ShowWDL"]);
+    });
+
+    std::vector<std::string> list = Benchmark::setup_bench(engine.fen(), args);
 
     num = count_if(list.begin(), list.end(),
                    [](const std::string& s) { return s.find("go ") == 0 || s.find("eval") == 0; });
@@ -285,24 +257,33 @@ void UCI::bench(Position& pos, std::istream& args, StateListPtr& states) {
 
         if (token == "go" || token == "eval")
         {
-            std::cerr << "\nPosition: " << cnt++ << '/' << num << " (" << pos.fen() << ")"
+            std::cerr << "\nPosition: " << cnt++ << '/' << num << " (" << engine.fen() << ")"
                       << std::endl;
             if (token == "go")
             {
-                go(pos, is, states);
-                threads.main_thread()->wait_for_search_finished();
-                nodes += threads.nodes_searched();
+                Search::LimitsType limits = parse_limits(is);
+
+                if (limits.perft)
+                    nodesSearched = perft(limits);
+                else
+                {
+                    engine.go(limits);
+                    engine.wait_for_search_finished();
+                }
+
+                nodes += nodesSearched;
+                nodesSearched = 0;
             }
             else
-                trace_eval(pos);
+                engine.trace_eval();
         }
         else if (token == "setoption")
             setoption(is);
         else if (token == "position")
-            position(pos, is, states);
+            position(is);
         else if (token == "ucinewgame")
         {
-            search_clear();  // Search::clear() may take a while
+            engine.search_clear();  // search_clear may take a while
             elapsed = now();
         }
     }
@@ -311,42 +292,28 @@ void UCI::bench(Position& pos, std::istream& args, StateListPtr& states) {
 
     dbg_print();
 
-    std::cerr << "\n==========================="
-              << "\nTotal time (ms) : " << elapsed << "\nNodes searched  : " << nodes
+    std::cerr << "\n==========================="    //
+              << "\nTotal time (ms) : " << elapsed  //
+              << "\nNodes searched  : " << nodes    //
               << "\nNodes/second    : " << 1000 * nodes / elapsed << std::endl;
+
+    // reset callback, to not capture a dangling reference to nodesSearched
+    engine.set_on_update_full([&](const auto& i) { on_update_full(i, options["UCI_ShowWDL"]); });
 }
 
-void UCI::trace_eval(Position& pos) {
-    StateListPtr states(new std::deque<StateInfo>(1));
-    Position     p;
-    p.set(pos.fen(), options["UCI_Chess960"], &states->back());
 
-    Eval::NNUE::verify(options, evalFiles);
-
-    sync_cout << "\n" << Eval::trace(p) << sync_endl;
+void UCIEngine::setoption(std::istringstream& is) {
+    engine.wait_for_search_finished();
+    engine.get_options().setoption(is);
 }
 
-void UCI::search_clear() {
-#ifndef __EMSCRIPTEN_SINGLE_THREADED__
-    threads.main_thread()->wait_for_search_finished();
-#endif
-
-    tt.clear(options["Threads"]);
-    threads.clear();
-#ifndef __NO_SYZYGY__
-    Tablebases::init(options["SyzygyPath"]);  // Free mapped files
-#endif
+std::uint64_t UCIEngine::perft(const Search::LimitsType& limits) {
+    auto nodes = engine.perft(engine.fen(), limits.perft, engine.get_options()["UCI_Chess960"]);
+    sync_cout << "\nNodes searched: " << nodes << "\n" << sync_endl;
+    return nodes;
 }
 
-void UCI::setoption(std::istringstream& is) {
-#ifndef __EMSCRIPTEN_SINGLE_THREADED__
-    threads.main_thread()->wait_for_search_finished();
-#endif
-    options.setoption(is);
-}
-
-void UCI::position(Position& pos, std::istringstream& is, StateListPtr& states) {
-    Move        m;
+void UCIEngine::position(std::istringstream& is) {
     std::string token, fen;
 
     is >> token;
@@ -362,42 +329,99 @@ void UCI::position(Position& pos, std::istringstream& is, StateListPtr& states) 
     else
         return;
 
-    states = StateListPtr(new std::deque<StateInfo>(1));  // Drop the old state and create a new one
-    pos.set(fen, options["UCI_Chess960"], &states->back());
+    std::vector<std::string> moves;
 
-    // Parse the move list, if any
-    while (is >> token && (m = to_move(pos, token)) != Move::none())
+    while (is >> token)
     {
-        states->emplace_back();
-        pos.do_move(m, states->back());
+        moves.push_back(token);
     }
+
+    engine.set_position(fen, moves);
 }
 
-int UCI::to_cp(Value v) { return 100 * v / NormalizeToPawnValue; }
+namespace {
 
-std::string UCI::value(Value v) {
-    assert(-VALUE_INFINITE < v && v < VALUE_INFINITE);
+struct WinRateParams {
+    double a;
+    double b;
+};
 
+WinRateParams win_rate_params(const Position& pos) {
+
+    int material = pos.count<PAWN>() + 3 * pos.count<KNIGHT>() + 3 * pos.count<BISHOP>()
+                 + 5 * pos.count<ROOK>() + 9 * pos.count<QUEEN>();
+
+    // The fitted model only uses data for material counts in [17, 78], and is anchored at count 58.
+    double m = std::clamp(material, 17, 78) / 58.0;
+
+    // Return a = p_a(material) and b = p_b(material), see github.com/official-stockfish/WDL_model
+    constexpr double as[] = {-37.45051876, 121.19101539, -132.78783573, 420.70576692};
+    constexpr double bs[] = {90.26261072, -137.26549898, 71.10130540, 51.35259597};
+
+    double a = (((as[0] * m + as[1]) * m + as[2]) * m) + as[3];
+    double b = (((bs[0] * m + bs[1]) * m + bs[2]) * m) + bs[3];
+
+    return {a, b};
+}
+
+// The win rate model is 1 / (1 + exp((a - eval) / b)), where a = p_a(material) and b = p_b(material).
+// It fits the LTC fishtest statistics rather accurately.
+int win_rate_model(Value v, const Position& pos) {
+
+    auto [a, b] = win_rate_params(pos);
+
+    // Return the win rate in per mille units, rounded to the nearest integer.
+    return int(0.5 + 1000 / (1 + std::exp((a - double(v)) / b)));
+}
+}
+
+std::string UCIEngine::format_score(const Score& s) {
+    constexpr int TB_CP = 20000;
+    const auto    format =
+      overload{[](Score::Mate mate) -> std::string {
+                   auto m = (mate.plies > 0 ? (mate.plies + 1) : mate.plies) / 2;
+                   return std::string("mate ") + std::to_string(m);
+               },
+               [](Score::Tablebase tb) -> std::string {
+                   return std::string("cp ")
+                        + std::to_string((tb.win ? TB_CP - tb.plies : -TB_CP - tb.plies));
+               },
+               [](Score::InternalUnits units) -> std::string {
+                   return std::string("cp ") + std::to_string(units.value);
+               }};
+
+    return s.visit(format);
+}
+
+// Turns a Value to an integer centipawn number,
+// without treatment of mate and similar special scores.
+int UCIEngine::to_cp(Value v, const Position& pos) {
+
+    // In general, the score can be defined via the WDL as
+    // (log(1/L - 1) - log(1/W - 1)) / (log(1/L - 1) + log(1/W - 1)).
+    // Based on our win_rate_model, this simply yields v / a.
+
+    auto [a, b] = win_rate_params(pos);
+
+    return std::round(100 * int(v) / a);
+}
+
+std::string UCIEngine::wdl(Value v, const Position& pos) {
     std::stringstream ss;
 
-    if (std::abs(v) < VALUE_TB_WIN_IN_MAX_PLY)
-        ss << "cp " << to_cp(v);
-    else if (std::abs(v) <= VALUE_TB)
-    {
-        const int ply = VALUE_TB - std::abs(v);  // recompute ss->ply
-        ss << "cp " << (v > 0 ? 20000 - ply : -20000 + ply);
-    }
-    else
-        ss << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
+    int wdl_w = win_rate_model(v, pos);
+    int wdl_l = win_rate_model(-v, pos);
+    int wdl_d = 1000 - wdl_w - wdl_l;
+    ss << wdl_w << " " << wdl_d << " " << wdl_l;
 
     return ss.str();
 }
 
-std::string UCI::square(Square s) {
+std::string UCIEngine::square(Square s) {
     return std::string{char('a' + file_of(s)), char('1' + rank_of(s))};
 }
 
-std::string UCI::move(Move m, bool chess960) {
+std::string UCIEngine::move(Move m, bool chess960) {
     if (m == Move::none())
         return "(none)";
 
@@ -418,51 +442,68 @@ std::string UCI::move(Move m, bool chess960) {
     return move;
 }
 
-namespace {
-// The win rate model returns the probability of winning (in per mille units) given an
-// eval and a game ply. It fits the LTC fishtest statistics rather accurately.
-int win_rate_model(Value v, int ply) {
 
-    // The fitted model only uses data for moves in [8, 120], and is anchored at move 32.
-    double m = std::clamp(ply / 2 + 1, 8, 120) / 32.0;
+std::string UCIEngine::to_lower(std::string str) {
+    std::transform(str.begin(), str.end(), str.begin(), [](auto c) { return std::tolower(c); });
 
-    // The coefficients of a third-order polynomial fit is based on the fishtest data
-    // for two parameters that need to transform eval to the argument of a logistic
-    // function.
-    constexpr double as[] = {-1.06249702, 7.42016937, 0.89425629, 348.60356174};
-    constexpr double bs[] = {-5.33122190, 39.57831533, -90.84473771, 123.40620748};
-
-    // Enforce that NormalizeToPawnValue corresponds to a 50% win rate at move 32.
-    static_assert(NormalizeToPawnValue == int(0.5 + as[0] + as[1] + as[2] + as[3]));
-
-    double a = (((as[0] * m + as[1]) * m + as[2]) * m) + as[3];
-    double b = (((bs[0] * m + bs[1]) * m + bs[2]) * m) + bs[3];
-
-    // Return the win rate in per mille units, rounded to the nearest integer.
-    return int(0.5 + 1000 / (1 + std::exp((a - double(v)) / b)));
-}
+    return str;
 }
 
-std::string UCI::wdl(Value v, int ply) {
-    std::stringstream ss;
-
-    int wdl_w = win_rate_model(v, ply);
-    int wdl_l = win_rate_model(-v, ply);
-    int wdl_d = 1000 - wdl_w - wdl_l;
-    ss << " wdl " << wdl_w << " " << wdl_d << " " << wdl_l;
-
-    return ss.str();
-}
-
-Move UCI::to_move(const Position& pos, std::string& str) {
-    if (str.length() == 5)
-        str[4] = char(tolower(str[4]));  // The promotion piece character must be lowercased
+Move UCIEngine::to_move(const Position& pos, std::string str) {
+    str = to_lower(str);
 
     for (const auto& m : MoveList<LEGAL>(pos))
         if (str == move(m, pos.is_chess960()))
             return m;
 
     return Move::none();
+}
+
+void UCIEngine::on_update_no_moves(const Engine::InfoShort& info) {
+    sync_cout << "info depth " << info.depth << " score " << format_score(info.score) << sync_endl;
+}
+
+void UCIEngine::on_update_full(const Engine::InfoFull& info, bool showWDL) {
+    std::stringstream ss;
+
+    ss << "info";
+    ss << " depth " << info.depth                 //
+       << " seldepth " << info.selDepth           //
+       << " multipv " << info.multiPV             //
+       << " score " << format_score(info.score);  //
+
+    if (showWDL)
+        ss << " wdl " << info.wdl;
+
+    if (!info.bound.empty())
+        ss << " " << info.bound;
+
+    ss << " nodes " << info.nodes        //
+       << " nps " << info.nps            //
+       << " hashfull " << info.hashfull  //
+       << " tbhits " << info.tbHits      //
+       << " time " << info.timeMs        //
+       << " pv " << info.pv;             //
+
+    sync_cout << ss.str() << sync_endl;
+}
+
+void UCIEngine::on_iter(const Engine::InfoIter& info) {
+    std::stringstream ss;
+
+    ss << "info";
+    ss << " depth " << info.depth                     //
+       << " currmove " << info.currmove               //
+       << " currmovenumber " << info.currmovenumber;  //
+
+    sync_cout << ss.str() << sync_endl;
+}
+
+void UCIEngine::on_bestmove(std::string_view bestmove, std::string_view ponder) {
+    sync_cout << "bestmove " << bestmove;
+    if (!ponder.empty())
+        std::cout << " ponder " << ponder;
+    std::cout << sync_endl;
 }
 
 }  // namespace Stockfish

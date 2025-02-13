@@ -17,20 +17,18 @@
 */
 
 #include <iostream>
-#include <unordered_map>
 
 #include "bitboard.h"
-#include "evaluate.h"
 #include "misc.h"
 #include "position.h"
-#include "tune.h"
 #include "types.h"
 #include "uci.h"
+#include "tune.h"
 
 using namespace Stockfish;
 
 #ifdef __EMSCRIPTEN__
-UCI* uciP; // Create a global pointer to the UCI object
+UCIEngine* uciP; // Create a global pointer to the UCI object
     #ifndef __EMSCRIPTEN_SINGLE_THREADED__
         bool ready = false;
     #endif
@@ -44,19 +42,14 @@ int main(int argc, char* argv[]) {
     Position::init();
     
 #ifndef __EMSCRIPTEN__
-    UCI uci(argc, argv);
-#else
-    uciP = new UCI(argc, argv); // initialize the UCI object
-    UCI& uci = *uciP; // This is just so that we can access the UCI object's properties with a dot (.) like normal in this function, so we don't have to rewrite all of the code to use `uciP->`.
-#endif
-    
-    Tune::init(uci.options);
+    UCIEngine uci(argc, argv);
 
-    uci.evalFiles = Eval::NNUE::load_networks(uci.workingDirectory(), uci.options, uci.evalFiles);
-    
-#ifndef __EMSCRIPTEN__
+    Tune::init(uci.engine_options());
+
     uci.loop();
 #else
+    uciP = new UCIEngine(argc, argv); // initialize the UCI object
+    Tune::init(uciP->engine_options());
     #ifndef __EMSCRIPTEN_SINGLE_THREADED__
         ready = true;
     #endif

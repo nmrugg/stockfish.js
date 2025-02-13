@@ -19,7 +19,6 @@
 #ifndef TIMEMAN_H_INCLUDED
 #define TIMEMAN_H_INCLUDED
 
-#include <cstddef>
 #include <cstdint>
 
 #include "misc.h"
@@ -37,11 +36,24 @@ struct LimitsType;
 // the maximum available time, the game move number, and other parameters.
 class TimeManagement {
    public:
-    void init(Search::LimitsType& limits, Color us, int ply, const OptionsMap& options);
+    void init(Search::LimitsType& limits,
+              Color               us,
+              int                 ply,
+              const OptionsMap&   options,
+              double&             originalTimeAdjust);
 
     TimePoint optimum() const;
     TimePoint maximum() const;
-    TimePoint elapsed(std::size_t nodes) const;
+    template<typename FUNC>
+    TimePoint elapsed(FUNC nodes) const {
+        return useNodesTime ? TimePoint(nodes()) : elapsed_time();
+    }
+#ifndef __EMSCRIPTEN__
+    TimePoint elapsed_time() const { return now() - startTime; };
+#else
+    //NOTE: WASM has issues with time. See https://github.com/lichess-org/lila-stockfish-web/pull/3#discussion_r1748873352 for a discussion.
+    TimePoint elapsed_time() const { return std::max(now() - startTime, TimePoint(1)); };
+#endif
 
     void clear();
     void advance_nodes_time(std::int64_t nodes);
@@ -51,7 +63,7 @@ class TimeManagement {
     TimePoint optimumTime;
     TimePoint maximumTime;
 
-    std::int64_t availableNodes = 0;      // When in 'nodes as time' mode
+    std::int64_t availableNodes = -1;     // When in 'nodes as time' mode
     bool         useNodesTime   = false;  // True if we are in 'nodes as time' mode
 };
 

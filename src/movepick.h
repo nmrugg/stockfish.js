@@ -19,6 +19,7 @@
 #ifndef MOVEPICK_H_INCLUDED
 #define MOVEPICK_H_INCLUDED
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
@@ -28,8 +29,8 @@
 #include <type_traits>  // IWYU pragma: keep
 
 #include "movegen.h"
-#include "types.h"
 #include "position.h"
+#include "types.h"
 
 namespace Stockfish {
 
@@ -69,10 +70,11 @@ class StatsEntry {
     operator const T&() const { return entry; }
 
     void operator<<(int bonus) {
-        assert(std::abs(bonus) <= D);  // Ensure range is [-D, D]
         static_assert(D <= std::numeric_limits<T>::max(), "D overflows T");
 
-        entry += bonus - entry * std::abs(bonus) / D;
+        // Make sure that bonus is in range [-D, D]
+        int clampedBonus = std::clamp(bonus, -D, D);
+        entry += clampedBonus - entry * std::abs(clampedBonus) / D;
 
         assert(std::abs(entry) <= D);
     }
@@ -116,10 +118,6 @@ enum StatsType {
 // see www.chessprogramming.org/Butterfly_Boards (~11 elo)
 using ButterflyHistory = Stats<int16_t, 7183, COLOR_NB, int(SQUARE_NB) * int(SQUARE_NB)>;
 
-// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
-// move, see www.chessprogramming.org/Countermove_Heuristic
-using CounterMoveHistory = Stats<Move, NOT_USED, PIECE_NB, SQUARE_NB>;
-
 // CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
 using CapturePieceToHistory = Stats<int16_t, 10692, PIECE_NB, SQUARE_NB, PIECE_TYPE_NB>;
 
@@ -139,12 +137,12 @@ using PawnHistory = Stats<int16_t, 8192, PAWN_HISTORY_SIZE, PIECE_NB, SQUARE_NB>
 using CorrectionHistory =
   Stats<int16_t, CORRECTION_HISTORY_LIMIT, COLOR_NB, CORRECTION_HISTORY_SIZE>;
 
-// MovePicker class is used to pick one pseudo-legal move at a time from the
-// current position. The most important method is next_move(), which returns a
-// new pseudo-legal move each time it is called, until there are no moves left,
-// when Move::none() is returned. In order to improve the efficiency of the
-// alpha-beta algorithm, MovePicker attempts to return the moves which are most
-// likely to get a cut-off first.
+// The MovePicker class is used to pick one pseudo-legal move at a time from the
+// current position. The most important method is next_move(), which emits one
+// new pseudo-legal move on every call, until there are no moves left, when
+// Move::none() is returned. In order to improve the efficiency of the alpha-beta
+// algorithm, MovePicker attempts to return the moves which are most likely to get
+// a cut-off first.
 class MovePicker {
 
     enum PickType {
@@ -155,15 +153,6 @@ class MovePicker {
    public:
     MovePicker(const MovePicker&)            = delete;
     MovePicker& operator=(const MovePicker&) = delete;
-    MovePicker(const Position&,
-               Move,
-               Depth,
-               const ButterflyHistory*,
-               const CapturePieceToHistory*,
-               const PieceToHistory**,
-               const PawnHistory*,
-               Move,
-               const Move*);
     MovePicker(const Position&,
                Move,
                Depth,
@@ -188,11 +177,11 @@ class MovePicker {
     const PieceToHistory**       continuationHistory;
     const PawnHistory*           pawnHistory;
     Move                         ttMove;
-    ExtMove refutations[3], *cur, *endMoves, *endBadCaptures, *beginBadQuiets, *endBadQuiets;
-    int     stage;
-    int     threshold;
-    Depth   depth;
-    ExtMove moves[MAX_MOVES];
+    ExtMove *                    cur, *endMoves, *endBadCaptures, *beginBadQuiets, *endBadQuiets;
+    int                          stage;
+    int                          threshold;
+    Depth                        depth;
+    ExtMove                      moves[MAX_MOVES];
 };
 
 }  // namespace Stockfish

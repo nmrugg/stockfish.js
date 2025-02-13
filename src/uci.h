@@ -19,61 +19,61 @@
 #ifndef UCI_H_INCLUDED
 #define UCI_H_INCLUDED
 
+#include <cstdint>
 #include <iostream>
 #include <string>
-#include <unordered_map>
+#include <string_view>
 
-#include "evaluate.h"
+#include "engine.h"
 #include "misc.h"
-#include "position.h"
-#include "thread.h"
-#include "tt.h"
-#include "ucioption.h"
+#include "search.h"
 
 namespace Stockfish {
 
-namespace Eval::NNUE {
-enum NetSize : int;
-}
-
+class Position;
 class Move;
+class Score;
 enum Square : int;
 using Value = int;
 
-class UCI {
+class UCIEngine {
    public:
-    UCI(int argc, char** argv);
+    UCIEngine(int argc, char** argv);
    
 #ifdef __EMSCRIPTEN__
     void process_command(std::string cmd);
-    Position pos;
-    StateListPtr states;
 #else
     void loop();
 #endif
-    const std::string& workingDirectory() const { return cli.workingDirectory; }
-    static int         to_cp(Value v);
-    static std::string value(Value v);
+
+    static int         to_cp(Value v, const Position& pos);
+    static std::string format_score(const Score& s);
     static std::string square(Square s);
     static std::string move(Move m, bool chess960);
-    static std::string wdl(Value v, int ply);
-    static Move        to_move(const Position& pos, std::string& str);
+    static std::string wdl(Value v, const Position& pos);
+    static std::string to_lower(std::string str);
+    static Move        to_move(const Position& pos, std::string str);
 
-    OptionsMap options;
+    static Search::LimitsType parse_limits(std::istream& is);
 
-    std::unordered_map<Eval::NNUE::NetSize, Eval::EvalFile> evalFiles;
+    auto& engine_options() { return engine.get_options(); }
 
    private:
-    TranspositionTable tt;
-    ThreadPool         threads;
-    CommandLine        cli;
+    Engine      engine;
+    CommandLine cli;
 
-    void go(Position& pos, std::istringstream& is, StateListPtr& states);
-    void bench(Position& pos, std::istream& args, StateListPtr& states);
-    void position(Position& pos, std::istringstream& is, StateListPtr& states);
-    void trace_eval(Position& pos);
-    void search_clear();
-    void setoption(std::istringstream& is);
+    static void print_info_string(const std::string& str);
+
+    void          go(std::istringstream& is);
+    void          bench(std::istream& args);
+    void          position(std::istringstream& is);
+    void          setoption(std::istringstream& is);
+    std::uint64_t perft(const Search::LimitsType&);
+
+    static void on_update_no_moves(const Engine::InfoShort& info);
+    static void on_update_full(const Engine::InfoFull& info, bool showWDL);
+    static void on_iter(const Engine::InfoIter& info);
+    static void on_bestmove(std::string_view bestmove, std::string_view ponder);
 };
 
 }  // namespace Stockfish

@@ -156,7 +156,7 @@ class Position {
     int   game_ply() const;
     bool  is_chess960() const;
     bool  is_draw(int ply) const;
-    bool  has_game_cycle(int ply) const;
+    bool  upcoming_repetition(int ply) const;
     bool  has_repeated() const;
     int   rule50_count() const;
     Value non_pawn_material(Color c) const;
@@ -315,8 +315,8 @@ inline bool Position::capture(Move m) const {
 }
 
 // Returns true if a move is generated from the capture stage, having also
-// queen promotions covered, i.e. consistency with the capture stage move generation
-// is needed to avoid the generation of duplicate moves.
+// queen promotions covered, i.e. consistency with the capture stage move
+// generation is needed to avoid the generation of duplicate moves.
 inline bool Position::capture_stage(Move m) const {
     assert(m.is_ok());
     return capture(m) || m.promotion_type() == QUEEN;

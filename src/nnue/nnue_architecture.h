@@ -37,19 +37,15 @@ namespace Stockfish::Eval::NNUE {
 // Input features used in evaluation function
 using FeatureSet = Features::HalfKAv2_hm;
 
-enum NetSize : int {
-    Big,
-    Small
-};
-
 // Number of input feature dimensions after conversion
 #ifdef __ULTRA_LITE_NET__
 constexpr IndexType TransformedFeatureDimensionsBig = 128;
 #elif defined(__LITE_NET__)
 constexpr IndexType TransformedFeatureDimensionsBig = 256;
 #else
-constexpr IndexType TransformedFeatureDimensionsBig = 2560;
+constexpr IndexType TransformedFeatureDimensionsBig = 3072;
 #endif
+
 constexpr int       L2Big                           = 15;
 constexpr int       L3Big                           = 32;
 
@@ -61,7 +57,7 @@ constexpr IndexType PSQTBuckets = 8;
 constexpr IndexType LayerStacks = 8;
 
 template<IndexType L1, int L2, int L3>
-struct Network {
+struct NetworkArchitecture {
     static constexpr IndexType TransformedFeatureDimensions = L1;
     static constexpr int       FC_0_OUTPUTS                 = L2;
     static constexpr int       FC_1_OUTPUTS                 = L3;

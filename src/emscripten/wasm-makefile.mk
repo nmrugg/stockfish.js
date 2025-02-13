@@ -33,8 +33,8 @@ EM_CXXFLAGS += -DPOSIXALIGNEDALLOC
 ifeq ($(WASM_DEBUG),yes)
 	#EM_CXXFLAGS += -g3 -gsource-map --source-map-base=src/ -s SAFE_HEAP=1 -s ASSERTIONS=1
 	#EM_LDFLAGS  += -g3 -gsource-map --source-map-base=src/ -s SAFE_HEAP=1 -s ASSERTIONS=1
-	EM_CXXFLAGS += -g3 -gsource-map --source-map-base=src/ -s ASSERTIONS=1
-	EM_LDFLAGS  += -g3 -gsource-map --source-map-base=src/ -s ASSERTIONS=1
+	EM_CXXFLAGS += -g3 -gsource-map --source-map-base=/src/ -s ASSERTIONS=1
+	EM_LDFLAGS  += -g3 -gsource-map --source-map-base=/src/ -s ASSERTIONS=1
 	optimize = no
 	# -fsanitize=undefined is currently breaking the large build
 	#EM_CXXFLAGS  += -fsanitize=undefined

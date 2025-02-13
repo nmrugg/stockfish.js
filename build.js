@@ -7,9 +7,11 @@
 var runSpawnSync = require("child_process").spawnSync;
 var runExecFileSync = require("child_process").execFileSync;
 var params = getParams({booleans: [
-    "no-chesscom", "h", "help", "help-all", "f", "force", "force-linking", "s", "silent", "bin", "colors", "no-color", "no-minify", "v", "verbose", "debug-wasm", "all", "skip-em-check", "single-threaded", "lite", "wasm-debug", "asm-js", "keep-syzygy", "hash", "no-split",
+    "no-chesscom", "h", "help", "help-all", "f", "force", "force-linking", "s", "silent", "bin", "colors", "no-color", "no-minify", "v", "verbose", "debug-wasm", "all", "skip-em-check", "single-threaded", "lite", "ultra-lite", "wasm-debug", "asm-js", "keep-syzygy", "hash", "no-split",
     "skip-asm", "skip-single", "skip-lite", "skip-single-lite", "skip-lite-single", "skip-standard",
     "only-asm", "only-single", "only-lite", "only-single-lite", "only-lite-single", "only-standard",
+    "debug",
+    "do-not-verify-nets",
 ]});
 var args = ["-j", require("os").cpus().length];
 var fs = require("fs");
@@ -24,11 +26,12 @@ var preface;
 var postscript;
 var buildWithEmscripten;
 var child;
-var stockfishVersionNumber = "16.1";
+var stockfishVersionNumber = "17";
 var expectedEmscripten = "3.1.7";
 var fistRun;
 var basename;
 var buildingSingleThreaded = false;
+var builtFiles = [];
 
 function getParams(options, argv)
 {
@@ -253,7 +256,14 @@ function checkEmscriptenVersion()
 
 function ensureNets()
 {
-    execFileSync(params.make, ["net"], {cwd: srcPath});
+    var args = ["net"];
+    if (params.lite) {
+        args.push("LITE_NET=yes");
+    } else if (params["ultra-lite"]) {
+        args.push("ULTRA_LITE_NET=yes");
+    }
+    
+    execFileSync(params.make, args, {cwd: srcPath});
 }
 function getNetPaths()
 {
@@ -306,7 +316,7 @@ function alreadyEmbedded(nets)
     return true;
 }
 
-function getEmbeddedNetCode(net)
+function embedNet(outputPath, net)
 {
     /// Read nets or create an empty net for the small net in Lite mode.
     var data = net.path ? fs.readFileSync(p.join(srcPath, net.path)) : Buffer.alloc(1);
@@ -316,6 +326,9 @@ function getEmbeddedNetCode(net)
     var len = data.byteLength;
     var i;
     var char;
+    
+    fs.appendFileSync(outputPath, prefix + "extern const unsigned char " + netVarBase + "Data[] = \"\\\n");
+    
     for (i = 0; i < len; ++i) {
         char = data[i].toString(16);
         if (data[i] < 16) {
@@ -326,13 +339,17 @@ function getEmbeddedNetCode(net)
         
         if ((i + 1) % 32 === 0) {
             out += "\\\n";
+            if (((i + 1) / 32) % 10000 === 0) {
+                fs.appendFileSync(outputPath, out);
+                out = "";
+            }
         }
     }
     
-    return prefix +
-           "extern const unsigned char " + netVarBase + "Data[] = \"\\\n" + out + "\";\n" +
-           "extern const unsigned int " + netVarBase + "Size = " + len + ";\n" + 
-           "extern const unsigned char* const " + netVarBase + "End = &" + netVarBase + "Data[" + len + "];\n\n"; /// Oddly, Stockfish seems to never actually use this variable.
+    fs.appendFileSync(outputPath, out + "\";\n" +
+        "extern const unsigned int " + netVarBase + "Size = " + len + ";\n" +
+        "extern const unsigned char* const " + netVarBase + "End = &" + netVarBase + "Data[" + len + "];" + /// Oddly, Stockfish seems to never actually use this variable.
+        "\n\n");
 }
 
 function embedNets()
@@ -344,7 +361,7 @@ function embedNets()
     }
     
     /// First, make sure the nets are here.
-    if (!params.lite && !params["ultra-lite"]) {
+    if (!params["do-not-verify-nets"]) {
         ensureNets();
     }
     
@@ -355,7 +372,7 @@ function embedNets()
             if (net.path) {
                 console.log(note("Embedding " + net.path));
             }
-            fs.appendFileSync(wasmEmbeddedNetsPath, getEmbeddedNetCode(net));
+            embedNet(wasmEmbeddedNetsPath, net);
         });
     }
 }
@@ -379,6 +396,7 @@ function renameAndSymlink(origPath, newPath)
 function makeSymLink(newPath, origPath)
 {
     fs.symlinkSync(makeRelative(origPath, newPath), origPath);
+    builtFiles.push(newPath);
 }
 
 function fillInBlanks(code)
@@ -390,7 +408,6 @@ function fillInBlanks(code)
 
 function fixUpWASMBuild()
 {
-    var stockfishWASMPath = p.join(srcPath, "stockfish.wasm");
     var stockfishWASMLoaderPath = p.join(srcPath, "stockfish.js");
     var stockfishWorkerThreadPath = p.join(srcPath, "stockfish.worker.js");
     var workerExternPostPath = p.join(srcPath, "emscripten", "worker-extern-post.js");
@@ -426,11 +443,17 @@ function fixUpWASMBuild()
                 renameAndSymlink(stockfishWASMPath + ".map", p.join(srcPath, basename + hashParts + ".wasm.map"));
             } catch (e) {}
         }
+    } else {
+        builtFiles.push(stockfishWASMLoaderPath, stockfishWASMPath);
+        if (params["debug-wasm"]) {
+            builtFiles.push(stockfishWASMLoaderPath, stockfishPath + ".wasm.map");
+        }
     }
     if (params.split && !params["no-split"]) {
         splitFile(finalWasmPath, params.split);
-        fs.unlinkSync(p.join(srcPath, "stockfish.wasm"));
+        fs.unlinkSync(p.join(stockfishWASMPath));
     }
+    
     console.log("Built " + note(p.basename(finalWasmPath, ".wasm") + ".js"));
 }
 
@@ -454,6 +477,9 @@ function splitFile(path, count)
         makeSymLink(newPath, origPath);
     }
     fs.unlinkSync(path);
+    if (builtFiles.indexOf(path) > -1) {
+        builtFiles.splice(builtFiles.indexOf(path), 1);
+    }
 }
 
 function fixUpASMJSBuild()
@@ -465,6 +491,8 @@ function fixUpASMJSBuild()
     fs.writeFileSync(enginePath, engineData);
     if (basename) {
         renameAndSymlink(enginePath, p.join(srcPath, basename + getHashPart(enginePath) + ".js"));
+    } else {
+        builtFiles.push(enginePath);
     }
 }
 
@@ -521,9 +549,29 @@ function getHashPart(paths)
     return "-" + hashFiles(paths);
 }
 
+function moveBuiltFiles()
+{
+    var i;
+    var len = builtFiles.length;
+    var basename;
+    for (i = 0; i < len; ++i) {
+        basename = p.basename(builtFiles[i]);
+        renameAndSymlink(builtFiles[i], p.join(params["output-dir"], basename));
+    }
+}
+
 if (params["wasm-debug"]) { /// alias
     params["debug-wasm"] = params["wasm-debug"];
 }
+
+if (params.debug) {
+    if (buildWithEmscripten) {
+        params["debug-wasm"] = true;
+    } else {
+        args.push("debug=yes");
+    }
+}
+
 if (!params.make) {
     params.make = "make";
 }
@@ -556,6 +604,10 @@ if (params["asm-js"]) {
     params["single-threaded"] = true;
 }
 
+if (params.split && typeof params.split === "boolean") {
+    params.split = 6;
+}
+
 if (params.help || params["help-all"] || params.h) {
     console.log("");
     console.log(bold("Build the Stockfish Chess Engine"));
@@ -573,6 +625,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log("  " + highlight("--comp") + "             Compiler to build C code with");
     console.log("  " + highlight("--compcxx") + "          Compiler to build C++ code with");
     console.log("  " + highlight("--debug-wasm") + "       Compile WASM in debug mode");
+    console.log("  " + highlight("--do-not-verify-nets") + " Do not attempt to download or verify the net files");
     console.log("  " + highlight("--emcc") + "             Path to " + note("emcc") + " (used to ensure version compatibility)");
     console.log("  " + highlight("-f --force") + "         Always rebuild the entire project");
     console.log("  " + highlight("--force-linking") + "    Always preforming the final linking step");
@@ -599,9 +652,9 @@ if (params.help || params["help-all"] || params.h) {
     console.log("  " + highlight("--skip-single") + "      Do not build non-lite single-threaded engine with " + highlight("--all"));
     console.log("  " + highlight("--skip-standard") + "    Do not build standard, multi-threaded engine with " + highlight("--all"));
     console.log("  " + highlight("--split") + "=" + note("count") + "      Split up WASM binary how many parts");
+    console.log("  " + highlight("--ultra-lite") + "       Embed even smaller net file");
     console.log("  " + highlight("-v --verbose") + "       Print extra info");
     console.log("  " + highlight("--version") + "          Specify Stockfish version number (default: " + note(stockfishVersionNumber) + ")");
-    
     
     console.log("");
     console.log("Examples:");
@@ -782,6 +835,7 @@ if (params["debug-wasm"]) {
     }
 }
 
+
 if (params.comp) {
     args.push("COMP=" + params.comp);
 }
@@ -813,17 +867,22 @@ if (buildWithEmscripten && !params["keep-syzygy"]) {
 
 args.push("ENGINE_VERSION=\"" + getVersion() + "\"");
 
+if (params["do-not-verify-nets"]) {
+    args.push("NO_VERIFY_NETS=yes");
+}
+
 if (buildWithEmscripten) {
     args.push("build");
     embedNets();
 } else {
-    args.push("profile-build");
+    if (params.debug) {
+        args.push("build");
+    } else {
+        args.push("profile-build");
+    }
 }
 
 if (params.split && !params["no-split"]) {
-    if (typeof params.split === "boolean") {
-        params.split = 6;
-    }
     args.push("SPLIT_WASM=yes");
     args.push("WASM_SPLIT_COUNT=" + params.split);
 }
@@ -839,17 +898,23 @@ if (Number(child.status) !== 0) {
     process.exit(Number(child.status));
 }
 
-if (!buildWithEmscripten && basename) {
-    fs.renameSync(stockfishPath, p.join(srcPath, basename + getHashPart(stockfishPath)));
-}
-
-
 if (buildWithEmscripten) {
     if (params["asm-js"]) {
         fixUpASMJSBuild();
     } else {
         fixUpWASMBuild();
     }
+} else {
+    if (basename) {
+        fs.renameSync(stockfishPath, p.join(srcPath, basename + getHashPart(stockfishPath)));
+        builtFiles.push(p.join(srcPath, basename + getHashPart(stockfishPath)));
+    } else {
+        builtFiles.push(enginePath);
+    }
+}
+
+if (params["output-dir"]) {
+    moveBuiltFiles();
 }
 
 beep();
