@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-//! Chess.com (c) 2024
+//! Chess.com (c) 2025
 
 "use strict";
 
