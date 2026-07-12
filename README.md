@@ -36,7 +36,7 @@ To learn how to use the engine in your own projects, see the <a href="https://gi
 
 ### How do I use stockfish.js in React.js or in web applications?
 
-You can explore (@jalpp/stockfishts library)[https://www.npmjs.com/package/@jalpp/stockfishts], it is a TypeScript library for running Stockfish engines from both frontend and backend projects. It supports WebAssembly-based engines, worker-based execution, and a small, ergonomic API for evaluating chess positions and receiving incremental updates from stockfish.js wasm engine files. 
+You can explore [@jalpp/stockfishts library](https://www.npmjs.com/package/@jalpp/stockfishts), it is a TypeScript library for running Stockfish engines from both frontend and backend projects. It supports WebAssembly-based engines, worker-based execution, and a small, ergonomic API for evaluating chess positions and receiving incremental updates from stockfish.js wasm engine files. 
 
 ### How do I compile the engine?
 
