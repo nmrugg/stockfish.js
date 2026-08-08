@@ -7,6 +7,9 @@ arch = wasm
 bits = 64
 SUPPORTED_ARCH=true
 
+# Do not apply host-specific compiler flags to WebAssembly.
+TARGET_KERNEL := Emscripten
+
 ifeq ($(ASMJS),yes)
 	EM_LDFLAGS  += -s WASM=0
 	popcnt = no
