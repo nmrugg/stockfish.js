@@ -479,7 +479,7 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                                                 onProgress(startTime, loadedBytes, totalBytes);
                                                 controller.enqueue(value);
                                                 push();
-                                            }).catch(function onError(err)
+                                            }).catch(function onReadError(err)
                                             {
                                                 controller.error(err);
                                                 if (typeof onError === "function") {
