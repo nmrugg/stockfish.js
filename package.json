@@ -24,6 +24,7 @@
   "license": "GPL-3.0",
   "bin": "scripts/cli.js",
   "scripts": {
+    "test": "node tests/node-global-fetch.test.js",
     "build": "node build.js -f",
     "build-lite": "node build.js --lite -f",
     "build-single": "node build.js --single-threaded -f",
