@@ -1,7 +1,7 @@
 {
   "name": "stockfish",
   "description": "The Stockfish chess engine in Web Assembly (WASM)",
-  "version": "19.0.0",
+  "version": "19.0.2",
   "buildVersion": "19",
   "author": {
     "name": "Nathan Rugg",
@@ -14,6 +14,9 @@
     }
   ],
   "dependencies": {},
+  "devDependencies": {
+    "terser": "=5.51.2"
+  },
   "keywords": [
     "chess"
   ],

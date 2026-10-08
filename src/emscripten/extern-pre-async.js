@@ -1,1 +1,0 @@
-var IS_ASYNCIFY=1;

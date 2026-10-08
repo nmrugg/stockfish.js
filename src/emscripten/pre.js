@@ -6,7 +6,15 @@ if (typeof global !== "undefined" && Object.prototype.toString.call(global.proce
         global["XMLHttpRequest"] = function (a)
         {
             var url
+            ///NOTE: The handler properties (onerror/onreadystatechange/onload)
+            ///are declared up front (as null) so the Closure compiler does not
+            ///warn about "inexistent property" when they are invoked below.
             var xhr = {
+                readyState: 0,
+                status: 0,
+                onerror: null,
+                onreadystatechange: null,
+                onload: null,
                 open: function (method, _url)
                 {
                     url = _url;
@@ -32,6 +40,9 @@ if (typeof global !== "undefined" && Object.prototype.toString.call(global.proce
             return xhr;
         }
     }
+    ///NOTE: Null out fetch so Emscripten uses the XHR polyfill above in
+    ///Node.js. Suppressed because the global fetch is typed as a function.
+    /** @suppress {typeMismatch} */
     fetch = null;
 }
 

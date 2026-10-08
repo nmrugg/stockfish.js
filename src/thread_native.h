@@ -85,7 +85,17 @@ class NativeThread {
     pthread_t thread;
     bool      running_ = false;
 
+#ifdef NDEBUG
+    // WebAssembly has no virtual memory: pthread_create() carves the whole
+    // stack out of the linear memory eagerly, and linear memory is never
+    // handed back, so an 8MB stack costs 8MB of resident memory per search
+    // thread. Search recursion is bounded by MAX_PLY and an optimized build
+    // emits a small frame for it, keeping the worst case well below 1MB.
+    // A debug build emits larger frames, so it keeps the bigger stack.
+    static constexpr usize TH_STACK_SIZE = 2 * 1024 * 1024;
+#else
     static constexpr usize TH_STACK_SIZE = 8 * 1024 * 1024;
+#endif
 
     void start(NativeThreadOptions options, ThreadCallableBase* func) {
         pthread_attr_t attr_storage, *attr = &attr_storage;

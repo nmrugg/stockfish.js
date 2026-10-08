@@ -609,6 +609,9 @@ bool is_whitespace(std::string_view s) {
 // because when the NNUE network is not embeded in the binary, this directory
 // is one of the locations where we look for the NNUE file.
 fs::path CommandLine::get_binary_directory(fs::path argv0) {
+#ifdef __EMSCRIPTEN__
+    return {};  // No meaningful binary directory in the Wasm build.
+#endif
 
 #ifdef _WIN32
     // Prefer the executable path reported by Windows. Unlike _get_wpgmptr,
@@ -629,7 +632,13 @@ fs::path CommandLine::get_binary_directory(fs::path argv0) {
 }
 
 // Return the working directory
-fs::path CommandLine::get_working_directory() { return std::filesystem::current_path(); }
+fs::path CommandLine::get_working_directory() {
+#ifdef __EMSCRIPTEN__
+    return {};  // No meaningful working directory in the Wasm build.
+#else
+    return std::filesystem::current_path();
+#endif
+}
 
 
 // On Windows, tell the console to use UTF8 encoding

@@ -28,7 +28,7 @@ var postscript;
 var buildWithEmscripten;
 var child;
 var stockfishVersionNumber = require("./package.json").buildVersion;
-var expectedEmscripten = "3.1.7";
+var expectedEmscripten = "6.0.9";
 var fistRun;
 var basename;
 var buildingSingleThreaded = false;
@@ -102,12 +102,20 @@ function minify(code)
         return code;
     }
     
-    initComment = code.match(/\/\*![\s\S]*?\*\//)[0];
-    
     try {
-        minified = require("uglify-js").minify(code);
+        /// See https://terser.org/docs/options/#format-options
+        minified = require("terser").minify_sync(code, {
+            compress: {
+                passes: 2,
+                ecma: 2020,
+                drop_console: true,
+            },
+            format: {
+                ecma: 2020,
+            },
+        });
         if (minified && minified.code) {
-            code = initComment + minified.code;
+            code = minified.code;
         } else {
             console.error(minified);
             throw new Error("Unable to minify JS code.");
@@ -422,10 +430,6 @@ function unlinkIfExists(path)
 function fixUpWASMBuild()
 {
     var stockfishWASMLoaderPath = p.join(srcPath, "stockfish.js");
-    var stockfishWorkerThreadPath = p.join(srcPath, "stockfish.worker.js");
-    var workerExternPostPath = p.join(srcPath, "emscripten", "worker-extern-post.js");
-    var workerExternPostData = fs.readFileSync(workerExternPostPath, "utf8");
-    var workerData = "";
     var stockfishWASMLoaderData;
     var hashParts = "";
     var finalWasmPath = stockfishWASMPath;
@@ -437,22 +441,15 @@ function fixUpWASMBuild()
         throw new Error("Invalid --split value: " + params.split);
     }
 
-    if (!params["single-threaded"]) {
-        workerData = fs.readFileSync(stockfishWorkerThreadPath, "utf8") + workerExternPostData;
-        unlinkIfExists(stockfishWorkerThreadPath);
-    }
-
-    stockfishWASMLoaderData = fs.readFileSync(stockfishWASMLoaderPath, "utf8")
-        .replace(/\/\/\/ Insert worker here/, workerData);
+    stockfishWASMLoaderData = fs.readFileSync(stockfishWASMLoaderPath, "utf8");
 
     stockfishWASMLoaderData = fillInBlanks(stockfishWASMLoaderData);
 
     /// This must happen before renaming or splitting.
+    ///NOTE: enginePartsCount is no longer injected here - make bakes it into
+    ///emscripten/build-flags.js at link time (see wasm-makefile.mk). Only
+    ///engineTotalBytes is filled post-link, below.
     stockfishWASMLoaderData = insertTotalBytesVar(stockfishWASMPath, stockfishWASMLoaderData);
-
-    if (doSplit) {
-        stockfishWASMLoaderData = insertSplitCount(stockfishWASMLoaderData, splitCount);
-    }
 
     stockfishWASMLoaderData = minify(stockfishWASMLoaderData);
     fs.writeFileSync(stockfishWASMLoaderPath, stockfishWASMLoaderData);
@@ -545,9 +542,21 @@ function insertTotalBytesVar(wasmPath, code)
     var wasmSize = fs.lstatSync(wasmPath).size;
     return code.replace(/(var engineTotalBytes);/, "$1=" + wasmSize + ";");
 }
-function insertSplitCount(code, count)
+///NOTE: Written to emscripten/build-flags.js BEFORE make runs, so em++ can splice
+///it into the module via --extern-pre-js. The values are assigned (0/1/N) so the
+///link-time Closure compiler folds the branch checks in extern-post.js to the
+///correct values. engineTotalBytes is left bare here; insertTotalBytesVar fills
+///it in post-link (the wasm size is unknown until after linking).
+function writeBuildFlags()
 {
-    return code.replace(/(var enginePartsCount);/, "$1=" + count + ";");
+    var splitCount = (params.split && !params["no-split"]) ? Number(params.split) : 0;
+    var flags = [
+        "var IS_ASYNCIFY = " + (params["single-threaded"] ? 1 : 0) + ";",
+        "var enginePartsCount = " + splitCount + ";",
+        "var isASMEngine = " + (params["asm-js"] ? 1 : 0) + ";",
+        "var engineTotalBytes;"
+    ].join("\n") + "\n";
+    fs.writeFileSync(p.join(srcPath, "emscripten", "build-flags.js"), flags);
 }
 
 function fixUpASMJSBuild()
@@ -555,7 +564,8 @@ function fixUpASMJSBuild()
     var enginePath = p.join(srcPath, "stockfish.js");
     var engineData = fs.readFileSync(enginePath, "utf8");
     engineData = fillInBlanks(engineData);
-    engineData = engineData.replace(/(var isASMEngine)/, "$1=1");
+    ///NOTE: isASMEngine is baked into emscripten/build-flags.js at link time
+    ///(make sees ASMJS=yes), so there is nothing to inject here.
     engineData = minify(engineData);
     fs.writeFileSync(enginePath, engineData);
     if (basename) {
@@ -707,7 +717,7 @@ if (params.help || params["help-all"] || params.h) {
     console.log("  " + highlight("--lite") + "             Embed small net file");
     console.log("  " + highlight("--make") + "             Path to program used to make Stockfish (default: " + note("make") + ")");
     console.log("  " + highlight("--no-colors") + "        Never colorize the output");
-    console.log("  " + highlight("--no-minify") + "        Minification of outer JS code (use " + highlight("--debug-wasm") + " to completely disable minfication)");
+    console.log("  " + highlight("--no-minify") + "        Minification of JS code");
     console.log("  " + highlight("--no-split") + "         Disable WASM splitting, even if " + highlight("--split") + " is present");
     console.log("  " + highlight("--only-asm") + "         Only build the ASM.JS engine with " + highlight("--all"));
     console.log("  " + highlight("--only-lite") + "        Only build lite multi-threaded engine with " + highlight("--all"));
@@ -950,6 +960,9 @@ if (buildWithEmscripten) {
 ///
 /// Build
 ///
+if (buildWithEmscripten) {
+    writeBuildFlags();
+}
 child = spawnSync(params.make, args, {stdio: [0,1,2], env: process.env, cwd: srcPath});
 
 /// `make` does not throw an error when encountering errors, so we need to do that manually.

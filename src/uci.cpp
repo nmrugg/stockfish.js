@@ -46,6 +46,9 @@
 
 #ifdef __EMSCRIPTEN__
     #include <emscripten.h>
+
+    // Declared in the global namespace (defined in src/glue.cpp).
+    std::string js_getline();
 #endif
 
 namespace Stockfish {
@@ -105,128 +108,152 @@ void UCIEngine::init_search_update_listeners() {
 
 #ifdef __EMSCRIPTEN__
 bool searching;
-void UCIEngine::process_command(std::string cmd)
-{
-    std::string token;
+#endif
+
+// Processes a single UCI command string and returns its first token (so the
+// caller can detect "quit"). Shared by loop() (multithreaded/native) and
+// process_command() (single-threaded).
+std::string UCIEngine::process_cmd(const std::string& cmd) {
+    currentCmd = cmd;
     std::istringstream is(cmd);
+    std::string token;
+    is >> token;
+
+    if (token == "quit" || token == "stop")
+        engine.stop();
+
+    // The GUI sends 'ponderhit' to tell that the user has played the expected move.
+    // So, 'ponderhit' is sent if pondering was done on the same move that the user
+    // has played. The search should continue, but should also switch from pondering
+    // to the normal search.
+    else if (token == "ponderhit")
+        engine.set_ponderhit(false);
+
+    else if (token == "uci")
+    {
+        sync_cout << "id name " << engine_info(true) << "\n"
+                  << engine.get_options() << sync_endl;
+
+        sync_cout << "uciok" << sync_endl;
+    }
+
+    else if (token == "setoption")
+        setoption(is);
+    else if (token == "go")
+    {
+#ifndef __EMSCRIPTEN__
+        // send info strings after the go command is sent for old GUIs and python-chess
+        print_info_string(engine.numa_config_information_as_string());
+        print_info_string(engine.thread_allocation_information_as_string());
 #else
+        if (!engine.validate_position()) {
+            sync_cout << "info depth 0 score cp 0" << sync_endl;
+            sync_cout << "bestmove (none)" << sync_endl;
+            return token;
+        }
+#endif
+        go(is);
+    }
+    else if (token == "position")
+        position(is);
+    else if (token == "ucinewgame")
+        engine.search_clear();
+    else if (token == "isready")
+        sync_cout << "readyok" << sync_endl;
+
+    // Add custom non-UCI commands, mainly for debugging purposes.
+    else if (token == "flip")
+    {
+        if (auto err = engine.flip())
+        {
+            terminate_on_critical_error(err->what());
+        }
+    }
+#ifndef __EMSCRIPTEN__
+    else if (token == "bench")
+        bench(is);
+    else if (token == BenchmarkCommand)
+        benchmark(is);
+#endif
+    else if (token == "d")
+        sync_cout << engine.visualize() << sync_endl;
+    else if (token == "eval")
+    {
+#ifdef __EMSCRIPTEN__
+        if (!engine.validate_position()) {
+            sync_cout << "Final evaluation       +0.00 (white side) [invalid position]" << sync_endl;
+            return token;
+        }
+#endif
+        engine.trace_eval();
+    }
+    else if (token == "compiler")
+        sync_cout << compiler_info() << sync_endl;
+#ifndef __EMSCRIPTEN__
+    else if (token == "export_net")
+    {
+        std::optional<std::filesystem::path> file;
+        std::string                          filename;
+
+        if (is >> filename)
+            file = path_from_utf8(filename);
+
+        engine.save_network(file);
+    }
+    else if (token == "--help" || token == "help" || token == "--license" || token == "license")
+        sync_cout
+          << "\nStockfish is a powerful chess engine for playing and analyzing."
+             "\nIt is released as free software licensed under the GNU GPLv3 License."
+             "\nStockfish is normally used with a graphical user interface (GUI) and implements"
+             "\nthe Universal Chess Interface (UCI) protocol to communicate with a GUI, an API, etc."
+             "\nFor any further information, visit https://github.com/official-stockfish/Stockfish#readme"
+             "\nor read the corresponding README.md and Copying.txt files distributed along with this program.\n"
+          << sync_endl;
+    else if (!token.empty() && token[0] != '#')
+        sync_cout << "Unknown command: '" << cmd << "'. Type help for more information."
+                  << sync_endl;
+#endif  // __EMSCRIPTEN__
+
+    return token;
+}
+
+// The UCI command loop. Under __EMSCRIPTEN__ (multithreaded) it runs on the
+// (proxy) main thread and pulls commands from the glue queue (js_getline());
+// on native builds it reads from std::cin. Not used in the single-threaded
+// build (there is no (proxy) main thread to run it on).
+#ifndef __EMSCRIPTEN_SINGLE_THREADED__
 void UCIEngine::loop() {
     set_console_utf8();
-    std::string token, cmd;
+    std::string cmd;
 
     for (int i = 1; i < cli.argc; ++i)
         cmd += std::string(cli.argv[i]) + " ";
 
+    std::string token;
     do
     {
+#ifdef __EMSCRIPTEN__
+        // Commands are pushed from the JS host onto a thread-safe queue; the
+        // loop runs on the (proxy) main thread and pulls them here.
+        cmd = js_getline();
+#else
         if (cli.argc == 1
             && !getline(std::cin, cmd))  // Wait for an input or an end-of-file (EOF) indication
             cmd = "quit";
-
-        currentCmd = cmd;
-        std::istringstream is(cmd);
-
-        token.clear();  // Avoid a stale if getline() returns nothing or a blank line
 #endif
-        is >> token;
-
-        if (token == "quit" || token == "stop")
-            engine.stop();
-
-        // The GUI sends 'ponderhit' to tell that the user has played the expected move.
-        // So, 'ponderhit' is sent if pondering was done on the same move that the user
-        // has played. The search should continue, but should also switch from pondering
-        // to the normal search.
-        else if (token == "ponderhit")
-            engine.set_ponderhit(false);
-
-        else if (token == "uci")
-        {
-            sync_cout << "id name " << engine_info(true) << "\n"
-                      << engine.get_options() << sync_endl;
-
-            sync_cout << "uciok" << sync_endl;
-        }
-
-        else if (token == "setoption")
-            setoption(is);
-        else if (token == "go")
-        {
-#ifndef __EMSCRIPTEN__
-            // send info strings after the go command is sent for old GUIs and python-chess
-            print_info_string(engine.numa_config_information_as_string());
-            print_info_string(engine.thread_allocation_information_as_string());
-#else
-            if (!engine.validate_position()) {
-                sync_cout << "info depth 0 score cp 0" << sync_endl;
-                sync_cout << "bestmove (none)" << sync_endl;
-                return;
-            }
-#endif
-            go(is);
-        }
-        else if (token == "position")
-            position(is);
-        else if (token == "ucinewgame")
-            engine.search_clear();
-        else if (token == "isready")
-            sync_cout << "readyok" << sync_endl;
-
-        // Add custom non-UCI commands, mainly for debugging purposes.
-        else if (token == "flip")
-        {
-            if (auto err = engine.flip())
-            {
-                terminate_on_critical_error(err->what());
-            }
-        }
-#ifndef __EMSCRIPTEN__
-        else if (token == "bench")
-            bench(is);
-        else if (token == BenchmarkCommand)
-            benchmark(is);
-#endif
-        else if (token == "d")
-            sync_cout << engine.visualize() << sync_endl;
-        else if (token == "eval")
-        {
-#ifdef __EMSCRIPTEN__
-            if (!engine.validate_position()) {
-                sync_cout << "Final evaluation       +0.00 (white side) [invalid position]" << sync_endl;
-                return;
-            }
-#endif
-            engine.trace_eval();
-        }
-        else if (token == "compiler")
-            sync_cout << compiler_info() << sync_endl;
-#ifndef __EMSCRIPTEN__
-        else if (token == "export_net")
-        {
-            std::optional<std::filesystem::path> file;
-            std::string                          filename;
-
-            if (is >> filename)
-                file = path_from_utf8(filename);
-
-            engine.save_network(file);
-        }
-        else if (token == "--help" || token == "help" || token == "--license" || token == "license")
-            sync_cout
-              << "\nStockfish is a powerful chess engine for playing and analyzing."
-                 "\nIt is released as free software licensed under the GNU GPLv3 License."
-                 "\nStockfish is normally used with a graphical user interface (GUI) and implements"
-                 "\nthe Universal Chess Interface (UCI) protocol to communicate with a GUI, an API, etc."
-                 "\nFor any further information, visit https://github.com/official-stockfish/Stockfish#readme"
-                 "\nor read the corresponding README.md and Copying.txt files distributed along with this program.\n"
-              << sync_endl;
-        else if (!token.empty() && token[0] != '#')
-            sync_cout << "Unknown command: '" << cmd << "'. Type help for more information."
-                      << sync_endl;
-
+        token = process_cmd(cmd);
     } while (token != "quit" && cli.argc <= 1);  // The command-line arguments are one-shot
-#endif
 }
+#endif  // !__EMSCRIPTEN_SINGLE_THREADED__
+
+#ifdef __EMSCRIPTEN_SINGLE_THREADED__
+// Single-threaded: process one command on demand (from the JS ccall). main()
+// returns after setup, so we must NOT block in a loop here (there is no
+// separate (proxy) main thread to run it on).
+void UCIEngine::process_command(std::string cmd) {
+    (void)process_cmd(cmd);
+}
+#endif
 
 Search::LimitsType UCIEngine::parse_limits(std::istream& is) {
     Search::LimitsType limits;

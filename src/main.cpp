@@ -49,19 +49,27 @@ int main(int argc, char* argv[]) {
     Attacks::init();
     Position::init();
 
-#ifndef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
+    uciP = new UCIEngine(argc, argv); // initialize the UCI object
+    Tune::init(uciP->engine_options());
+#ifndef __EMSCRIPTEN_SINGLE_THREADED__
+    ready = true;
+    // Multithreaded: the UCI loop runs on the (proxy) main thread and pulls
+    // commands from a thread-safe queue that the JS host pushes onto (see glue.cpp).
+    // main() blocks here, but that is fine because it runs on W1, a separate pthread.
+    uciP->loop();
+#endif
+    // Single-threaded: return from main(). There is no separate (proxy) main
+    // thread, so blocking in loop() would stall the only thread (and the JS
+    // event loop / readline). Commands are processed on demand via the
+    // command() ccall (process_command), which ASYNCIFY can suspend/resume.
+#else
     auto cli = CommandLine(argc, argv);
     auto uci = std::make_unique<UCIEngine>(std::move(cli));
 
     Tune::init(uci->engine_options());
 
     uci.loop();
-#else
-    uciP = new UCIEngine(argc, argv); // initialize the UCI object
-    Tune::init(uciP->engine_options());
-    #ifndef __EMSCRIPTEN_SINGLE_THREADED__
-        ready = true;
-    #endif
 #endif
 
     return 0;
@@ -76,9 +84,15 @@ int main(int argc, char* argv[]) { return Stockfish::main(argc, argv); }
 #endif
 
 #ifdef __EMSCRIPTEN__
-extern "C" void command(const char *cmd) {
-    uciP->process_command(cmd);
-}
+    #ifdef __EMSCRIPTEN_SINGLE_THREADED__
+    // Single-threaded: the JS host processes commands on demand via this ccall
+    // (ASYNCIFY suspends/resumes around any blocking work). The multithreaded
+    // build does not use this; it pushes commands onto the glue queue (uci())
+    // which uciP->loop() on the (proxy) main thread consumes.
+    extern "C" void command(const char* cmd) {
+        uciP->process_command(cmd);
+    }
+    #endif
     #ifndef __EMSCRIPTEN_SINGLE_THREADED__
     extern "C" bool isReady() {
         return ready;

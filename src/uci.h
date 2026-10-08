@@ -42,9 +42,19 @@ class UCIEngine {
    
 #ifdef __EMSCRIPTEN__
     UCIEngine(int argc, char** argv);
+    #ifdef __EMSCRIPTEN_SINGLE_THREADED__
+    // Single-threaded: a command is processed on demand (from the JS ccall).
+    // main() returns after setup; the loop() design is not used because there
+    // is no separate (proxy) main thread to block on.
     void process_command(std::string cmd);
+    #else
+    // Multithreaded: the UCI loop runs on the (proxy) main thread and pulls
+    // commands from the glue queue (js_getline()).
+    void loop();
+    #endif
 #else
     UCIEngine(CommandLine cli);
+    // Native: the UCI loop reads commands from std::cin.
     void loop();
 #endif
 
@@ -64,6 +74,10 @@ class UCIEngine {
     Engine      engine;
     CommandLine cli;
     std::string currentCmd;
+
+    // Processes a single UCI command string. Returns the first token (so the
+    // caller can detect "quit"). Shared by loop() and process_command().
+    std::string process_cmd(const std::string& cmd);
 
     static void print_info_string(std::string_view str);
 

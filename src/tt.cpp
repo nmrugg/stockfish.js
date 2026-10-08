@@ -205,7 +205,10 @@ void TranspositionTable::clear(ThreadPool& threads) {
     generation8              = 0;
 #ifdef __EMSCRIPTEN__
     // NOTE: Sometimes threaded TT initialization seems to fail (engine crash on startup), so here we simply initialize on main thread.
-    std::memset(table, 0, clusterCount * sizeof(Cluster));
+    //NOTE: Cluster is non-trivially copyable (RelaxedAtomic members), so cast
+    //to void* to silence -Wnontrivial-memcall. The buffer was just allocated,
+    //so zeroing the storage is safe.
+    std::memset(static_cast<void*>(table), 0, clusterCount * sizeof(Cluster));
 #else
     const usize threadCount = threads.num_threads();
 

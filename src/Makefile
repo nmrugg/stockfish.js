@@ -719,7 +719,11 @@ ifneq ($(OS),Android)
 	# Haiku has pthreads in its libroot, so only link it in on other platforms
 	ifneq ($(KERNEL),Haiku)
 		ifneq ($(COMP),ndk)
-		ifneq ($(arch),wasm32)
+		#NOTE: Skip the native-only -lpthread/-lrt for wasm builds (arch=wasm as
+		#well as wasm32). Emscripten does not need them, and a future Emscripten
+		#that maps -lpthread to -pthread would silently enable PTHREADS and break
+		#the single-threaded ASYNCIFY build.
+		ifneq (,$(filter-out wasm wasm32,$(arch)))
 			LDFLAGS += -lpthread
 
 			add_lrt = yes
@@ -777,9 +781,14 @@ ifeq ($(optimize),yes)
 	endif
 
 	ifeq ($(comp),clang)
-		clangmajorversion := $(shell $(CXX) -dumpversion 2>/dev/null | cut -f1 -d.)
-		ifeq ($(shell expr $(clangmajorversion) \< 16),1)
-			CXXFLAGS += -fexperimental-new-pass-manager
+		#NOTE: Skip the version probe for emscripten: "em++ -dumpversion"
+		#reports the Emscripten version (not the clang version), and the
+		#bundled clang is always new enough to use the new pass manager.
+		ifneq ($(COMP),em++)
+			clangmajorversion := $(shell $(CXX) -dumpversion 2>/dev/null | cut -f1 -d.)
+			ifeq ($(shell expr $(clangmajorversion) \< 16),1)
+				CXXFLAGS += -fexperimental-new-pass-manager
+			endif
 		endif
 	endif
 endif

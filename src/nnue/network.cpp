@@ -179,6 +179,9 @@ NetworkOutput Network::evaluate(const Position&    pos,
 void Network::verify(const std::function<void(std::string_view)>& f,
                      const EvalFile&                              evalFile,
                      fs::path                                     evalfilePath) const {
+#ifdef __EMSCRIPTEN__
+    return;  // Skip the (expensive and unnecessary) NNUE self-test in the Wasm build
+#endif
     if (evalfilePath.empty())
         evalfilePath = evalFile.defaultName;
 

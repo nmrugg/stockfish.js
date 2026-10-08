@@ -1,7 +1,13 @@
 # WASM
 src/emscripten/wasm_embedded_*.h
+src/emscripten/build-flags.js
 **/*.map
 **/*.o.tmp
+
+etc/
+examples/node_modules/
+bin/
+node_modules/
 
 # Files from build
 **/*.o
@@ -25,7 +31,3 @@ tsan.supp
 __pycache__/
 tests/syzygy
 tests/bench_tmp.epd
-
-etc/
-examples/node_modules/
-bin/

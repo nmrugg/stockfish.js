@@ -1,11 +1,23 @@
 return Stockfish;
 }
 
-if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker" || typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]" && !require("worker_threads").isMainThread) {
-    (function ()
-    {
-        /// Insert worker here
-    })();
+///NOTE: Since emscripten 3.1.58, pthread workers no longer use a separate
+///worker.js file. They load this very script, and are detected by the
+///"em-pthread" worker name (web) or workerData (Node.js). Emscripten's
+///built-in runtime bootstraps them: it receives the shared wasm module and
+///memory via postMessage and runs the thread entry point itself.
+///
+///That bootstrap lives at the top level of the generated module
+///(`isPthread && Stockfish()`), which we wrap inside INIT_ENGINE(). In a
+///pthread worker nothing else calls INIT_ENGINE(), so we must call it here;
+///doing so runs the module and registers the worker's onmessage handler,
+///after which it idles until the main thread posts the load/run commands.
+var isPthreadWorker = (typeof globalThis !== "undefined" && typeof globalThis.name === "string" && globalThis.name.indexOf("em-pthread") === 0) ||
+    (typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]" && require("node:worker_threads").workerData === "em-pthread");
+
+if (isPthreadWorker) {
+    /// Pthread worker: create the module to run the built-in bootstrap.
+    INIT_ENGINE();
 /// Is it a web worker?
 } else if (typeof onmessage !== "undefined" && (typeof window === "undefined" || typeof window.document === "undefined") || typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]") {
     (function ()
@@ -99,8 +111,13 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
         
         function sendCommand(cmd)
         {
-            ///NOTE: The single-threaded engine needs to specifiy async for "go" commands to prevent memory leaks and other errors.
-            engine.ccall("command", null, ["string"], [cmd], {async: typeof IS_ASYNCIFY !== "undefined" && /^go\b/.test(cmd)});
+            ///NOTE: The single-threaded engine (IS_ASYNCIFY truthy) uses the
+            ///on-demand command() ccall; ASYNCIFY suspends/resumes around any
+            ///blocking work, and main() has already returned. The multithreaded
+            ///engine pushes commands onto the glue queue (uci() in glue.cpp),
+            ///which uciP->loop() on the (proxy) main thread consumes.
+            var fn = IS_ASYNCIFY ? "command" : "uci";
+            engine.ccall(fn, null, ["string"], [cmd], {async: IS_ASYNCIFY && /^go\b/.test(cmd)});
             ///NOTE: The engine must be fully initialized before we can close the Pthreads. so we have to check this here, not in onmessage.sendCommand
             if (cmd === "quit") {
                 /// Close the Pthreads.
@@ -159,7 +176,7 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                 return setTimeout(checkIfReady, 10);
             }
             
-            if (typeof IS_ASYNCIFY === "undefined") {
+            if (!IS_ASYNCIFY) {
                 engine.onDoneSearching = processQueue;
             } else {
                 engine.onDoneSearching = function ()
@@ -204,7 +221,7 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                         },
                     };
                     
-                    if (typeof enginePartsCount === "number") {
+                    if (enginePartsCount > 0) {
                         /// Prepare the wasm data because it is in parts.
                         engine.wasmBinary = (function assembleWASM()
                         {
@@ -395,7 +412,7 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                 var args = self.location.hash.substr(1).split(",");
                 wasmPath = decodeURIComponent(args[0] || location.origin + location.pathname.replace(/\.js$/i, ".wasm"));
                 
-                if (typeof enginePartsCount === "number") {
+                if (enginePartsCount > 0) {
                     loadSplitEngine(beginEngineInitialization);
                 } else {
                     beginEngineInitialization();
@@ -414,8 +431,8 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                                 /// Set the path to the wasm binary.
                                 return wasmBlob || wasmPath;
                             }
-                            /// Set path to worker (self + the worker hash)
-                            return self.location.origin + self.location.pathname + "#" + wasmPath + ",worker";
+                            /// Pthread workers load this very script.
+                            return self.location.href;
                         },
                         listener: function onMessage(line)
                         {
@@ -424,7 +441,7 @@ if (typeof self !== "undefined" && self.location.hash.split(",")[1] === "worker"
                     };
                     
                     /// If the WASM file is not split, we can process the bytecode while streaming it with WebAssembly.instantiateStreaming().
-                    if (typeof enginePartsCount !== "number") {
+                    if (!enginePartsCount) {
                         var updateTimer;
                         var updateData;
                         
