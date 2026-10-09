@@ -503,7 +503,7 @@ if (isPthreadWorker) {
                                                 onProgress(startTime, loadedBytes, totalBytes);
                                                 controller.enqueue(value);
                                                 push();
-                                            }).catch(function onError(err)
+                                            }).catch(function onReadError(err)
                                             {
                                                 controller.error(err);
                                                 if (typeof onError === "function") {
