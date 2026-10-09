@@ -15,9 +15,9 @@ if (process.argv[2] === "--help" || process.argv[2] === "-h") {
     console.log("Usage: node node_direct.js [FEN OR move1 move2 ...moveN]");
     console.log("");
     console.log("Examples:");
-    console.log("   node simple_node.js");
-    console.log("   node simple_node.js \"rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2\"");
-    console.log("   node simple_node.js g1f3 e7e5");
+    console.log("   node node_direct.js");
+    console.log("   node node_direct.js \"rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2\"");
+    console.log("   node node_direct.js g1f3 e7e5");
     process.exit();
 }
 

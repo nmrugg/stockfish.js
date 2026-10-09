@@ -256,7 +256,7 @@ if (params.h || params.help) {
         console.log("  " + note("--dir") + "      Which director to serve files from (default " + highlight("cwd") + ")");
         console.log("  " + note("-h") + " " + note("--help") + "  Print this help message");
         console.log("  " + note("--list") + "     List directory contents instead of returning 404");
-        console.log("  " + note("-p") + " " + note("--port") + "  Which port to listen to (default " + highlight("8080") + " or " + highlight("443") + " for SSL)");
+        console.log("  " + note("-p") + " " + note("--port") + "  Which port to listen to (default " + highlight("9091") + " or " + highlight("443") + " for SSL)");
         console.log("  " + note("--ssl") + "      Enable SSL encryption (a random key is generated)");
         console.log("  " + note("--throttle") + " Limit requests to a maximum kilobytes per second");
         console.log();
