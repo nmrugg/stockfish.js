@@ -12,11 +12,11 @@ This edition of Stockfish.js comes in five flavors:
 
 | Engine | Size (js + wasm) | Threads | Needs cross-origin isolation | Files |
 | --- | --- | --- | --- | --- |
-| Full | ≈94MB | Yes | Yes | [`stockfish-19.js`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/stockfish-19.js) and [`stockfish-19.wasm`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/stockfish-19.wasm) |
-| Full, single-threaded | ≈94MB | No | No | [`stockfish-19-single.js`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/stockfish-19-single.js) and [`stockfish-19-single.wasm`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/stockfish-19-single.wasm) |
-| Lite | ≈1.6MB | Yes | Yes | [`stockfish-19-lite.js`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/stockfish-19-lite.js) and [`stockfish-19-lite.wasm`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/stockfish-19-lite.wasm) |
-| Lite, single-threaded | ≈1.7MB | No | No | [`stockfish-19-lite-single.js`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/stockfish-19-lite-single.js) and [`stockfish-19-lite-single.wasm`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/stockfish-19-lite-single.wasm) |
-| ASM-JS | ≈3MB | No | No | [`stockfish-19-asm.js`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/stockfish-19-asm.js) |
+| Full | ≈94MB | Yes | Yes | [`stockfish-19.js`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.1/stockfish-19.js) and [`stockfish-19.wasm`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.1/stockfish-19.wasm) |
+| Full, single-threaded | ≈94MB | No | No | [`stockfish-19-single.js`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.1/stockfish-19-single.js) and [`stockfish-19-single.wasm`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.1/stockfish-19-single.wasm) |
+| Lite | ≈1.6MB | Yes | Yes | [`stockfish-19-lite.js`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.1/stockfish-19-lite.js) and [`stockfish-19-lite.wasm`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.1/stockfish-19-lite.wasm) |
+| Lite, single-threaded | ≈1.7MB | No | No | [`stockfish-19-lite-single.js`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.1/stockfish-19-lite-single.js) and [`stockfish-19-lite-single.wasm`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.1/stockfish-19-lite-single.wasm) |
+| ASM-JS | ≈3MB | No | No | [`stockfish-19-asm.js`](https://github.com/nmrugg/stockfish.js/releases/download/v19.0.1/stockfish-19-asm.js) |
 
 A few notes on the table:
 
