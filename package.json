@@ -1,7 +1,7 @@
 {
   "name": "stockfish",
   "description": "The Stockfish chess engine in Web Assembly (WASM)",
-  "version": "19.0.2",
+  "version": "19.0.1",
   "buildVersion": "19",
   "author": {
     "name": "Nathan Rugg",
@@ -18,7 +18,11 @@
     "terser": "=5.51.2"
   },
   "keywords": [
-    "chess"
+    "chess",
+    "stockfish",
+    "wasm",
+    "uci",
+    "engine"
   ],
   "repository": {
     "type": "git",
@@ -31,13 +35,16 @@
     "build-lite": "node build.js --lite -f",
     "build-single": "node build.js --single-threaded -f",
     "build-single-lite": "node build.js --single-threaded --lite -f",
-    "postinstall": "node scripts/postinstall.js",
     "prepack": "node scripts/prepack.js",
     "postpack": "node scripts/postpack.js"
   },
   "files": [
     "bin/",
-    "scripts/postinstall.js"
+    "index.js",
+    "scripts/findEngine.js",
+    "scripts/cli.js",
+    "README.md",
+    "Copying.txt"
   ],
   "readmeFilename": "README.md",
   "main": "index.js"

@@ -6,7 +6,7 @@
 /// Make sure the engine is present.
 require("./get-engine.js");
 
-var engine = require("child_process").spawn(process.execPath, [require("path").join(__dirname, "node_modules", "stockfish", "bin", "stockfish.js")], {stdio: "pipe"});
+var engine = require("child_process").spawn(process.execPath, [require("stockfish").findEngine(process.argv[2] || "full")], {stdio: "pipe"});
 var engineStarted = false;
 
 engine.stdout.on("data", echo);

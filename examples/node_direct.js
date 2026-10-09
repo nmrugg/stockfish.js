@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
+"use strict";
+
 /// This is an example of how to directly require() a stockfish.js engine as a CommonJS module.
+/// For older Node.js versions, you may need --experimental-wasm-threads --experimental-wasm-simd.
 
 var Stockfish;
 var engine;
@@ -18,87 +21,9 @@ if (process.argv[2] === "--help" || process.argv[2] === "-h") {
     process.exit();
 }
 
-/// For older Node.js versions, you may need --experimental-wasm-threads --experimental-wasm-simd.
-try {
-    var fs = require("fs");
-    var p = require("path");
-    var pathToEngine = p.join(__dirname, "node_modules", "stockfish", "bin", "stockfish.js");
-    
-    var ext = p.extname(pathToEngine);
-    var basepath = pathToEngine.slice(0, -ext.length);
-    var wasmPath = basepath + ".wasm";
-    var basename = p.basename(basepath);
-    var engineDir = p.dirname(pathToEngine);
-    var buffers = [];
-    
-    var INIT_ENGINE = require(pathToEngine);
-    
-    var engine = {
-        locateFile: function (path)
-        {
-            if (path.indexOf(".wasm") > -1) {
-                if (path.indexOf(".wasm.map") > -1) {
-                    /// Set the path to the wasm map.
-                    return wasmPath + ".map"
-                }
-                /// Set the path to the wasm binary.
-                return wasmPath;
-            } else {
-                return pathToEngine;
-            }
-        },
-    };
-    
-    /// We have to manually assemble the WASM parts, if the engine is split into parts.
-    fs.readdirSync(engineDir).sort().forEach(function (path)
-    {
-        ///NOTE: These could be out of order without zero padding.
-        if (path.startsWith(basename + "-part-") && path.endsWith(".wasm")) {
-            buffers.push(fs.readFileSync(p.join(engineDir, path)));
-        }
-    });
-    
-    if (buffers.length) {
-        engine.wasmBinary = Buffer.concat(buffers);
-    }
-    
-    if (typeof INIT_ENGINE === "function") {
-        var Stockfish = INIT_ENGINE();
-        try {
-            
-            Stockfish(engine).then(function checkIfReady()
-            {
-                if (engine._isReady) {
-                    if (!engine._isReady()) {
-                        return setTimeout(checkIfReady, 10);
-                    }
-                    delete engine._isReady;
-                }
-                
-                engine.sendCommand = function (cmd)
-                {
-                    /// Not sure why this needs to be async.
-                    setImmediate(function ()
-                    {
-                        engine.ccall("command", null, ["string"], [cmd], {async: /^go\b/.test(cmd)})
-                    });
-                };
-
-                start();
-            });
-        } catch (e) {
-            console.error(e);
-            console.error("\nYour Node.js version appears to be too old. Also, try adding --experimental-wasm-threads --experimental-wasm-simd.\n");
-            process.exit(1);
-        }
-    }
-    
-} catch (e) {
-    console.error(e)
-}
-
 function start()
 {
+    var engine = require("stockfish")(onLog);
     var gotUCI;
     var startedThinking;
     var position = "startpos";
@@ -106,10 +31,10 @@ function start()
     function send(str)
     {
         console.log("Sending: " + str)
-        engine.sendCommand(str);
+        engine.processCommand(str);
     }
     
-    engine.listener = function onLog(line)
+    function onLog(line)
     {
         var match;
         
@@ -144,7 +69,7 @@ function start()
                 engine.terminate();
             }
         }
-    };
+    }
     
     (function getPosition()
     {
@@ -169,3 +94,5 @@ function start()
     
     send("uci");
 }
+
+start();

@@ -194,56 +194,57 @@ if (isPthreadWorker) {
         if (isNode) {
             /// Was it called directly?
             ///NOTE: Node.js v14-19 needs --experimental-wasm-threads --experimental-wasm-simd
+            
+            (function ()
+            {
+                var p = require("path");
+                
+                wasmPath = p.join(__dirname, p.basename(__filename, p.extname(__filename)) + ".wasm");
+                engine = {
+                    locateFile: function (path)
+                    {
+                        if (path.indexOf(".wasm") > -1) {
+                            if (path.indexOf(".wasm.map") > -1) {
+                                /// Set the path to the wasm map.
+                                return wasmPath + ".map"
+                            }
+                            /// Set the path to the wasm binary.
+                            return wasmPath;
+                        }
+                        /// Set path to worker
+                        
+                        return __filename;
+                    },
+                    listener: function onMessage(line)
+                    {
+                        process.stdout.write(line + "\n");
+                    },
+                };
+                
+                if (enginePartsCount > 0) {
+                    /// Prepare the wasm data because it is in parts.
+                    engine.wasmBinary = (function assembleWASM()
+                    {
+                        var fs = require("fs");
+                        var ext = p.extname(wasmPath);
+                        var basename = wasmPath.slice(0, -ext.length);
+                        var i;
+                        var buffers = [];
+                        
+                        for (i = 0; i < enginePartsCount; ++i) {
+                            buffers.push(fs.readFileSync(basename + "-part-" + i + ".wasm"));
+                        }
+                        
+                        return Buffer.concat(buffers);
+                    }());
+                }
+            }());
+            
+            startUpQueue = process.argv.slice(2);
+            
+            /// Was this executed directly?
             if (require.main === module) {
-                (function ()
-                {
-                    var p = require("path");
-                    
-                    wasmPath = p.join(__dirname, p.basename(__filename, p.extname(__filename)) + ".wasm");
-                    engine = {
-                        locateFile: function (path)
-                        {
-                            if (path.indexOf(".wasm") > -1) {
-                                if (path.indexOf(".wasm.map") > -1) {
-                                    /// Set the path to the wasm map.
-                                    return wasmPath + ".map"
-                                }
-                                /// Set the path to the wasm binary.
-                                return wasmPath;
-                            }
-                            /// Set path to worker
-                            
-                            return __filename;
-                        },
-                        listener: function onMessage(line)
-                        {
-                            process.stdout.write(line + "\n");
-                        },
-                    };
-                    
-                    if (enginePartsCount > 0) {
-                        /// Prepare the wasm data because it is in parts.
-                        engine.wasmBinary = (function assembleWASM()
-                        {
-                            var fs = require("fs");
-                            var ext = p.extname(wasmPath);
-                            var basename = wasmPath.slice(0, -ext.length);
-                            var i;
-                            var buffers = [];
-                            
-                            for (i = 0; i < enginePartsCount; ++i) {
-                                buffers.push(fs.readFileSync(basename + "-part-" + i + ".wasm"));
-                            }
-                            
-                            return Buffer.concat(buffers);
-                        }());
-                    }
-                }());
-                
-                startUpQueue = process.argv.slice(2);
-                
-                Stockfish = INIT_ENGINE();
-                Stockfish(engine).then(checkIfReady);
+                INIT_ENGINE()(engine).then(checkIfReady);
                 
                 require("readline").createInterface({
                     input: process.stdin,
@@ -266,10 +267,16 @@ if (isPthreadWorker) {
                 {
                     process.exit();
                 }).setPrompt("");
-                
-            /// Is this a node module?
             } else {
-                module.exports = INIT_ENGINE;
+                module.exports = function initSF()
+                {
+                    INIT_ENGINE()(engine).then(checkIfReady);
+                    engine.processCommand = function (cmd)
+                    {
+                        startUpQueue.push(cmd);
+                    };
+                    return engine;
+                };
             }
         } else {
             (function ()
@@ -552,9 +559,7 @@ if (isPthreadWorker) {
                         }
                     }
                     
-                    Stockfish = INIT_ENGINE();
-                    
-                    Stockfish(engine).then(checkIfReady).catch(function (e)
+                    INIT_ENGINE()(engine).then(checkIfReady).catch(function (e)
                     {
                         /// Web Workers will not trigger the error event when errors occur in promises, so we need to create a new context and throw an error there.
                         setTimeout(function throwError()

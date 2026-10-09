@@ -7,7 +7,7 @@
 require("./get-engine.js");
 
 var loadEngine = require("./loadEngine.js");
-var engine = loadEngine(process.argv[2] || require("path").join(__dirname, "node_modules", "stockfish", "bin", "stockfish.js"));
+var engine = loadEngine(require("stockfish").findEngine(process.argv[2] || "full"));
 
 engine.send("uci", function onDone(data)
 {

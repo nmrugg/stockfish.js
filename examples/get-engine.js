@@ -20,12 +20,14 @@ function hasEngines()
     if (moduleConfig) {
         stockfishVersion = moduleConfig.version;
     }
+    
     /// Confirm package version.
     if (!installedModuleConfig || !moduleConfig || moduleConfig.version !== installedModuleConfig.version) {
         return false;
     }
+    
     /// Make sure the engine files are actually there.
-    return fs.existsSync(p.join(bindir, "stockfish.js")) && fs.existsSync(p.join(bindir, "stockfish.wasm"));
+    return fs.existsSync(require(basedir).findEngine());
 
 }
 
@@ -34,9 +36,9 @@ if (!hasEngines()) {
     try {
         fs.mkdirSync(node_modules);
     } catch (e) {}
-    console.log("-----------")
+    console.log("-----------------")
     console.log("installing", (stockfishVersion || "latest"))
-    console.log("-----------")
+    console.log("-----------------")
     require("child_process").execFileSync("npm", ["i", "--force", "--no-package-lock", "--no-save", "stockfish@" + (stockfishVersion || "latest")], {cwd: __dirname});
     if (!hasEngines()) {
         console.error("Could not find stockfish engine.");

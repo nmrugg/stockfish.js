@@ -6,31 +6,23 @@
 /// Make sure the engine is present.
 require("./get-engine.js");
 
-var enginePath = process.argv[2];
+var engineType = process.argv[2];
 
-///NOTE: enginePath can be a path to any stockfish.js engine or a keyword indicating which Stockfish.js engine to load.
+///NOTE: engineType can be a path to any stockfish.js engine or a keyword indicating which Stockfish.js engine to load.
 ///      Keywords include: "full", "lite", "single", "lite-single", and "asm".
 ///      enginePath is optional. If not passed, the full engine will be used.
 ///      
-///      If no callback function is passed in, this function will return a Promise which could be used for chaining or async/await calling.
-var stockfish = require("stockfish")(enginePath || "lite-single", onReady);
+///      The second parameter is the function to call when the engine prints messages. If none is supplied, it will print to the console.
+var stockfish = require("stockfish")(engineType || "lite-single", onMessage);
 
-stockfish.listener = function (line)
+function onMessage(line)
 {
     console.log("STDOUT:", line);
     if (/bestmove \S+/.test(line)) {
         console.log("The best move is " + line.match(/bestmove (\S+)/)[1] + ".");
         stockfish.terminate();
     }
-};
-
-///NOTE: The first argument will be NULL if there are no errors.
-///      The second argument is the exact same object as the stockfish object above. This is just a different way to obtain it.
-function onReady(err/*, stockfish*/)
-{
-    if (err) {
-        throw new Error(err);
-    }
-    stockfish.sendCommand("uci");
-    stockfish.sendCommand("go depth 5");
 }
+
+stockfish.processCommand("uci");
+stockfish.processCommand("go depth 5");

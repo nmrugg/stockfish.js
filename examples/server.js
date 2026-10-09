@@ -12,6 +12,9 @@ var listDir = params.list || false;
 /// Make sure the engine is present.
 require("./get-engine.js");
 
+/// We create simple symlinks for the engine because the front end does not know the stockfish version number.
+createStockfishSymlink();
+
 /// Added mime-types from https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
 /// Using /([^\t]+)\t([^\t]+)\t([^\t]+)\n/g, "    "$1": "$3", /// $2\n" (after some clean up)
 /// Another source is https://www.sitepoint.com/mime-types-complete-list/
@@ -27,7 +30,6 @@ var mimeData = {
     ".ico": "image/vnd.microsoft.icon", /// Icon format
     ".woff": "font/woff", /// Web Open Font Format (WOFF)
     ".woff2": "font/woff2", /// Web Open Font Format (WOFF)
-    ".pdf": "application/pdf", /// Adobe Portable Document Format (PDF)
     ".wasm": "application/wasm", /// WASM
     ".mp4": "video/mp4", /// MP4
     ".mkv": "video/x-matroska", /// Matroska multimedia container format
@@ -36,70 +38,6 @@ var mimeData = {
     ".webm": "video/webm", /// WEBM video
     ".webp": "image/webp", /// WEBP image
     ".mp3": "audio/mpeg", /// MP3 audio
-    ".babylon": "application/babylon", /// Babylon.js
-    ".gltf": "model/gltf+json", /// GLTF text model
-    ".glb": "model/gltf-binary", /// GLTF binary model (also compressable?)
-    ".obj": "model/obj", /// Wavefront model
-    ".stl": "model/stl", /// STL model
-    
-    /// Putting less common ones below
-    ".aac": "audio/aac", /// AAC audio
-    ".abw": "application/x-abiword", /// AbiWord document
-    ".arc": "application/x-freearc", /// Archive document (multiple files embedded)
-    ".avi": "video/x-msvideo", /// AVI: Audio Video Interleave
-    ".azw": "application/vnd.amazon.ebook", /// Amazon Kindle eBook format
-    ".bin": "application/octet-stream", /// Any kind of binary data
-    ".bmp": "image/bmp", /// Windows OS/2 Bitmap Graphics
-    ".bz": "application/x-bzip", /// BZip archive
-    ".bz2": "application/x-bzip2", /// BZip2 archive
-    ".csh": "application/x-csh", /// C-Shell script
-    ".csv": "text/csv", /// Comma-separated values (CSV)
-    ".doc": "application/msword", /// Microsoft Word
-    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", /// Microsoft Word (OpenXML)
-    ".eot": "application/vnd.ms-fontobject", /// MS Embedded OpenType fonts
-    ".epub": "application/epub+zip", /// Electronic publication (EPUB)
-    ".gz": "application/gzip", /// GZip Compressed Archive
-    ".ics": "text/calendar", /// iCalendar format
-    ".jar": "application/java-archive", /// Java Archive (JAR)
-    ".json": "application/json", /// JSON format
-    ".jsonld": "application/ld+json", /// JSON-LD format
-    ".mid": "audio/midi audio/x-midi", /// Musical Instrument Digital Interface (MIDI)
-    ".midi": "audio/midi audio/x-midi", /// Musical Instrument Digital Interface (MIDI)
-    ".mjs": "text/javascript", /// JavaScript module
-    ".mpeg": "video/mpeg", /// MPEG Video
-    ".mpkg": "application/vnd.apple.installer+xml", /// Apple Installer Package
-    ".odp": "application/vnd.oasis.opendocument.presentation", /// OpenDocument presentation document
-    ".ods": "application/vnd.oasis.opendocument.spreadsheet", /// OpenDocument spreadsheet document
-    ".odt": "application/vnd.oasis.opendocument.text", /// OpenDocument text document
-    ".oga": "audio/ogg", /// OGG audio
-    ".ogv": "video/ogg", /// OGG video
-    ".ogx": "application/ogg", /// OGG
-    ".opus": "audio/opus", /// Opus audio
-    ".otf": "font/otf", /// OpenType font
-    ".php": "application/x-httpd-php", /// Hypertext Preprocessor (Personal Home Page)
-    ".ppt": "application/vnd.ms-powerpoint", /// Microsoft PowerPoint
-    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation", /// Microsoft PowerPoint (OpenXML)
-    ".rar": "application/vnd.rar", /// RAR archive
-    ".rtf": "application/rtf", /// Rich Text Format (RTF)
-    ".sh": "application/x-sh", /// Bourne shell script
-    ".swf": "application/x-shockwave-flash", /// Small web format (SWF) or Adobe Flash document
-    ".tar": "application/x-tar", /// Tape Archive (TAR)
-    ".tif": "image/tiff", /// Tagged Image File Format (TIFF)
-    ".tiff": "image/tiff", /// Tagged Image File Format (TIFF)
-    ".ts": "video/mp2t", /// MPEG transport stream
-    ".ttf": "font/ttf", /// TrueType Font
-    ".txt": "text/plain", /// Text, (generally ASCII or ISO 8859-n)
-    ".vsd": "application/vnd.visio", /// Microsoft Visio
-    ".wav": "audio/wav", /// Waveform Audio Format
-    ".xhtml": "application/xhtml+xml", /// XHTML
-    ".xls": "application/vnd.ms-excel", /// Microsoft Excel
-    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", /// Microsoft Excel (OpenXML)
-    ".xml": "application/xml", /// XML
-    ".xul": "application/vnd.mozilla.xul+xml", /// XUL
-    ".zip": "application/zip", /// ZIP archive
-    ".3gp": "video/3gpp", /// 3GPP audio/video container
-    ".3g2": "video/3gpp2", /// 3GPP2 audio/video container
-    ".7z": "application/x-7z-compressed", /// 7-zip archive
 };
 
 function getParams(options, argv)
@@ -167,6 +105,44 @@ function getParams(options, argv)
     return params;
 }
 
+function createStockfishSymlink()
+{
+    var jsPath = require("stockfish").findEngine();
+    var jsBasename = p.basename(jsPath);
+    var dirname = p.dirname(jsPath);
+    var wasmBasename = p.basename(jsBasename, p.extname(jsBasename)) + ".wasm";
+    var wasmPath = p.join(dirname, wasmBasename);
+    var linkJsPath = p.join(dirname, "stockfish.js");
+    var linkWasmPath = p.join(dirname, "stockfish.wasm");
+    
+    /// If they files are not symlinked yet, we need to create them
+    if (!fs.existsSync(linkJsPath) || !fs.existsSync(linkWasmPath)) {
+        /// Remove any bad file that might be there.
+        try {
+            fs.unlinkSync(linkJsPath);
+        } catch (e) {}
+        try {
+            fs.unlinkSync(linkWasmPath);
+        } catch (e) {}
+        
+        /// Try symlink first (most efficient)
+        try {
+            fs.symlinkSync(jsBasename, linkJsPath, "file");
+            fs.symlinkSync(wasmBasename, linkWasmPath, "file");
+        } catch (err) {
+            /// Fallback to copy if symlink fails
+            if (process.platform === "win32" && err.code === "EPERM") {
+                console.warn("Warning: Symlink creation failed on Windows.\nThis can happen if Developer Mode is not enabled.\nTo enable: Settings > Update & Security > For developers > Developer Mode.\nFalling back to copy...");
+            } else {
+                console.warn("Warning: Symlink failed (" + err.message + "). Falling back to copy...");
+            }
+        
+            fs.copyFileSync(jsPath, linkJsPath);
+            fs.copyFileSync(wasmPath, linkWasmPath);
+        }
+    }
+
+}
 
 function getMime(filename)
 {
