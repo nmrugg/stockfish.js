@@ -31,3 +31,7 @@ tsan.supp
 __pycache__/
 tests/syzygy
 tests/bench_tmp.epd
+
+# Publish script artifacts (scripts/publish.sh)
+.github-token
+*.tgz
