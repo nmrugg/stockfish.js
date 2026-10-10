@@ -41,8 +41,16 @@
 #                         (skips prepack; useful to retry a failed publish)
 #   --smoke               require the lite single-threaded engine from the
 #                         packed tarball and play a move before publishing
-#   --attach-existing     the GitHub tag already has a release; upload the
-#                         assets into it instead of failing
+#   --attach-existing     the tag and/or the release already exist; reuse them
+#                         instead of failing, and replace any attached asset
+#                         that has the same name as one we are uploading. This
+#                         is the flag to resume an interrupted publish
+#   --target-commitish=REF
+#                         send target_commitish=REF when creating the release.
+#                         By default the field is omitted, which makes GitHub
+#                         attach the release to the tag (and it is the field
+#                         that causes a 422 "invalid target_commitish" when a
+#                         tag name is passed to it)
 #   --notes=TEXT          extra release notes, appended to the release body
 #   --notes-file=PATH     read the extra release notes from a file
 #   --npm-tag=TAG         npm dist-tag to publish under (default: latest)
@@ -73,6 +81,7 @@ REMOTE="origin"
 API="https://api.github.com"
 TOKEN_FILE=".github-token"
 TARBALL_OUT=""
+TARGET_COMMITISH=""
 REPO_OVERRIDE=""
 NPM_TAG="latest"
 BUMP=""
@@ -135,6 +144,7 @@ while [ $# -gt 0 ]; do
         --api=*)           API="${1#--api=}" ;;
         --token-file=*)    TOKEN_FILE="${1#--token-file=}" ;;
         --tarball-out=*)   TARBALL_OUT="${1#--tarball-out=}" ;;
+        --target-commitish=*) TARGET_COMMITISH="${1#--target-commitish=}" ;;
         --dry-run)         DRY_RUN=1 ;;
         --yes|-y)          ASSUME_YES=1 ;;
         --no-github)       DO_GITHUB=0 ;;
@@ -535,12 +545,17 @@ $NOTES"
     fi
 
     echo "--- Creating the GitHub release for $TAG"
+    # target_commitish must be a branch name or a commit SHA; a tag name is
+    # rejected with 422 "invalid target_commitish". It is unused when the tag
+    # already exists, so by default we omit it and let GitHub attach the
+    # release to the tag we just pushed.
     RELEASE_JSON="$(jq -n \
         --arg tag_name "$TAG" \
-        --arg target_commitish "$TAG" \
         --arg name "$PKG_NAME $VERSION" \
         --arg body "$RELEASE_BODY" \
-        '{tag_name: $tag_name, target_commitish: $target_commitish, name: $name, body: $body, draft: false, prerelease: false}')"
+        --arg target_commitish "$TARGET_COMMITISH" \
+        '{tag_name: $tag_name, name: $name, body: $body, draft: false, prerelease: false}
+         + (if $target_commitish == "" then {} else {target_commitish: $target_commitish} end)')"
 
     CODE="$(gh_api POST "$API/repos/$REPO/releases" -H "Content-Type: application/json" -d "$RELEASE_JSON")"
     if [ "$CODE" = "422" ] && [ "$ATTACH_EXISTING" = 1 ]; then
@@ -551,6 +566,10 @@ $NOTES"
         201|200) ;;
         *)
             cat "$TMP_RESP" >&2
+            echo "" >&2
+            echo "If the tag and the version bump are already published (the normal case" >&2
+            echo "after a partial run), resume with:" >&2
+            echo "  scripts/publish.sh --attach-existing" >&2
             fail "creating the release failed with HTTP $CODE"
             ;;
     esac
@@ -568,6 +587,25 @@ $NOTES"
         -d "$(jq -n --arg body "$RELEASE_BODY" '{body: $body}')")"
     if [ "$PATCH_CODE" != "200" ]; then
         echo "warning: could not set the release notes (HTTP $PATCH_CODE); the release itself is fine" >&2
+    fi
+
+    # Replace any asset that already has the name we are about to upload.
+    # GitHub stores duplicates happily, so a resumed run would otherwise end up
+    # with two copies of every engine.
+    ASSET_CODE="$(gh_api GET "$API/repos/$REPO/releases/$RELEASE_ID/assets")"
+    if [ "$ASSET_CODE" = "200" ]; then
+        jq -r '.[] | "\(.id)\t\(.name)"' "$TMP_RESP" > "$WORK/assets.tsv"
+        while IFS="	" read -r OLD_ID OLD_NAME; do
+            for f in "$PKG_DIR"/bin/*; do
+                if [ "$OLD_NAME" = "$(basename "$f")" ]; then
+                    echo "--- Removing the existing asset $OLD_NAME so it can be replaced"
+                    DEL_CODE="$(gh_api DELETE "$API/repos/$REPO/releases/assets/$OLD_ID")"
+                    if [ "$DEL_CODE" != "204" ]; then
+                        echo "warning: could not delete asset $OLD_NAME (HTTP $DEL_CODE); the upload will add a duplicate" >&2
+                    fi
+                fi
+            done
+        done < "$WORK/assets.tsv"
     fi
 
     for f in "$PKG_DIR"/bin/*; do
