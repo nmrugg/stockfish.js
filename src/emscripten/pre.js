@@ -1,49 +1,28 @@
 
-/// Fix fetch in Node.js
-if (typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]" && typeof fetch !== "undefined") {
-    /// XMLHttpRequest polyfill for Node.js.
-    if (typeof XMLHttpRequest === "undefined") {
-        global["XMLHttpRequest"] = function (a)
-        {
-            var url
-            ///NOTE: The handler properties (onerror/onreadystatechange/onload)
-            ///are declared up front (as null) so the Closure compiler does not
-            ///warn about "inexistent property" when they are invoked below.
-            var xhr = {
-                readyState: 0,
-                status: 0,
-                onerror: null,
-                onreadystatechange: null,
-                onload: null,
-                open: function (method, _url)
-                {
-                    url = _url;
-                },
-                send: function ()
-                {
-                    require("fs").readFile(url, function (err, data)
-                    {
-                        xhr.readyState = 4; /// DONE
-                        if (err) {
-                            console.error(err);
-                            xhr.status = 404;
-                            xhr.onerror(err);
-                        } else {
-                            xhr.status = 200;
-                            xhr.response = data;
-                            xhr.onreadystatechange();
-                            xhr.onload();
-                        }
-                    });
-                }
-            };
-            return xhr;
+/// Node 18+ exposes fetch(), but Emscripten may try to use it with a local
+/// filesystem path. Provide the local binary without changing globals.
+if (typeof process === "object" &&
+        process !== null &&
+        typeof process.versions === "object" &&
+        process.versions !== null &&
+        typeof process.versions.node === "string" &&
+        typeof require === "function" &&
+        typeof fetch === "function" &&
+        typeof Module["wasmBinary"] === "undefined" &&
+        typeof __filename === "string") {
+    (function loadNodeWasmBinary()
+    {
+        var fs = require("fs");
+        var path = require("path");
+        var wasmName = path.basename(__filename, path.extname(__filename)) + ".wasm";
+        var wasmPath = Module["locateFile"] ?
+            Module["locateFile"](wasmName, path.dirname(__filename) + path.sep) :
+            path.join(path.dirname(__filename), wasmName);
+
+        if (typeof wasmPath === "string" && fs.existsSync(wasmPath)) {
+            Module["wasmBinary"] = fs.readFileSync(wasmPath);
         }
-    }
-    ///NOTE: Null out fetch so Emscripten uses the XHR polyfill above in
-    ///Node.js. Suppressed because the global fetch is typed as a function.
-    /** @suppress {typeMismatch} */
-    fetch = null;
+    }());
 }
 
 Module["print"] = function (data)
