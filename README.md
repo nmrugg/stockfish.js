@@ -94,6 +94,34 @@ The `.js` file expects the matching `.wasm` file to sit next to it, and both fil
 
 `examples/loadEngine.js` is a small abstraction layer that works in both Node.js and the browser. It queues commands, matches output back to the command that produced it, streams `info` lines, reports engine download progress, and works with any UCI compatible engine, including native binaries.
 
+For interactive navigation, `examples/latestAnalysis.js` is an optional helper
+on top of `loadEngine.js`. It stops the active search, waits for its `bestmove`,
+then starts only the newest pending request. Superseded requests resolve with
+`{status: "cancelled"}`; their later info and bestmove are not delivered as a
+result for the new position. The default engine and UCI interface are unchanged.
+
+```js
+var loadEngine = require("./examples/loadEngine.js");
+var latestAnalysis = require("./examples/latestAnalysis.js");
+var engine = loadEngine(require("stockfish").findEngine("lite-single"), function () {
+    var analysis = latestAnalysis(engine);
+    analysis.analyze("position startpos", "go movetime 500").then(function (result) {
+        if (result.status === "completed") {
+            console.log(result.bestmove);
+        }
+    });
+    // Call analysis.analyze(...) again whenever the displayed position changes.
+});
+```
+
+In a browser, load both example scripts and call the same `latestAnalysis(engine)`
+function. Pass an optional third argument to `analyze` to receive info lines.
+While using the helper, do not send searches or state-changing commands directly
+to the same engine. `analysis.stop()` cancels active and pending requests; the
+active engine search still needs to acknowledge `stop`. Terminate the engine
+with `engine.quit()` when leaving the page. `go perft` is not supported by this
+helper because it does not produce `bestmove`.
+
 The [examples folder](https://github.com/nmrugg/stockfish.js/tree/master/examples) and `examples/README.md` show it in use.
 
 ## How do I compile the engine?
