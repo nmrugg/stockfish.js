@@ -31,6 +31,8 @@
   "license": "GPL-3.0",
   "bin": "scripts/cli.js",
   "scripts": {
+    "test:uci-queue": "node tests/uci-queue.test.js",
+    "test:uci-queue-engine": "node tests/uci-queue-engine.test.js",
     "build": "node build.js -f",
     "build-lite": "node build.js --lite -f",
     "build-single": "node build.js --single-threaded -f",

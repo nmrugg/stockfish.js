@@ -25,9 +25,8 @@ if (isPthreadWorker) {
         var isNode = typeof global !== "undefined" && Object.prototype.toString.call(global.process) === "[object process]";
         var engine = {};
         var startUpQueue = [];
-        var queue = [];
+        var commandQueue;
         var wasmPath;
-        var queueTimer;
         
         function completer(line)
         {
@@ -117,7 +116,7 @@ if (isPthreadWorker) {
             ///engine pushes commands onto the glue queue (uci() in glue.cpp),
             ///which uciP->loop() on the (proxy) main thread consumes.
             var fn = IS_ASYNCIFY ? "command" : "uci";
-            engine.ccall(fn, null, ["string"], [cmd], {async: IS_ASYNCIFY && /^go\b/.test(cmd)});
+            var result = engine.ccall(fn, null, ["string"], [cmd], {async: IS_ASYNCIFY && /^go(?:\s|$)/.test(cmd)});
             ///NOTE: The engine must be fully initialized before we can close the Pthreads. so we have to check this here, not in onmessage.sendCommand
             if (cmd === "quit") {
                 /// Close the Pthreads.
@@ -131,27 +130,15 @@ if (isPthreadWorker) {
                     process.exit();
                 } catch (e) {}
             }
-            return true;
-        }
-        
-        function processQueue()
-        {
-            while (queue.length && (!engine._isSearching || !engine._isSearching())) {
-                sendCommand(queue.shift());
-            }
+            return result;
         }
         
         function processCommand(cmd)
         {
-            cmd = cmd.trim();
-            /// Certain commands need to be blocked.
-            if (cmd.substring(0, 2) === "go" || cmd.substring(0, 9) === "setoption") {
-                queue.push(cmd);
-            } else {
-                sendCommand(cmd);
-            }
-            processQueue();
+            commandQueue.processCommand(cmd);
         }
+
+        commandQueue = createUciQueue(sendCommand, IS_ASYNCIFY);
         
         function processStartUpQueue()
         {
@@ -176,15 +163,7 @@ if (isPthreadWorker) {
                 return setTimeout(checkIfReady, 10);
             }
             
-            if (!IS_ASYNCIFY) {
-                engine.onDoneSearching = processQueue;
-            } else {
-                engine.onDoneSearching = function ()
-                {
-                    /// The delay is only necessary for the single-threaded engine.
-                    setTimeout(processQueue, 1);
-                };
-            }
+            engine.onDoneSearching = commandQueue.onSearchDone;
             engine.processCommand = processCommand;
             if (startUpQueue.length) {
                 processStartUpQueue();

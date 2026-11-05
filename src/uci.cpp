@@ -108,6 +108,15 @@ void UCIEngine::init_search_update_listeners() {
 
 #ifdef __EMSCRIPTEN__
 bool searching;
+
+static void notify_search_finished() {
+    searching = false;
+    MAIN_THREAD_ASYNC_EM_ASM({
+        try {
+            Module["onDoneSearching"]();
+        } catch (e) {};
+    });
+}
 #endif
 
 // Processes a single UCI command string and returns its first token (so the
@@ -148,7 +157,7 @@ std::string UCIEngine::process_cmd(const std::string& cmd) {
 #else
         if (!engine.validate_position()) {
             sync_cout << "info depth 0 score cp 0" << sync_endl;
-            sync_cout << "bestmove (none)" << sync_endl;
+            on_bestmove("(none)", "");
             return token;
         }
 #endif
@@ -306,8 +315,12 @@ void UCIEngine::go(std::istringstream& is) {
 
     Search::LimitsType limits = parse_limits(is);
 
-    if (limits.perft)
+    if (limits.perft) {
         perft(limits);
+#ifdef __EMSCRIPTEN__
+        notify_search_finished();
+#endif
+    }
     else {
 #ifdef __EMSCRIPTEN__
         searching = true;
@@ -766,12 +779,7 @@ void UCIEngine::on_bestmove(std::string_view bestmove, std::string_view ponder) 
         std::cout << " ponder " << ponder;
     std::cout << sync_endl;
 #ifdef __EMSCRIPTEN__
-    searching = false;
-    MAIN_THREAD_ASYNC_EM_ASM({
-        try {
-            Module["onDoneSearching"]();
-        } catch (e) {};
-    });
+    notify_search_finished();
 #endif
 }
 

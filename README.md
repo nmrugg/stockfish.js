@@ -92,6 +92,13 @@ The `.js` file expects the matching `.wasm` file to sit next to it, and both fil
 
 ### The loadEngine abstraction
 
+Commands that change engine state wait for an active search to finish. The
+wrapper preserves every queued command; it does not replace earlier `position`
+or `go` requests. Send `stop` to end an infinite or ponder search before starting
+another analysis. `isready` can ping an active search, but waits for any earlier
+queued state changes to be applied. `readyok` is not a search-completion signal;
+wait for `bestmove` instead.
+
 `examples/loadEngine.js` is a small abstraction layer that works in both Node.js and the browser. It queues commands, matches output back to the command that produced it, streams `info` lines, reports engine download progress, and works with any UCI compatible engine, including native binaries.
 
 The [examples folder](https://github.com/nmrugg/stockfish.js/tree/master/examples) and `examples/README.md` show it in use.
